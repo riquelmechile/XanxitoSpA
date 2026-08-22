@@ -1,6 +1,6 @@
 # XanxitoSpA v0.8 — KAST Harness Improvement Loop
 
-Status: candidate / local verification in progress
+Status: released / review approved / public CI green
 
 ## Thesis
 
