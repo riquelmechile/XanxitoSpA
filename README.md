@@ -43,7 +43,7 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.5.0 candidate
+Version                  0.5.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
 Company Gym              66 / 66 PASS (local)
@@ -52,7 +52,7 @@ Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
 External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
-Release state             pending CI + four-lens review
+Release state             released after four-lens APPROVED + public CI PASS
 ```
 
 ---

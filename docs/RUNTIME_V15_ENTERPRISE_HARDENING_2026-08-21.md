@@ -1,7 +1,7 @@
 # XanxitoSpA V1.5 — Enterprise hardening
 
 Date: 2026-08-21
-Status: **candidate verified locally; pending four-lens review + public CI**
+Status: **released; four-lens review APPROVED + public GitHub Actions CI PASS**
 
 ## Scope
 
