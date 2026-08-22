@@ -43,10 +43,10 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.8.0
+Version                  0.9.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              87 / 87 PASS (local)
+Company Gym              102 / 102 PASS (local)
 MCP                      Streamable HTTP bridge + trust fingerprinting
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
@@ -54,7 +54,7 @@ External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · public CI PASS · released
+Release state             four-lens APPROVED · public CI pending
 ```
 
 ---
@@ -290,9 +290,19 @@ Institutional Memory   → distilled reusable knowledge
 ```
 
 
-### Harness improvement loop (KAST)
+### KAST — harness self-improvement law
 
-Every meaningful XanxitoSpA session now closes with a `SessionCloseReceipt`. Business learning and harness learning are deliberately separated: verified business outcomes can update `CorporateGene`, while runtime bugs, friction, missing capabilities and repeated workarounds become **KAST — Kernel Anomalies, Suggestions & Tasks**. KAST entries are evidence-backed, deduplicated by fingerprint, stored durably, and can only promote into ordinary `harness-maintenance` Work; they never patch the harness directly. A sanitized handoff can be consumed by Xanxittoo or another maintainer harness under the normal `preflight → review → verify` flow.
+KAST is now **Kernel Adaptation & Self-Tuning**: a direct GPT-controlled harness primitive, not a maintainer ticket queue. A meaningful session may end with a tiny reflection: `NOOP`, `REMEMBER`, or `IMPROVE`. `REMEMBER` stores a sanitized lesson in Engram. `IMPROVE` restores prior Engram context, generates two blind Sol/xhigh variants by default, verifies them, lets the Sol/max Executive owner adjudicate, and only adopts a winner after SDD + TDD/regression + RDD/four-lens evidence passes.
+
+```text
+experience → KAST → Engram
+                  ├─ NOOP
+                  ├─ REMEMBER
+                  └─ IMPROVE → A/B Sol/xhigh → COMPETE → verify → Sol/max owner
+                                              → SDD/TDD/RDD → adopt/reject → Engram
+```
+
+The constitutional core — Model Law, Constitution, authority root, secret isolation, KAST/review/memory laws and human-reserved boundaries — is never auto-adopted. Those changes return `founder-required`. V0.8 KAST tables and `SessionCloseReceipt` remain as optional audit/telemetry; **KAST Law itself runs without PostgreSQL**. See [`RUNTIME_V09_KAST_LAW_2026-08-22.md`](docs/RUNTIME_V09_KAST_LAW_2026-08-22.md).
 
 ### Creative Plane
 

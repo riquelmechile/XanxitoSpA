@@ -584,3 +584,4 @@ export interface BootstrapExecutionState {
 }
 
 export type { KASTCategory, KASTSeverity, KASTStatus, KASTObservation, KASTEntry, SessionCloseReceipt, HarnessImprovementHandoff, KASTPromotionResult } from "./kast.js";
+export type { KASTLawMode, KASTLawStatus, KASTMutableSurface, KASTConstitutionalSurface, KASTHarnessSurface, KASTLawTrigger, KASTMemoryRecord, KASTImprovementVariant, KASTVariantVerification, KASTVerifiedVariant, KASTAdjudication, KASTAdoptionResult, KASTLawResult, KASTLawPolicy } from "./kast-law.js";

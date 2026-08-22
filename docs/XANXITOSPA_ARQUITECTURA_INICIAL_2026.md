@@ -2235,18 +2235,39 @@ Luego agregar capacidades universales como providers desacoplados.
 
 El Executive debe ser excelente mandando y consolidando. Los supervisores deben ser excelentes dirigiendo su función. Los workers deben ser pequeños, especializados y reemplazables. Las herramientas deben ser capabilities. La memoria sólo puede promover aprendizaje cuando existe outcome verificado; las trazas sanitizadas explican la ejecución sin sustituir esa evidencia. Las estrategias deben competir cuando la incertidumbre lo justifique. Los Corporate Genes deben sobrevivir por evidencia contextual, no por retórica. Y la autonomía debe crecer —o retroceder— con resultados verificados, nunca con cantidad de agentes.
 
-## 33. Harness Improvement Loop — KAST
+## 33. KAST — Kernel Adaptation & Self-Tuning
 
-XanxitoSpA separa dos bucles de aprendizaje:
+KAST deja de ser conceptualmente una cola de tickets y pasa a ser una **ley mínima del harness**, invocable directamente por GPT cuando detecta bug, fricción, workaround repetido, gap de test, degradación o una oportunidad concreta de simplificación.
 
 ```text
-BusinessOutcome → CorporateGene
-= mejora cómo opera la empresa
-
-Session/Trace → KAST → improvement Work
-= mejora el harness
+experiencia → KAST reflection
+  ├─ NOOP
+  ├─ REMEMBER → Engram
+  └─ IMPROVE
+       → restaurar Engram
+       → variantes ciegas Sol/xhigh en paralelo (2 default, 4 max)
+       → verificación
+       → COMPETE / adjudicación por Executive Sol/max
+       → SDD + TDD + RDD
+       → adoptar o rechazar
+       → Engram
 ```
 
-**KAST = Kernel Anomalies, Suggestions & Tasks.** Cada sesión significativa debe cerrar con un `SessionCloseReceipt` que reparte deliberadamente hechos operacionales, candidatos de memoria empresarial, candidatos Engram, artifacts/traces, KAST, Work no resuelto y pistas para la siguiente sesión. Engram es memoria institucional saneada, nunca base operacional ni volcado de conversación.
+### 33.1 Memoria y estado
 
-KAST deduplica por fingerprint, acumula recurrencia/evidencia y puede promover un hallazgo a `harness-maintenance` Work. Nunca modifica código/políticas por sí mismo. Un harness mantenedor externo (por ejemplo Xanxittoo) recibe sólo un `HarnessImprovementHandoff` saneado y debe recorrer preflight → change → review → verify. Un KAST sólo se considera `verified` si conserva referencias de regression guards y evidencia de verificación.
+- Engram = conocimiento durable del harness y resultados de experimentos.
+- Git = verdad del código.
+- PostgreSQL KAST = auditoría/telemetría opcional, no dependencia del motor.
+- Business Memory/CorporateGene = aprendizaje empresarial, separado de KAST.
+
+### 33.2 Auto-mejora gobernada
+
+KAST puede llegar a aplicar una mejora mediante un `AdoptionPort` confiable sólo cuando el candidato fue producido en aislamiento y pasó SDD, evidencia TDD/regresión, RDD/four-lens y verificación final. KAST nunca escribe directamente a `main`. Los experimentos fallidos también se guardan de forma resumida en Engram para no repetir hipótesis refutadas.
+
+### 33.3 Núcleo constitucional
+
+KAST puede detectar y recomendar, pero nunca auto-adoptar cambios sobre Model Law, Constitution, authority root, secret isolation, KAST Law, review law, memory law o human-reserved boundaries. Esos cambios requieren Founder/Board explícito.
+
+### 33.4 Cierre de sesión
+
+`SessionCloseReceipt` permanece disponible para auditoría, artifacts y continuidad, pero el cierre conceptual se simplifica a una reflexión KAST: qué falló, qué se repitió, qué workaround costó tiempo, qué capacidad/test faltó y si corresponde `NOOP`, `REMEMBER` o `IMPROVE`.

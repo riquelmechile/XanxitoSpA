@@ -347,3 +347,4 @@ export * from "./control-catalog.js";
 export * from "./creative-pipeline.js";
 
 export * from "./kast.js";
+export * from "./kast-law.js";
