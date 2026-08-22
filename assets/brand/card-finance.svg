@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" role="img" aria-labelledby="card-finance-title card-finance-desc">
+<title id="card-finance-title">FINANCE — THE KEEPER</title>
+<desc id="card-finance-desc">FINANCE archetype card in the XanxitoSpA Company Deck. Protect the runway.</desc>
+<defs>
+  <linearGradient id="card-finance-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#070B14"/><stop offset="0.55" stop-color="#0D1321"/><stop offset="1" stop-color="#05070C"/></linearGradient>
+  <radialGradient id="card-finance-glow" cx="50%" cy="43%" r="58%"><stop offset="0" stop-color="#4ED09B" stop-opacity="0.32"/><stop offset="0.48" stop-color="#4ED09B" stop-opacity="0.09"/><stop offset="1" stop-color="#4ED09B" stop-opacity="0"/></radialGradient>
+  <linearGradient id="card-finance-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3D995"/><stop offset="0.34" stop-color="#D6B56B"/><stop offset="0.72" stop-color="#80652F"/><stop offset="1" stop-color="#3B2B12"/></linearGradient>
+  <linearGradient id="card-finance-accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4ED09B"/><stop offset="1" stop-color="#4ED09B" stop-opacity="0.18"/></linearGradient>
+  <filter id="card-finance-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
+  <clipPath id="card-finance-portrait"><path d="M104 168 L172 94 H628 L696 168 V785 L632 846 H168 L104 785 Z"/></clipPath>
+  </defs>
+<rect width="800" height="1200" rx="48" fill="url(#card-finance-bg)"/>
+<path d="M50 132 L132 50 H668 L750 132 V1068 L668 1150 H132 L50 1068 Z" fill="none" stroke="url(#card-finance-metal)" stroke-width="8"/>
+<path d="M72 150 L150 72 H650 L728 150 V1048 L650 1128 H150 L72 1048 Z" fill="none" stroke="#4ED09B" stroke-opacity="0.38" stroke-width="2"/>
+<circle cx="400" cy="485" r="330" fill="url(#card-finance-glow)"/>
+<path d="M102 915 H698" stroke="#D6B56B" stroke-opacity="0.5"/>
+<path d="M132 940 H668" stroke="#4ED09B" stroke-opacity="0.32"/>
+<g opacity="0.16" stroke="#4ED09B" fill="none">
+  <path d="M90 240 C220 170 580 170 710 240"/>
+  <path d="M90 710 C220 780 580 780 710 710"/>
+  <circle cx="400" cy="470" r="260"/>
+  <circle cx="400" cy="470" r="212" stroke-dasharray="8 20"/>
+</g>
+<g clip-path="url(#card-finance-portrait)">
+  <rect x="104" y="94" width="592" height="752" fill="#080E18"/>
+  <ellipse cx="400" cy="505" rx="250" ry="310" fill="#4ED09B" fill-opacity="0.05"/>
+  <g fill="none" stroke="#4ED09B">
+      <rect x="220" y="260" width="360" height="410" rx="90" stroke-opacity="0.18" stroke-width="4"/>
+      <circle cx="400" cy="470" r="192" stroke-opacity="0.28"/>
+      <path d="M224 696 H576 M250 725 H550 M280 754 H520" stroke-opacity="0.34"/>
+      <path d="M400 175 V242 M378 196 H422" stroke="#D6B56B" stroke-width="4"/>
+    </g>
+  <g>
+    <path d="M310 340 L350 286 H450 L490 340 L474 515 L438 602 H362 L326 515 Z" fill="#111927" stroke="#4ED09B" stroke-opacity="0.65" stroke-width="4"/>
+    <path d="M350 286 L400 245 L450 286 L430 330 H370 Z" fill="#4ED09B" fill-opacity="0.18" stroke="#D6B56B" stroke-opacity="0.55"/>
+    <path d="M330 384 L370 365 H430 L470 384 L452 420 L420 399 H380 L348 420 Z" fill="#F6F0DF" fill-opacity="0.08"/>
+    <path d="M360 430 H390" stroke="#4ED09B" stroke-width="9" stroke-linecap="round"/>
+    <path d="M410 430 H440" stroke="#4ED09B" stroke-width="9" stroke-linecap="round"/>
+    <path d="M400 438 L386 500 H414 Z" fill="#D6B56B" fill-opacity="0.28"/>
+    <path d="M360 535 Q400 558 440 535" fill="none" stroke="#F6F0DF" stroke-opacity="0.45" stroke-width="3"/>
+    <path d="M285 610 L350 568 H450 L515 610 L570 785 H230 Z" fill="#0B111D" stroke="#4ED09B" stroke-opacity="0.55" stroke-width="4"/>
+    <path d="M350 568 L400 650 L450 568" fill="#4ED09B" fill-opacity="0.16" stroke="#D6B56B" stroke-opacity="0.38"/>
+  </g>
+  <path d="M104 785 L260 660 L400 725 L540 660 L696 785 V846 H104 Z" fill="#4ED09B" fill-opacity="0.06"/>
+</g>
+<g transform="translate(400 116)">
+  <path d="M0 -54 L42 -26 L48 22 L16 54 L-16 54 L-48 22 L-42 -26 Z" fill="#070B14" stroke="#D6B56B" stroke-width="4"/>
+  <circle r="34" fill="#4ED09B" fill-opacity="0.12" stroke="#4ED09B" stroke-width="2"/>
+  <text x="0" y="11" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="34" font-weight="800" fill="#F6F0DF">◇</text>
+</g>
+<text x="400" y="904" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="23" font-weight="800" letter-spacing="5" fill="#4ED09B">FINANCE</text>
+<text x="400" y="978" text-anchor="middle" font-family="Georgia,ui-serif,serif" font-size="48" font-weight="700" letter-spacing="2" fill="#F6F0DF">THE KEEPER</text>
+<text x="400" y="1030" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="22" fill="#B9B2A3">Protect the runway.</text>
+<g transform="translate(400 1092)" stroke="#D6B56B" stroke-opacity="0.55"><path d="M-110 0 H-28"/><circle r="5" fill="#4ED09B" stroke="none"/><path d="M28 0 H110"/></g>
+</svg>
