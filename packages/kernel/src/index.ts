@@ -307,3 +307,6 @@ export function canPromoteAutonomy(input: { currentLevel: number; verifiedOutcom
 export function makeNode(id: string, kind: MissionNode["kind"], owner: string, objective: string, dependsOn: string[] = []): MissionNode {
   return { id, kind, owner, objective, inputRefs: [], dependsOn, skillRefs: [], capabilityRefs: [], timeoutMs: 30_000, retryLimit: 0, successCondition: "output-valid", outputContract: "json" };
 }
+
+export * from "./heartbeat.js";
+export * from "./bootstrap.js";

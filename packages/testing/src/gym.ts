@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AuthorityGrant, BudgetEnvelope, BusinessOutcome, CapabilityRequest, CorporateGene, MissionGraph, PreflightPlan, Work } from "../../contracts/src/index.js";
-import { InMemoryCompanyStore } from "../../database/src/index.js";
+import type { AuthorityGrant, BootstrapRequirement, BudgetEnvelope, BusinessEvent, BusinessOutcome, CapabilityRequest, CompanyAsset, CorporateGene, MissionGraph, PreflightPlan, ProviderDescriptor, ScheduledJob, Work } from "../../contracts/src/index.js";
+import { InMemoryCompanyStore, InMemoryRuntimeStore } from "../../database/src/index.js";
 import { DomainError } from "../../domain/src/index.js";
 import {
   applyVerifiedOutcomeToGene,
@@ -10,13 +10,16 @@ import {
   executeCapabilityRequest,
   executeMissionGraph,
   FakeCapability,
+  HeartbeatEngine,
   makeNode,
   paretoFront,
+  planCompanyBootstrap,
   preserveNegativeResult,
   runCompete,
   settle,
   validatePreflight,
 } from "../../kernel/src/index.js";
+import { ProviderRegistry } from "../../providers/src/index.js";
 
 export interface GymCaseResult { name: string; ok: boolean; detail: string }
 export interface GymResult { ok: boolean; passed: number; failed: number; cases: GymCaseResult[] }
@@ -209,6 +212,161 @@ export async function runCompanyGym(): Promise<GymResult> {
     const work: Work = { id: randomUUID(), companyId: "c1", owner: "commercial", objective: "test", scope: "demo", createdAt: new Date().toISOString() };
     const { outcome, receipt } = settle({ work, actor: "worker-a", authorityRefs: ["grant:1"], budgetRefs: [], verified: true, dimensions: { quality: 1 }, evidenceRefs: ["e:1"], cost: 3 });
     expect(receipt.outcomeId === outcome.id && outcome.verified, "settlement linkage invalid");
+  }));
+
+
+  cases.push(await runCase("heartbeat sleeps without material signal and never wakes", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    let wakes = 0;
+    const engine = new HeartbeatEngine(store, { eventTypes: ["sales.material"], minimumJobMateriality: "medium" }, async () => { wakes += 1; });
+    const now = new Date("2026-08-21T20:00:00Z");
+    const event: BusinessEvent = { id: randomUUID(), companyId, type: "telemetry.noise", occurredAt: now.toISOString(), actorPrincipal: "system", correlationId: randomUUID(), idempotencyKey: "noise:1", payload: { materiality: "low" }, sensitivity: "internal", evidenceRefs: [] };
+    await store.appendEvent(event);
+    const result = await engine.tick(companyId, "daemon-a", now);
+    expect(result.state === "sleep" && !result.wakeInvoked && wakes === 0, "non-material heartbeat invoked wake callback");
+  }));
+
+  cases.push(await runCase("material heartbeat wakes once and advances cursor", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    let wakes = 0;
+    const startedAt = new Date("2026-08-21T20:00:00Z");
+    let clock = startedAt;
+    const engine = new HeartbeatEngine(store, { eventTypes: ["sales.material"], minimumJobMateriality: "medium" }, async ({ events }) => { wakes += 1; expect(events.length === 1, "material event missing from wake"); }, { clock: () => clock });
+    await store.appendEvent({ id: randomUUID(), companyId, type: "sales.material", occurredAt: startedAt.toISOString(), actorPrincipal: "commerce", correlationId: randomUUID(), idempotencyKey: "sales:1", payload: {}, sensitivity: "internal", evidenceRefs: ["sale:1"] });
+    const first = await engine.tick(companyId, "daemon-a", startedAt);
+    clock = new Date(startedAt.getTime() + 1);
+    const second = await engine.tick(companyId, "daemon-a", clock);
+    expect(first.state === "wake" && first.wakeInvoked && wakes === 1, "material signal did not wake exactly once");
+    expect(second.state === "sleep" && wakes === 1, "cursor did not prevent repeated wake");
+  }));
+
+  cases.push(await runCase("stale heartbeat lease cannot advance cursor", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const startedAt = new Date("2026-08-21T20:00:00Z");
+    let clock = startedAt;
+    let takeover = false;
+    const engine = new HeartbeatEngine(
+      store,
+      { eventTypes: ["sales.material"], minimumJobMateriality: "medium" },
+      async () => {
+        clock = new Date(startedAt.getTime() + 20);
+        takeover = Boolean(await store.claimHeartbeatLease(companyId, "daemon-b", clock, 1_000));
+      },
+      { leaseMs: 10, clock: () => clock },
+    );
+    const event: BusinessEvent = { id: randomUUID(), companyId, type: "sales.material", occurredAt: startedAt.toISOString(), actorPrincipal: "commerce", correlationId: randomUUID(), idempotencyKey: "stale-heartbeat:1", payload: {}, sensitivity: "internal", evidenceRefs: [] };
+    await store.appendEvent(event);
+    let fenced = false;
+    try { await engine.tick(companyId, "daemon-a", startedAt); }
+    catch (error) { fenced = error instanceof DomainError && error.message.includes("stale heartbeat lease"); }
+    const cursor = await store.getHeartbeatCursor(companyId, clock);
+    expect(takeover && fenced, "stale heartbeat holder was not fenced after takeover");
+    expect(cursor.lastEventId === undefined, "stale heartbeat holder advanced cursor");
+  }));
+
+  cases.push(await runCase("heartbeat lease fences concurrent daemon", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const now = new Date("2026-08-21T20:00:00Z");
+    const first = await store.claimHeartbeatLease(companyId, "daemon-a", now, 30_000);
+    const sameOwner = await store.claimHeartbeatLease(companyId, "daemon-a", now, 30_000);
+    const second = await store.claimHeartbeatLease(companyId, "daemon-b", now, 30_000);
+    expect(Boolean(first) && sameOwner === null && second === null, "concurrent heartbeat tick bypassed active lease");
+  }));
+
+  cases.push(await runCase("stale job fencing token cannot settle newer lease", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const base = new Date("2026-08-21T20:00:00Z");
+    const job: ScheduledJob = { id: randomUUID(), companyId, kind: "demo", payload: {}, materiality: "high", dueAt: base.toISOString(), state: "pending", attempts: 0, maxAttempts: 3, fencingToken: 0, createdAt: base.toISOString(), updatedAt: base.toISOString() };
+    await store.enqueueJob(job);
+    const lease1 = await store.claimJob(companyId, job.id, "worker-a", base, 1_000);
+    expect(Boolean(lease1), "first lease missing");
+    const lease2 = await store.claimJob(companyId, job.id, "worker-b", new Date(base.getTime() + 2_000), 1_000);
+    expect(Boolean(lease2) && (lease2?.fencingToken ?? 0) > (lease1?.fencingToken ?? 0), "lease did not advance fencing token");
+    expect(!(await store.settleJob(lease1!, "completed", new Date(base.getTime() + 2_001))), "stale lease settled job");
+    expect(await store.settleJob(lease2!, "completed", new Date(base.getTime() + 2_001)), "current lease could not settle job");
+  }));
+
+  cases.push(await runCase("durable idempotency state machine claims once", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const now = new Date();
+    const [a, b] = await Promise.all([
+      store.claimIdempotency(companyId, "effect:1", { action: "send" }, "worker-a", now),
+      store.claimIdempotency(companyId, "effect:1", { action: "send" }, "worker-b", now),
+    ]);
+    expect([a.claimed, b.claimed].filter(Boolean).length === 1, "idempotency key was claimed more than once");
+    const winner = a.claimed ? a : b;
+    expect(await store.markIdempotency(companyId, "effect:1", winner.record.owner!, winner.record.fencingToken, "applied", now, { ok: true }), "owner could not settle idempotency record");
+    const record = await store.getIdempotency(companyId, "effect:1");
+    expect(record?.state === "applied", "idempotency record did not persist applied state");
+  }));
+
+  cases.push(await runCase("orphaned idempotency intent moves to reconciliation owner", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const startedAt = new Date("2026-08-21T20:00:00Z");
+    const claim = await store.claimIdempotency(companyId, "effect:orphan", { action: "send" }, "worker-a", startedAt);
+    expect(claim.claimed, "initial idempotency claim missing");
+    const resolverAt = new Date(startedAt.getTime() + 1_000);
+    const recovery = await store.claimStaleIdempotencyForReconciliation(companyId, "effect:orphan", "reconciler", resolverAt, 500);
+    expect(recovery?.state === "unknown" && recovery.owner === "reconciler" && recovery.fencingToken > claim.record.fencingToken, "stale intent was not fenced into unknown reconciliation state");
+    expect(!(await store.markIdempotency(companyId, "effect:orphan", "worker-a", claim.record.fencingToken, "applied", resolverAt, { bad: true })), "original owner settled after reconciliation takeover");
+    expect(await store.markIdempotency(companyId, "effect:orphan", "reconciler", recovery!.fencingToken, "reconciled", resolverAt, { observed: "not-applied" }), "reconciler could not settle orphaned intent");
+  }));
+
+  cases.push(await runCase("provider routing applies hard filters before scoring", () => {
+    const companyId = randomUUID();
+    const registry = new ProviderRegistry();
+    const providers: ProviderDescriptor[] = [
+      { id: "cheap-public", companyId, capabilities: ["image.generate"], regions: ["CL"], inputFormats: ["text"], outputFormats: ["png"], estimatedCost: 1, latencyP50Ms: 100, latencyP95Ms: 200, reliability: 0.95, quality: 0.8, privacyScore: 0.5, maxSensitivity: "public", health: "healthy", metadata: {} },
+      { id: "private-premium", companyId, capabilities: ["image.generate"], regions: ["CL"], inputFormats: ["text"], outputFormats: ["png"], estimatedCost: 3, latencyP50Ms: 120, latencyP95Ms: 250, reliability: 0.99, quality: 0.95, privacyScore: 0.95, maxSensitivity: "restricted", credentialsRef: "secret://image", health: "healthy", metadata: {} },
+      { id: "wrong-region", companyId, capabilities: ["image.generate"], regions: ["US"], inputFormats: ["text"], outputFormats: ["png"], estimatedCost: 0.1, latencyP50Ms: 10, latencyP95Ms: 20, reliability: 1, quality: 1, privacyScore: 1, maxSensitivity: "restricted", health: "healthy", metadata: {} },
+    ];
+    for (const provider of providers) registry.register(provider);
+    const selected = registry.route({ companyId, capability: "image.generate", region: "CL", inputFormat: "text", outputFormat: "png", maxCost: 5, minQuality: 0.7, minReliability: 0.9, minPrivacyScore: 0.9, sensitivity: "restricted", requireCredentials: true, mode: "cost" });
+    expect(selected.providerId === "private-premium", "hard filters allowed cheaper ineligible provider");
+    expect(!selected.eligibleProviderIds.includes("wrong-region") && !selected.eligibleProviderIds.includes("cheap-public"), "ineligible provider survived hard filters");
+  }));
+
+  cases.push(await runCase("asset ownership remains with Company", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const now = new Date().toISOString();
+    const asset: CompanyAsset = { id: randomUUID(), companyId, kind: "email-account", providerId: "workspace", capability: "email.send", department: "commercial", cost: 10, currency: "USD", status: "active", credentialsRef: "secret://gmail", grantRefs: ["grant:commercial"], restrictions: [], metadata: { address: "sales@example.test" }, createdAt: now, updatedAt: now };
+    await store.saveAsset(asset);
+    const assets = await store.listAssets(companyId);
+    expect(assets.length === 1 && assets[0]?.companyId === companyId && !("workerId" in (assets[0]?.metadata ?? {})), "asset ownership leaked to worker identity");
+  }));
+
+  cases.push(await runCase("bootstrap never reuses another Company asset", () => {
+    const companyId = randomUUID();
+    const otherCompanyId = randomUUID();
+    const now = new Date().toISOString();
+    const foreign: CompanyAsset = { id: randomUUID(), companyId: otherCompanyId, kind: "database", capability: "data.query", department: "operations", cost: 0, currency: "USD", status: "active", grantRefs: [], restrictions: [], metadata: {}, createdAt: now, updatedAt: now };
+    const requirements: BootstrapRequirement[] = [{ id: "db", capability: "data.query", assetKind: "database", department: "operations", estimatedCost: 0, currency: "USD", humanBoundary: "none" }];
+    const plan = planCompanyBootstrap({ companyId, mode: "existing", requirements, existingAssets: [foreign], autonomousCapabilities: ["data.query"] });
+    expect(!plan.reusedAssetIds.includes(foreign.id), "bootstrap reused foreign Company asset");
+    expect(plan.steps.some((step) => step.requirementId === "db" && step.action === "provision"), "bootstrap failed to provision after rejecting foreign asset");
+  }));
+
+  cases.push(await runCase("bootstrap reuses existing asset and stops at human boundary", () => {
+    const companyId = randomUUID();
+    const now = new Date().toISOString();
+    const existing: CompanyAsset = { id: randomUUID(), companyId, kind: "database", capability: "data.query", department: "operations", cost: 0, currency: "USD", status: "active", grantRefs: [], restrictions: [], metadata: {}, createdAt: now, updatedAt: now };
+    const requirements: BootstrapRequirement[] = [
+      { id: "db", capability: "data.query", assetKind: "database", department: "operations", estimatedCost: 0, currency: "USD", humanBoundary: "none" },
+      { id: "phone", capability: "phone.sms", assetKind: "phone-number", department: "customer", estimatedCost: 5, currency: "USD", humanBoundary: "kyc", preferredProviderIds: ["twilio"] },
+    ];
+    const plan = planCompanyBootstrap({ companyId, mode: "existing", requirements, existingAssets: [existing], autonomousCapabilities: ["data.query"] });
+    expect(plan.reusedAssetIds.includes(existing.id), "bootstrap failed to reuse existing asset");
+    const phoneApproval = plan.steps.find((step) => step.requirementId === "phone" && step.action === "request-approval");
+    const phoneProvision = plan.steps.find((step) => step.requirementId === "phone" && step.action === "provision");
+    expect(Boolean(phoneApproval) && Boolean(phoneProvision) && phoneProvision?.dependsOn.includes(phoneApproval!.id), "KYC boundary was not placed before provisioning");
   }));
 
   const passed = cases.filter((c) => c.ok).length;

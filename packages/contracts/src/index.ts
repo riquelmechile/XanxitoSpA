@@ -223,3 +223,152 @@ export interface CompeteResult<T = unknown> {
   decision: CompeteDecision<T>;
   critiqueRounds: number;
 }
+
+
+export type HeartbeatState = "sleep" | "wake" | "contended";
+export type JobState = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type IdempotencyState = "intent" | "applied" | "failed" | "unknown" | "reconciled";
+export type ProviderHealth = "healthy" | "degraded" | "unavailable";
+export type ProviderSelectionMode = "quality" | "cost" | "latency" | "balanced";
+export type AssetStatus = "planned" | "active" | "degraded" | "suspended" | "retired";
+export type BootstrapMode = "new" | "existing";
+export type HumanBoundary = "none" | "kyc" | "contract" | "financial-authority" | "identity" | "reserved-action";
+
+export interface ScheduledJob<T = unknown> {
+  id: UUID;
+  companyId: UUID;
+  kind: string;
+  payload: T;
+  materiality: "none" | "low" | "medium" | "high";
+  dueAt: ISODateTime;
+  state: JobState;
+  attempts: number;
+  maxAttempts: number;
+  leaseOwner?: string;
+  leaseUntil?: ISODateTime;
+  fencingToken: number;
+  lastError?: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface HeartbeatCursor {
+  companyId: UUID;
+  lastEventOccurredAt?: ISODateTime;
+  lastEventId?: UUID;
+  updatedAt: ISODateTime;
+}
+
+export interface FencedLease {
+  companyId: UUID;
+  resourceType: "heartbeat" | "job" | "mission";
+  resourceId: string;
+  owner: string;
+  fencingToken: number;
+  leaseUntil: ISODateTime;
+}
+
+export interface IdempotencyRecord {
+  companyId: UUID;
+  idempotencyKey: string;
+  intent: unknown;
+  state: IdempotencyState;
+  owner?: string;
+  fencingToken: number;
+  result?: unknown;
+  lastError?: string;
+  updatedAt: ISODateTime;
+}
+
+export interface ProviderDescriptor {
+  id: string;
+  companyId: UUID;
+  capabilities: string[];
+  regions: string[];
+  inputFormats: string[];
+  outputFormats: string[];
+  estimatedCost: number;
+  latencyP50Ms: number;
+  latencyP95Ms: number;
+  reliability: number;
+  quality: number;
+  privacyScore: number;
+  maxSensitivity: "public" | "internal" | "restricted";
+  rateLimitPerMinute?: number;
+  health: ProviderHealth;
+  credentialsRef?: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ProviderSelectionRequest {
+  companyId: UUID;
+  capability: string;
+  region: string;
+  inputFormat?: string;
+  outputFormat?: string;
+  maxCost?: number;
+  minQuality?: number;
+  minReliability?: number;
+  minPrivacyScore?: number;
+  sensitivity: "public" | "internal" | "restricted";
+  requireCredentials?: boolean;
+  mode: ProviderSelectionMode;
+}
+
+export interface ProviderSelectionResult {
+  providerId: string;
+  mode: ProviderSelectionMode;
+  score: number;
+  eligibleProviderIds: string[];
+  rationale: string;
+}
+
+export interface CompanyAsset {
+  id: UUID;
+  companyId: UUID;
+  kind: string;
+  providerId?: string;
+  capability: string;
+  department: string;
+  cost: number;
+  currency: string;
+  status: AssetStatus;
+  credentialsRef?: string;
+  grantRefs: string[];
+  restrictions: string[];
+  metadata: Record<string, unknown>;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface BootstrapRequirement {
+  id: string;
+  capability: string;
+  assetKind: string;
+  department: string;
+  estimatedCost: number;
+  currency: string;
+  humanBoundary: HumanBoundary;
+  preferredProviderIds?: string[];
+}
+
+export interface BootstrapStep {
+  id: string;
+  action: "reuse" | "provision" | "configure" | "verify" | "request-approval";
+  requirementId: string;
+  capability: string;
+  assetId?: UUID;
+  providerId?: string;
+  approvalRequired: boolean;
+  approvalReason?: string;
+  dependsOn: string[];
+}
+
+export interface BootstrapPlan {
+  companyId: UUID;
+  mode: BootstrapMode;
+  steps: BootstrapStep[];
+  reusedAssetIds: UUID[];
+  requestedCapabilities: string[];
+  approvalBoundaries: Array<{ requirementId: string; reason: string }>;
+}

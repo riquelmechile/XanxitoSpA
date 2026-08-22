@@ -1,22 +1,27 @@
 {
   "name": "xanxitospa",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "test": "vitest run",
     "gym": "tsx packages/testing/src/run-gym.ts",
+    "pg:smoke": "tsx packages/testing/src/postgres-smoke.ts",
     "dev": "tsx apps/runtime/src/server.ts",
     "start": "node dist/apps/runtime/src/server.js"
   },
   "dependencies": {
-    "fastify": "latest"
+    "fastify": "latest",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"

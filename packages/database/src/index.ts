@@ -31,3 +31,6 @@ export class InMemoryCompanyStore implements CompanyStore {
     return [...this.genes.values()].filter((gene) => gene.companyId === companyId).map((gene) => structuredClone(gene));
   }
 }
+
+export * from "./runtime-store.js";
+export * from "./postgres.js";

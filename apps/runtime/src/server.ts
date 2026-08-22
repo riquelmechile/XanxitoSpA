@@ -1,16 +1,20 @@
 import Fastify from "fastify";
 import { runCompanyGym } from "../../../packages/testing/src/gym.js";
+import { runBootstrapDemo, runHeartbeatDemo, runProviderRoutingDemo } from "./durable-demo.js";
 import { runDemoVertical } from "./demo.js";
 
 export function buildServer() {
   const app = Fastify({ logger: false });
-  app.get("/health", async () => ({ ok: true, service: "xanxitospa-runtime", version: "0.1.0" }));
+  app.get("/health", async () => ({ ok: true, service: "xanxitospa-runtime", version: "0.2.0" }));
   app.get("/gym", async (_request, reply) => {
     const result = await runCompanyGym();
     if (!result.ok) reply.code(500);
     return result;
   });
   app.get("/demo", async () => runDemoVertical());
+  app.get("/runtime/heartbeat/demo", async () => runHeartbeatDemo());
+  app.get("/providers/route/demo", async () => runProviderRoutingDemo());
+  app.get("/bootstrap/demo", async () => runBootstrapDemo());
   return app;
 }
 
