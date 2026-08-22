@@ -274,6 +274,81 @@ export interface CompeteResult<T = unknown> {
 }
 
 
+
+export type CreativeMissionStatus = "queued" | "running" | "decided" | "escalated" | "failed";
+export type CreativeRenderState = "completed" | "failed";
+
+export interface CreativeMission {
+  id: UUID;
+  companyId: UUID;
+  workId: UUID;
+  supervisorPrincipal: string;
+  briefRef: string;
+  evidenceSnapshotRef: string;
+  candidateCount: number;
+  requiredSuccessfulCandidates: number;
+  executiveEscalationRequired: boolean;
+  createdAt: ISODateTime;
+}
+
+export interface CreativeStrategyCandidate {
+  id: string;
+  missionId: UUID;
+  strategyOverlay: string;
+  prompt: string;
+  rationale: string;
+  evidenceRefs: string[];
+  cost: number;
+  model: "gpt-5.6-sol";
+  reasoningEffort: "xhigh";
+}
+
+export interface CreativeRenderRecord {
+  candidateId: string;
+  state: CreativeRenderState;
+  assetId?: UUID;
+  artifactRef?: string;
+  evidenceRefs: string[];
+  cost: number;
+  error?: string;
+}
+
+export interface VisualFitnessEvaluation {
+  candidateId: string;
+  evaluatorId: string;
+  scores: Record<string, number>;
+  rationale: string;
+  evidenceRefs: string[];
+  model: "gpt-5.6-sol";
+  reasoningEffort: "xhigh";
+}
+
+export interface CreativeDecision {
+  missionId: UUID;
+  status: "selected" | "escalated" | "insufficient-candidates";
+  decisionOwner: string;
+  selectedCandidateId?: string;
+  selectedAssetId?: UUID;
+  rationale: string;
+  escalationRequired: boolean;
+}
+
+export interface CreativeSubmissionReceipt {
+  missionId: UUID;
+  status: "queued";
+  chatMode: "decision-only";
+}
+
+export interface CreativeDecisionReceipt {
+  missionId: UUID;
+  status: "selected" | "escalated" | "insufficient-candidates";
+  decisionOwner: string;
+  selectedAssetRefs: string[];
+  rationaleSummary: string;
+  escalationRequired: boolean;
+  chatMode: "decision-only";
+}
+
 export type HeartbeatState = "sleep" | "wake" | "contended";
 export type JobState = "pending" | "running" | "completed" | "failed" | "cancelled";
 export type IdempotencyState = "intent" | "applied" | "failed" | "unknown" | "reconciled";

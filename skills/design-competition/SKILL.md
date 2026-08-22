@@ -110,3 +110,11 @@ cost
 artifact refs
 later outcome refs (when available)
 ```
+
+## Internal artifact law
+
+`COMPETE` creative candidates are internal company artifacts until adjudication.
+
+The public/chat surface does **not** stream Candidate A/B images, prompts or critiques by default. The runtime stores them as `internal-candidate` CompanyAssets, evaluators inspect them, and the named Creative Supervisor selects A/B/synthesis. Chat receives only the final decision receipt and selected asset reference unless an explicit review request asks to expose the candidate set.
+
+This preserves conversational continuity and keeps creative parallelism inside the company rather than turning the chat UI into the workflow engine.

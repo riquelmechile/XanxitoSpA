@@ -22,6 +22,7 @@ import {
 import { ProviderRegistry } from "../../providers/src/index.js";
 import { runCapabilityPlaneGym } from "./capability-gym.js";
 import { runMcpBridgeGym } from "./mcp-gym.js";
+import { runCreativePipelineGym } from "./creative-gym.js";
 
 export interface GymCaseResult { name: string; ok: boolean; detail: string }
 export interface GymResult { ok: boolean; passed: number; failed: number; cases: GymCaseResult[] }
@@ -373,6 +374,7 @@ export async function runCompanyGym(): Promise<GymResult> {
 
   cases.push(...await runCapabilityPlaneGym());
   cases.push(...await runMcpBridgeGym());
+  cases.push(...await runCreativePipelineGym());
   cases.push(...await (await import("./hardening-gym.js")).runEnterpriseHardeningGym());
 
   const passed = cases.filter((c) => c.ok).length;

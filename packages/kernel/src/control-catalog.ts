@@ -46,6 +46,7 @@ export async function buildControlCatalog(input: {
   semantics: SemanticCapabilityRegistry;
   providers: ProviderRegistry;
   runtime: RuntimeStore;
+  includeInternalAssets?: boolean;
 }): Promise<ControlCatalogSnapshot> {
   if (!input.companyId) throw new DomainError("company id required for control catalog");
   const providers = input.providers.list(input.companyId);
@@ -57,6 +58,8 @@ export async function buildControlCatalog(input: {
     companyId: input.companyId,
     capabilities: input.semantics.list(),
     providers: providers.map(sanitizeProvider),
-    assets: assets.map(sanitizeAsset),
+    assets: assets
+      .filter((asset) => input.includeInternalAssets || (!asset.restrictions.includes("not-chat-visible") && asset.metadata.visibility !== "internal-candidate"))
+      .map(sanitizeAsset),
   };
 }

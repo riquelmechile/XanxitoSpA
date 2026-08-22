@@ -343,3 +343,5 @@ export * from "./bootstrap.js";
 export * from "./bootstrap-executor.js";
 
 export * from "./control-catalog.js";
+
+export * from "./creative-pipeline.js";

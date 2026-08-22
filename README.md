@@ -43,10 +43,10 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.6.0
+Version                  0.7.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              70 / 70 PASS (local)
+Company Gym              79 / 79 PASS (local)
 MCP                      Streamable HTTP bridge + trust fingerprinting
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
@@ -54,7 +54,7 @@ External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · public CI PASS · released
+Release state             four-lens APPROVED · public CI pending
 ```
 
 ---
@@ -290,6 +290,8 @@ Institutional Memory   → distilled reusable knowledge
 ```
 
 ### Creative Plane
+
+Creative generation is **internal company work, not chat rendering**. Chat submits a durable Creative Mission and immediately receives a `decision-only` receipt; Sol/xhigh workers COMPETE on concepts, native image-generation jobs render candidates in bounded parallelism, the outputs are stored as internal CompanyAssets, independent Sol/xhigh evaluators score VisualFitness, and the Creative Supervisor adjudicates. Executive Sol/max appears only when authority/risk requires escalation.
 
 V1 deliberately uses the **same GPT-5.6 Sol cognitive flow** for creative work. The Creative Supervisor and competing candidates are Sol/xhigh branches; only the Executive owner uses Sol/max.
 

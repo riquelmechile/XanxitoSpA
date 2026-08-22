@@ -1232,6 +1232,25 @@ No depender de un modelo generativo de imagen para construir documentos autorita
 
 ---
 
+## 18.6 Creative execution is internal, not chat rendering
+
+La generación creativa ocurre detrás del runtime de la empresa. Chat/control surfaces sólo crean o consultan `CreativeMission`; no son la superficie de render.
+
+```text
+chat intent
+→ durable creative.mission job
+→ Creative Supervisor (Sol/xhigh)
+→ blind concept COMPETE (Sol/xhigh)
+→ native image_generation jobs (bounded parallelism)
+→ internal CompanyAsset candidates
+→ VisualFitness evaluators (Sol/xhigh)
+→ Creative Supervisor decision
+→ selected asset / decision receipt
+```
+
+Los candidatos se etiquetan `internal-candidate` y `not-chat-visible`. Sólo el asset seleccionado y una razón resumida se exponen por defecto. Executive Sol/max entra únicamente por autoridad/riesgo o insuficiencia de candidatos válidos.
+
+
 # 19. Bifurcación creativa
 
 Una misión creativa puede usar el mismo Mission Graph:
