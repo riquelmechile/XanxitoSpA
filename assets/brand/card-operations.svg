@@ -1,55 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" role="img" aria-labelledby="card-operations-title card-operations-desc">
 <title id="card-operations-title">OPERATIONS — THE FORGE</title>
-<desc id="card-operations-desc">OPERATIONS archetype card in the XanxitoSpA Company Deck. Turn plans into output.</desc>
+<desc id="card-operations-desc">XanxitoSpA Character Deck V2 concept portrait for OPERATIONS.</desc>
 <defs>
-  <linearGradient id="card-operations-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#070B14"/><stop offset="0.55" stop-color="#0D1321"/><stop offset="1" stop-color="#05070C"/></linearGradient>
-  <radialGradient id="card-operations-glow" cx="50%" cy="43%" r="58%"><stop offset="0" stop-color="#F28C45" stop-opacity="0.32"/><stop offset="0.48" stop-color="#F28C45" stop-opacity="0.09"/><stop offset="1" stop-color="#F28C45" stop-opacity="0"/></radialGradient>
-  <linearGradient id="card-operations-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3D995"/><stop offset="0.34" stop-color="#D6B56B"/><stop offset="0.72" stop-color="#80652F"/><stop offset="1" stop-color="#3B2B12"/></linearGradient>
-  <linearGradient id="card-operations-accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F28C45"/><stop offset="1" stop-color="#F28C45" stop-opacity="0.18"/></linearGradient>
-  <filter id="card-operations-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
-  <clipPath id="card-operations-portrait"><path d="M104 168 L172 94 H628 L696 168 V785 L632 846 H168 L104 785 Z"/></clipPath>
-  </defs>
-<rect width="800" height="1200" rx="48" fill="url(#card-operations-bg)"/>
-<path d="M50 132 L132 50 H668 L750 132 V1068 L668 1150 H132 L50 1068 Z" fill="none" stroke="url(#card-operations-metal)" stroke-width="8"/>
-<path d="M72 150 L150 72 H650 L728 150 V1048 L650 1128 H150 L72 1048 Z" fill="none" stroke="#F28C45" stroke-opacity="0.38" stroke-width="2"/>
-<circle cx="400" cy="485" r="330" fill="url(#card-operations-glow)"/>
-<path d="M102 915 H698" stroke="#D6B56B" stroke-opacity="0.5"/>
-<path d="M132 940 H668" stroke="#F28C45" stroke-opacity="0.32"/>
-<g opacity="0.16" stroke="#F28C45" fill="none">
-  <path d="M90 240 C220 170 580 170 710 240"/>
-  <path d="M90 710 C220 780 580 780 710 710"/>
-  <circle cx="400" cy="470" r="260"/>
-  <circle cx="400" cy="470" r="212" stroke-dasharray="8 20"/>
-</g>
-<g clip-path="url(#card-operations-portrait)">
-  <rect x="104" y="94" width="592" height="752" fill="#080E18"/>
-  <ellipse cx="400" cy="505" rx="250" ry="310" fill="#F28C45" fill-opacity="0.05"/>
-  <g fill="none" stroke="#F28C45">
-      <path d="M205 675 L250 620 L305 676 L360 620 L415 676 L470 620 L525 676 L580 620" stroke-opacity="0.4" stroke-width="8"/>
-      <circle cx="400" cy="470" r="218" stroke-dasharray="36 16" stroke-opacity="0.2" stroke-width="12"/>
-      <path d="M355 705 Q400 650 445 705 L430 770 H370 Z" fill="#F28C45" fill-opacity="0.22"/>
-      <path d="M400 760 Q350 700 400 645 Q450 700 400 760 Z" fill="#F28C45" fill-opacity="0.34" stroke="none"/>
-    </g>
-  <g>
-    <path d="M310 340 L350 286 H450 L490 340 L474 515 L438 602 H362 L326 515 Z" fill="#111927" stroke="#F28C45" stroke-opacity="0.65" stroke-width="4"/>
-    <path d="M350 286 L400 245 L450 286 L430 330 H370 Z" fill="#F28C45" fill-opacity="0.18" stroke="#D6B56B" stroke-opacity="0.55"/>
-    <path d="M330 384 L370 365 H430 L470 384 L452 420 L420 399 H380 L348 420 Z" fill="#F6F0DF" fill-opacity="0.08"/>
-    <path d="M360 430 H390" stroke="#F28C45" stroke-width="9" stroke-linecap="round"/>
-    <path d="M410 430 H440" stroke="#F28C45" stroke-width="9" stroke-linecap="round"/>
-    <path d="M400 438 L386 500 H414 Z" fill="#D6B56B" fill-opacity="0.28"/>
-    <path d="M360 535 Q400 558 440 535" fill="none" stroke="#F6F0DF" stroke-opacity="0.45" stroke-width="3"/>
-    <path d="M285 610 L350 568 H450 L515 610 L570 785 H230 Z" fill="#0B111D" stroke="#F28C45" stroke-opacity="0.55" stroke-width="4"/>
-    <path d="M350 568 L400 650 L450 568" fill="#F28C45" fill-opacity="0.16" stroke="#D6B56B" stroke-opacity="0.38"/>
+  <linearGradient id="v2-operations-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#050812"/><stop offset=".55" stop-color="#0B1120"/><stop offset="1" stop-color="#02040A"/></linearGradient>
+  <radialGradient id="v2-operations-halo" cx="50%" cy="36%" r="62%"><stop offset="0" stop-color="#F3954D" stop-opacity=".34"/><stop offset=".45" stop-color="#F3954D" stop-opacity=".10"/><stop offset="1" stop-color="#F3954D" stop-opacity="0"/></radialGradient>
+  <linearGradient id="v2-operations-cloth" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#24324A"/><stop offset=".46" stop-color="#111827"/><stop offset="1" stop-color="#080D17"/></linearGradient>
+  <linearGradient id="v2-operations-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3DB9D"/><stop offset=".28" stop-color="#D8B86A"/><stop offset=".7" stop-color="#806530"/><stop offset="1" stop-color="#2D220E"/></linearGradient>
+  <linearGradient id="v2-operations-skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B77956"/><stop offset=".52" stop-color="#B77956"/><stop offset="1" stop-color="#3B241D"/></linearGradient>
+  <linearGradient id="v2-operations-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050812" stop-opacity="0"/><stop offset=".62" stop-color="#050812" stop-opacity=".16"/><stop offset="1" stop-color="#050812" stop-opacity=".98"/></linearGradient>
+  <filter id="v2-operations-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+  <filter id="v2-operations-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter>
+  <clipPath id="v2-operations-art"><path d="M42 88 L96 34 H704 L758 88 V915 L704 970 H96 L42 915 Z"/></clipPath>
+</defs>
+<rect width="800" height="1200" rx="34" fill="url(#v2-operations-bg)"/>
+<g clip-path="url(#v2-operations-art)"><rect x="40" y="34" width="720" height="940" fill="#070B14"/><circle cx="405" cy="420" r="390" fill="url(#v2-operations-halo)"/><g opacity=".45"><path d="M80 760 H720 M110 760 V420 H220 V760 M260 760 V320 H370 V760 M420 760 V505 H535 V760 M575 760 V250 H695 V760" fill="none" stroke="#F3954D" stroke-opacity=".20" stroke-width="8"/><path d="M65 830 H735" stroke="#D8B86A" stroke-opacity=".2"/><g fill="#F3954D" fill-opacity=".3"><circle cx="150" cy="510" r="5"/><circle cx="210" cy="600" r="5"/><circle cx="305" cy="430" r="5"/><circle cx="510" cy="590" r="5"/><circle cx="620" cy="350" r="5"/></g></g><g><path d="M210 455 Q270 360 385 375 Q535 385 590 505 L625 820 L490 900 L390 790 L300 900 L170 835 Z" fill="url(#v2-operations-cloth)" stroke="#F3954D" stroke-opacity=".56" stroke-width="4"/>
+  <path d="M185 430 Q255 345 350 365 L315 500 L190 520 Z" fill="#252B35" stroke="#F3954D" stroke-width="6"/>
+  <path d="M235 500 Q120 555 105 675" fill="none" stroke="#202B3A" stroke-width="52" stroke-linecap="round"/><ellipse cx="105" cy="680" rx="30" ry="20" fill="url(#v2-operations-skin)"/>
+  <path d="M530 505 Q620 480 670 430" fill="none" stroke="#202B3A" stroke-width="48" stroke-linecap="round"/>
+  <path d="M580 395 L715 210" stroke="#D8B86A" stroke-width="20" stroke-linecap="round"/><path d="M670 180 L760 245 L700 315 L615 250 Z" fill="#252A30" stroke="#F3954D" stroke-width="7"/>
+  <g transform="translate(400 295) rotate(-4)">
+    <ellipse rx="54" ry="69" fill="url(#v2-operations-skin)"/>
+    <path d="M-48.6 -31.05 Q0 -79.35 51.3 -28.98 Q37.8 -60.72 0 -67.62 Q-35.1 -59.339999999999996 -48.6 -31.05Z" fill="#2A211D"/>
+    <path d="M-25.919999999999998 -4 H-6.4799999999999995 M6.4799999999999995 -4 H25.919999999999998" stroke="#F7F1E2" stroke-opacity=".72" stroke-width="5" stroke-linecap="round"/>
+    <path d="M0 4 L-6 28 L8 26" fill="none" stroke="#E6C1A6" stroke-opacity=".45" stroke-width="2"/>
+    <path d="M-17 45 Q0 54 18 42" fill="none" stroke="#F7D6C5" stroke-opacity=".38" stroke-width="2"/>
   </g>
-  <path d="M104 785 L260 660 L400 725 L540 660 L696 785 V846 H104 Z" fill="#F28C45" fill-opacity="0.06"/>
-</g>
-<g transform="translate(400 116)">
-  <path d="M0 -54 L42 -26 L48 22 L16 54 L-16 54 L-48 22 L-42 -26 Z" fill="#070B14" stroke="#D6B56B" stroke-width="4"/>
-  <circle r="34" fill="#F28C45" fill-opacity="0.12" stroke="#F28C45" stroke-width="2"/>
-  <text x="0" y="11" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="34" font-weight="800" fill="#F6F0DF">⬡</text>
-</g>
-<text x="400" y="904" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="23" font-weight="800" letter-spacing="5" fill="#F28C45">OPERATIONS</text>
-<text x="400" y="978" text-anchor="middle" font-family="Georgia,ui-serif,serif" font-size="48" font-weight="700" letter-spacing="2" fill="#F6F0DF">THE FORGE</text>
-<text x="400" y="1030" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="22" fill="#B9B2A3">Turn plans into output.</text>
-<g transform="translate(400 1092)" stroke="#D6B56B" stroke-opacity="0.55"><path d="M-110 0 H-28"/><circle r="5" fill="#F28C45" stroke="none"/><path d="M28 0 H110"/></g>
+  <path d="M350 390 L430 460 L500 398" fill="none" stroke="#F3954D" stroke-opacity=".35" stroke-width="8"/>
+</g><rect x="42" y="650" width="716" height="320" fill="url(#v2-operations-fade)"/></g>
+<path d="M42 88 L96 34 H704 L758 88 V1110 L704 1166 H96 L42 1110 Z" fill="none" stroke="url(#v2-operations-metal)" stroke-width="7"/>
+<path d="M58 101 L106 52 H694 L742 101 V1098 L694 1148 H106 L58 1098 Z" fill="none" stroke="#F3954D" stroke-opacity=".38" stroke-width="2"/>
+<g transform="translate(92 92)"><path d="M0 -34 L30 -18 L34 16 L12 38 L-12 38 L-34 16 L-30 -18 Z" fill="#070B14" stroke="url(#v2-operations-metal)" stroke-width="3"/><circle r="19" fill="#F3954D" fill-opacity=".18" stroke="#F3954D"/><path d="M-8 0 H8 M0 -8 V8" stroke="#F7F1E2" stroke-width="3" stroke-linecap="round"/></g>
+<path d="M92 870 H708" stroke="#D8B86A" stroke-opacity=".55"/>
+<text x="92" y="930" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="24" font-weight="800" letter-spacing="5" fill="#F3954D">OPERATIONS</text>
+<text x="92" y="1004" font-family="Georgia,ui-serif,serif" font-size="50" font-weight="700" letter-spacing="1" fill="#F7F1E2">THE FORGE</text>
+<path d="M92 1042 H350" stroke="#D8B86A" stroke-opacity=".45"/><circle cx="92" cy="1042" r="4" fill="#F3954D"/>
+<text x="92" y="1090" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" letter-spacing="3" fill="#AEB5C2">CHARACTER CONCEPT · V2</text>
 </svg>

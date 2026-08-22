@@ -12,7 +12,7 @@
     "test": "vitest run",
     "gym": "tsx packages/testing/src/run-gym.ts",
     "pg:smoke": "tsx packages/testing/src/postgres-smoke.ts",
-    "visuals:generate": "node scripts/generate-visual-assets.mjs",
+    "visuals:generate": "node scripts/generate-visual-assets.mjs && node scripts/generate-character-deck-v2.mjs",
     "visuals:check": "node scripts/validate-visual-assets.mjs",
     "dev": "tsx apps/runtime/src/server.ts",
     "start": "node dist/apps/runtime/src/server.js"
@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/node": "latest",
     "@types/pg": "^8.23.1",
+    "saxes": "^6.0.0",
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"

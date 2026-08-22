@@ -1,55 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" role="img" aria-labelledby="card-executive-title card-executive-desc">
 <title id="card-executive-title">EXECUTIVE — THE SOVEREIGN</title>
-<desc id="card-executive-desc">EXECUTIVE archetype card in the XanxitoSpA Company Deck. Decide with mandate.</desc>
+<desc id="card-executive-desc">XanxitoSpA Character Deck V2 concept portrait for EXECUTIVE.</desc>
 <defs>
-  <linearGradient id="card-executive-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#070B14"/><stop offset="0.55" stop-color="#0D1321"/><stop offset="1" stop-color="#05070C"/></linearGradient>
-  <radialGradient id="card-executive-glow" cx="50%" cy="43%" r="58%"><stop offset="0" stop-color="#D6B56B" stop-opacity="0.32"/><stop offset="0.48" stop-color="#D6B56B" stop-opacity="0.09"/><stop offset="1" stop-color="#D6B56B" stop-opacity="0"/></radialGradient>
-  <linearGradient id="card-executive-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3D995"/><stop offset="0.34" stop-color="#D6B56B"/><stop offset="0.72" stop-color="#80652F"/><stop offset="1" stop-color="#3B2B12"/></linearGradient>
-  <linearGradient id="card-executive-accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D6B56B"/><stop offset="1" stop-color="#D6B56B" stop-opacity="0.18"/></linearGradient>
-  <filter id="card-executive-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
-  <clipPath id="card-executive-portrait"><path d="M104 168 L172 94 H628 L696 168 V785 L632 846 H168 L104 785 Z"/></clipPath>
-  </defs>
-<rect width="800" height="1200" rx="48" fill="url(#card-executive-bg)"/>
-<path d="M50 132 L132 50 H668 L750 132 V1068 L668 1150 H132 L50 1068 Z" fill="none" stroke="url(#card-executive-metal)" stroke-width="8"/>
-<path d="M72 150 L150 72 H650 L728 150 V1048 L650 1128 H150 L72 1048 Z" fill="none" stroke="#D6B56B" stroke-opacity="0.38" stroke-width="2"/>
-<circle cx="400" cy="485" r="330" fill="url(#card-executive-glow)"/>
-<path d="M102 915 H698" stroke="#D6B56B" stroke-opacity="0.5"/>
-<path d="M132 940 H668" stroke="#D6B56B" stroke-opacity="0.32"/>
-<g opacity="0.16" stroke="#D6B56B" fill="none">
-  <path d="M90 240 C220 170 580 170 710 240"/>
-  <path d="M90 710 C220 780 580 780 710 710"/>
-  <circle cx="400" cy="470" r="260"/>
-  <circle cx="400" cy="470" r="212" stroke-dasharray="8 20"/>
-</g>
-<g clip-path="url(#card-executive-portrait)">
-  <rect x="104" y="94" width="592" height="752" fill="#080E18"/>
-  <ellipse cx="400" cy="505" rx="250" ry="310" fill="#D6B56B" fill-opacity="0.05"/>
-  <g fill="none" stroke="#D6B56B">
-      <path d="M400 214 L350 255 L330 205 L400 236 L470 205 L450 255 Z" fill="#D6B56B" fill-opacity="0.12" stroke-width="4"/>
-      <circle cx="400" cy="470" r="182" stroke-opacity="0.32" stroke-width="2"/>
-      <path d="M400 220 V720 M150 470 H650" stroke-opacity="0.18"/>
-      <path d="M400 180 L416 214 L400 248 L384 214 Z" fill="#D6B56B" fill-opacity="0.55" stroke="#D6B56B"/>
-    </g>
-  <g>
-    <path d="M310 340 L350 286 H450 L490 340 L474 515 L438 602 H362 L326 515 Z" fill="#111927" stroke="#D6B56B" stroke-opacity="0.65" stroke-width="4"/>
-    <path d="M350 286 L400 245 L450 286 L430 330 H370 Z" fill="#D6B56B" fill-opacity="0.18" stroke="#D6B56B" stroke-opacity="0.55"/>
-    <path d="M330 384 L370 365 H430 L470 384 L452 420 L420 399 H380 L348 420 Z" fill="#F6F0DF" fill-opacity="0.08"/>
-    <path d="M360 430 H390" stroke="#D6B56B" stroke-width="9" stroke-linecap="round"/>
-    <path d="M410 430 H440" stroke="#D6B56B" stroke-width="9" stroke-linecap="round"/>
-    <path d="M400 438 L386 500 H414 Z" fill="#D6B56B" fill-opacity="0.28"/>
-    <path d="M360 535 Q400 558 440 535" fill="none" stroke="#F6F0DF" stroke-opacity="0.45" stroke-width="3"/>
-    <path d="M285 610 L350 568 H450 L515 610 L570 785 H230 Z" fill="#0B111D" stroke="#D6B56B" stroke-opacity="0.55" stroke-width="4"/>
-    <path d="M350 568 L400 650 L450 568" fill="#D6B56B" fill-opacity="0.16" stroke="#D6B56B" stroke-opacity="0.38"/>
+  <linearGradient id="v2-executive-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#050812"/><stop offset=".55" stop-color="#0B1120"/><stop offset="1" stop-color="#02040A"/></linearGradient>
+  <radialGradient id="v2-executive-halo" cx="50%" cy="36%" r="62%"><stop offset="0" stop-color="#D8B86A" stop-opacity=".34"/><stop offset=".45" stop-color="#D8B86A" stop-opacity=".10"/><stop offset="1" stop-color="#D8B86A" stop-opacity="0"/></radialGradient>
+  <linearGradient id="v2-executive-cloth" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#24324A"/><stop offset=".46" stop-color="#111827"/><stop offset="1" stop-color="#080D17"/></linearGradient>
+  <linearGradient id="v2-executive-metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3DB9D"/><stop offset=".28" stop-color="#D8B86A"/><stop offset=".7" stop-color="#806530"/><stop offset="1" stop-color="#2D220E"/></linearGradient>
+  <linearGradient id="v2-executive-skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5B45"/><stop offset=".52" stop-color="#8B5B45"/><stop offset="1" stop-color="#3B241D"/></linearGradient>
+  <linearGradient id="v2-executive-fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050812" stop-opacity="0"/><stop offset=".62" stop-color="#050812" stop-opacity=".16"/><stop offset="1" stop-color="#050812" stop-opacity=".98"/></linearGradient>
+  <filter id="v2-executive-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+  <filter id="v2-executive-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter>
+  <clipPath id="v2-executive-art"><path d="M42 88 L96 34 H704 L758 88 V915 L704 970 H96 L42 915 Z"/></clipPath>
+</defs>
+<rect width="800" height="1200" rx="34" fill="url(#v2-executive-bg)"/>
+<g clip-path="url(#v2-executive-art)"><rect x="40" y="34" width="720" height="940" fill="#070B14"/><circle cx="405" cy="420" r="390" fill="url(#v2-executive-halo)"/><g opacity=".55"><path d="M85 770 V310 H180 V770 M220 770 V205 H330 V770 M520 770 V240 H640 V770 M675 770 V350 H735 V770" fill="none" stroke="#B79B5B" stroke-opacity=".22" stroke-width="8"/><path d="M70 770 H745" stroke="#F6E6B0" stroke-opacity=".22"/><path d="M130 690 L660 350" stroke="#D8B86A" stroke-opacity=".18" stroke-width="3"/></g><g filter="url(#v2-executive-soft)"><ellipse cx="400" cy="735" rx="255" ry="60" fill="#000" opacity=".34"/></g>
+<g>
+  <path d="M295 438 Q345 370 400 370 Q470 370 520 438 L590 855 L470 895 L400 760 L332 905 L205 870 Z" fill="url(#v2-executive-cloth)" stroke="#D8B86A" stroke-opacity=".55" stroke-width="4"/>
+  <path d="M310 445 L400 390 L490 445 L458 650 L400 710 L345 650 Z" fill="#111A2A"/>
+  <path d="M320 452 L400 540 L480 452" fill="none" stroke="#F7F1E2" stroke-opacity=".30" stroke-width="6"/>
+  <path d="M517 500 Q610 520 650 605" fill="none" stroke="#182238" stroke-width="42" stroke-linecap="round"/><ellipse cx="658" cy="620" rx="28" ry="18" fill="url(#v2-executive-skin)" transform="rotate(20 658 620)"/>
+  <path d="M288 500 Q220 565 218 680" fill="none" stroke="#182238" stroke-width="40" stroke-linecap="round"/>
+  <path d="M218 635 V865" stroke="#D8B86A" stroke-width="9"/><circle cx="218" cy="635" r="24" fill="#0E1627" stroke="#D8B86A" stroke-width="5"/><circle cx="218" cy="635" r="7" fill="#D8B86A"/>
+  <g transform="translate(400 305) rotate(-2)">
+    <ellipse rx="50" ry="66" fill="url(#v2-executive-skin)"/>
+    <path d="M-45 -29.7 Q0 -75.89999999999999 47.5 -27.72 Q35 -58.08 0 -64.67999999999999 Q-32.5 -56.76 -45 -29.7Z" fill="#16171B"/>
+    <path d="M-24 -4 H-6 M6 -4 H24" stroke="#F7F1E2" stroke-opacity=".72" stroke-width="5" stroke-linecap="round"/>
+    <path d="M0 4 L-6 28 L8 26" fill="none" stroke="#E6C1A6" stroke-opacity=".45" stroke-width="2"/>
+    <path d="M-17 45 Q0 54 18 42" fill="none" stroke="#F7D6C5" stroke-opacity=".38" stroke-width="2"/>
   </g>
-  <path d="M104 785 L260 660 L400 725 L540 660 L696 785 V846 H104 Z" fill="#D6B56B" fill-opacity="0.06"/>
-</g>
-<g transform="translate(400 116)">
-  <path d="M0 -54 L42 -26 L48 22 L16 54 L-16 54 L-48 22 L-42 -26 Z" fill="#070B14" stroke="#D6B56B" stroke-width="4"/>
-  <circle r="34" fill="#D6B56B" fill-opacity="0.12" stroke="#D6B56B" stroke-width="2"/>
-  <text x="0" y="11" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="34" font-weight="800" fill="#F6F0DF">✦</text>
-</g>
-<text x="400" y="904" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="23" font-weight="800" letter-spacing="5" fill="#D6B56B">EXECUTIVE</text>
-<text x="400" y="978" text-anchor="middle" font-family="Georgia,ui-serif,serif" font-size="48" font-weight="700" letter-spacing="2" fill="#F6F0DF">THE SOVEREIGN</text>
-<text x="400" y="1030" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="22" fill="#B9B2A3">Decide with mandate.</text>
-<g transform="translate(400 1092)" stroke="#D6B56B" stroke-opacity="0.55"><path d="M-110 0 H-28"/><circle r="5" fill="#D6B56B" stroke="none"/><path d="M28 0 H110"/></g>
+  <path d="M350 370 Q400 345 452 370" stroke="#D8B86A" stroke-opacity=".55" stroke-width="5"/>
+</g><rect x="42" y="650" width="716" height="320" fill="url(#v2-executive-fade)"/></g>
+<path d="M42 88 L96 34 H704 L758 88 V1110 L704 1166 H96 L42 1110 Z" fill="none" stroke="url(#v2-executive-metal)" stroke-width="7"/>
+<path d="M58 101 L106 52 H694 L742 101 V1098 L694 1148 H106 L58 1098 Z" fill="none" stroke="#D8B86A" stroke-opacity=".38" stroke-width="2"/>
+<g transform="translate(92 92)"><path d="M0 -34 L30 -18 L34 16 L12 38 L-12 38 L-34 16 L-30 -18 Z" fill="#070B14" stroke="url(#v2-executive-metal)" stroke-width="3"/><circle r="19" fill="#D8B86A" fill-opacity=".18" stroke="#D8B86A"/><path d="M-8 0 H8 M0 -8 V8" stroke="#F7F1E2" stroke-width="3" stroke-linecap="round"/></g>
+<path d="M92 870 H708" stroke="#D8B86A" stroke-opacity=".55"/>
+<text x="92" y="930" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="24" font-weight="800" letter-spacing="5" fill="#D8B86A">EXECUTIVE</text>
+<text x="92" y="1004" font-family="Georgia,ui-serif,serif" font-size="50" font-weight="700" letter-spacing="1" fill="#F7F1E2">THE SOVEREIGN</text>
+<path d="M92 1042 H350" stroke="#D8B86A" stroke-opacity=".45"/><circle cx="92" cy="1042" r="4" fill="#D8B86A"/>
+<text x="92" y="1090" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" letter-spacing="3" fill="#AEB5C2">CHARACTER CONCEPT · V2</text>
 </svg>

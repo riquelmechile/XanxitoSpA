@@ -55,23 +55,24 @@ Next increment            Generic MCP Provider Bridge V1.4
 Stable functions are not disposable prompt personas. They are durable scopes with their own KPIs, authority, memory, processes and capability grants. Workers beneath them are temporary.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck.svg" alt="The Company Deck — eight enterprise functions" width="100%" />
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck-mobile.svg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck.svg" alt="The Company Deck — eight original XanxitoSpA function character concepts" width="100%" />
+  </picture>
 </p>
 
-<table>
-<tr>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-executive.svg" alt="Executive — The Sovereign"/><br/><b>Executive</b><br/><sub>Decision ownership & constitution</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-commercial.svg" alt="Commercial — The Hunter"/><br/><b>Commercial</b><br/><sub>Demand, pricing & revenue</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-finance.svg" alt="Finance — The Keeper"/><br/><b>Finance</b><br/><sub>Margin, cash & capital discipline</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-operations.svg" alt="Operations — The Forge"/><br/><b>Operations</b><br/><sub>Delivery, capacity & repeatability</sub></td>
-</tr>
-<tr>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-customer.svg" alt="Customer — The Envoy"/><br/><b>Customer</b><br/><sub>Service, truth & retention</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-risk.svg" alt="Administration and Risk — The Sentinel"/><br/><b>Admin & Risk</b><br/><sub>Policy, approvals & boundaries</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-data.svg" alt="Data — The Oracle"/><br/><b>Data</b><br/><sub>Facts, state & evidence</sub></td>
-<td width="25%" align="center"><img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/card-creative.svg" alt="Creative — The Shaper"/><br/><b>Creative</b><br/><sub>Image, video, documents, 3D & CAD</sub></td>
-</tr>
-</table>
+The public deck now uses **Character Concept V2**: full-body, role-specific silhouettes, poses, props and environments instead of repeated geometric busts. These vector concepts lock the roster DNA and mobile composition. The final painterly/splash-art layer is provider-neutral and specified in [assets/characters/character-dna.json](assets/characters/character-dna.json); it can replace the concept layer later without changing the card system.
+
+| Function | Archetype | Visual read |
+| --- | --- | --- |
+| Executive | **The Sovereign** | vertical authority · open decision gesture |
+| Commercial | **The Hunter** | forward diagonal · opportunity lens |
+| Finance | **The Keeper** | grounded symmetry · ledger/vault rings |
+| Operations | **The Forge** | broad work silhouette · industrial tool |
+| Customer | **The Envoy** | open gesture · signal scarf |
+| Admin & Risk | **The Sentinel** | shield-plane · verify/stop gesture |
+| Data | **The Oracle** | elongated observer · evidence prism |
+| Creative | **The Shaper** | twisting motion · transforming surface |
 
 > **Competition of ideas. Cooperation in execution.** Departments do not fight for status; strategies compete for evidence.
 
@@ -83,7 +84,10 @@ Stable functions are not disposable prompt personas. They are durable scopes wit
 `FAN-OUT` gives different work to different branches. `COMPETE` gives **the same problem and the same evidence** to independent workers with distinct strategy overlays.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/compete.svg" alt="COMPETE — blind competitive branching and owner adjudication" width="100%" />
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/compete-mobile.svg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/compete.svg" alt="COMPETE — blind competitive branching and owner adjudication" width="100%" />
+  </picture>
 </p>
 
 The default protocol is deliberately bounded:
@@ -105,7 +109,10 @@ No majority voting. No free-form swarm chat. No endless debate.
 XanxitoSpA does not mutate the foundation model. It evolves **the organization around the model**.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/evolution.svg" alt="Corporate Genes and Pareto evolution" width="100%" />
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/evolution-mobile.svg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/evolution.svg" alt="Corporate Genes and Pareto evolution" width="100%" />
+  </picture>
 </p>
 
 Versioned `CorporateGene` variants can represent:
@@ -131,7 +138,10 @@ candidate → challenger → champion
 ## The kernel
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/kernel-planes.svg" alt="XanxitoSpA company kernel and enterprise planes" width="100%" />
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/kernel-planes-mobile.svg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/kernel-planes.svg" alt="XanxitoSpA company kernel and enterprise planes" width="100%" />
+  </picture>
 </p>
 
 The kernel owns business policy. Providers stay replaceable.
@@ -308,7 +318,10 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | [`RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) | PostgreSQL, heartbeat, leases, providers, assets |
 | [`RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md`](docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md) | Secure semantic Capability Plane |
 | [`VISUAL_SYSTEM.md`](docs/VISUAL_SYSTEM.md) | The Company Deck visual language |
-| [`skills/svg-craft/SKILL.md`](skills/svg-craft/SKILL.md) | Project-local premium SVG/worldbuilding skill |
+| [`CHARACTER_ART_DIRECTION.md`](docs/CHARACTER_ART_DIRECTION.md) | Character DNA, raster+SVG pipeline and originality rules |
+| [assets/characters/character-dna.json](assets/characters/character-dna.json) | Provider-neutral briefs/prompts for the 8 archetypes |
+| [`skills/svg-craft/SKILL.md`](skills/svg-craft/SKILL.md) | Project-local SVG/card/mobile delivery skill |
+| [`skills/character-art/SKILL.md`](skills/character-art/SKILL.md) | Project-local premium original character-art skill |
 
 ---
 

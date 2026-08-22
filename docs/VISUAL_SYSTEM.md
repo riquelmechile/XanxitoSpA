@@ -1,144 +1,152 @@
-# XanxitoSpA Visual System — The Company Deck
+# XanxitoSpA Visual System — The Company Deck V2
 
 ## Intent
 
-XanxitoSpA should not look like another AI dashboard, workflow graph or generic SaaS starter. Its visual identity should communicate the product thesis immediately:
+XanxitoSpA should not look like an AI dashboard, generic workflow graph or SaaS starter. The visual system should make the product thesis obvious:
 
 > A company is an organized cast of functions that can reason, compete, coordinate, act, verify and evolve.
 
-The visual system turns those functions into a recognizable **Company Deck**: premium original archetype cards that represent stable business roles, surrounded by diagrams that reuse the same crests, colors and geometry.
+The Company Deck turns stable business functions into a memorable roster. The target is the emotional clarity and character memorability of premium game key art while remaining wholly original XanxitoSpA IP.
 
-## Why cards
+## V2 correction
 
-Cards provide three useful layers at once:
+V1 used repeated geometric busts. They proved the frame language but failed the character test: changing color/icon was doing too much of the identity work.
 
-1. **Identity** — each role becomes memorable and visually distinct.
-2. **Hierarchy** — stable supervisors can be shown separately from temporary workers.
-3. **System behavior** — cards can branch, compete, collaborate and evolve without changing the underlying visual language.
+V2 separates responsibilities:
 
-The inspiration is the emotional quality of premium collectible/game character cards and the legibility of a “Guess Who?” roster board, but the artwork, frame geometry, crests, names and composition are original to XanxitoSpA.
+- **character art** = anatomy, face, pose, prop, story, environment, materials and silhouette;
+- **SVG** = frame, crest, typography, effects, responsive roster and technical diagrams.
 
-## Core visual language
+The repository currently ships full-body **vector character concepts** to lock pose/silhouette/composition. Final painterly art is specified provider-neutrally in `assets/characters/character-dna.json` and can later replace only the art layer.
+
+## Core palette
 
 | Token | Value | Use |
 | --- | --- | --- |
-| Obsidian | `#070B14` | primary background |
-| Deep Navy | `#0D1321` | panels / depth |
-| Slate | `#172033` | secondary planes |
-| Ivory | `#F6F0DF` | primary type / key lines |
-| Muted Ivory | `#B9B2A3` | secondary text |
-| Metal Gold | `#D6B56B` | authority / structure |
+| Obsidian | `#050812` | world/background |
+| Deep Navy | `#0B1120` | depth / garments / panels |
+| Ivory | `#F7F1E2` | primary type / highlights |
+| Muted | `#AEB5C2` | secondary type |
+| Metal Gold | `#D8B86A` | authority / shared structure |
 
-### Role accents
+### Department accents
 
-| Function | Archetype | Accent | Symbolic language |
+| Function | Archetype | Accent | Primary silhouette cue |
 | --- | --- | --- | --- |
-| Executive | The Sovereign | Gold `#D6B56B` | crown + compass |
-| Commercial | The Hunter | Crimson `#E7525B` | target + trajectory |
-| Finance | The Keeper | Emerald `#4ED09B` | vault + ledger |
-| Operations | The Forge | Orange `#F28C45` | forge + gear |
-| Customer | The Envoy | Cyan `#55C7E8` | signal + dialogue |
-| Administration & Risk | The Sentinel | Violet `#9B7BEA` | shield + watch |
-| Data | The Oracle | Indigo `#6E82F5` | eye + network |
-| Creative | The Shaper | Magenta `#E56EB1` | prism + form |
+| Executive | The Sovereign | Gold | tall vertical coat + open decision gesture |
+| Commercial | The Hunter | Crimson | forward diagonal + opportunity lens |
+| Finance | The Keeper | Emerald | grounded symmetry + ledger rings |
+| Operations | The Forge | Amber | broad shoulder/tool triangle |
+| Customer | The Envoy | Cyan | open hand + signal scarf |
+| Administration & Risk | The Sentinel | Violet | shield-plane + verify gesture |
+| Data | The Oracle | Indigo | elongated observer + evidence prism |
+| Creative | The Shaper | Magenta | twisting body + transforming surface |
 
-## The eight archetypes
+## Character world
 
-### Executive — The Sovereign
+Near-future enterprise mythology — tactile, architectural and human. Gold is structural rather than decorative. Department colors appear as rim light/material accents, not full neon floods. Technology must perform a function; random circuitry is banned.
 
-Not a “CEO bot”. The role is coherence and constitutional decision ownership. Its geometry is vertical, centered and compass-like, with the highest gold density in the system.
+The roster should be diverse in body silhouette, pose, material, age/face language and movement. No two roles may use the same primary prop category or stance.
 
-Motto: **Decide with mandate.**
+For detailed briefs, see [`CHARACTER_ART_DIRECTION.md`](CHARACTER_ART_DIRECTION.md).
 
-### Commercial — The Hunter
+## Card anatomy V2
 
-Represents revenue sensing, market pursuit and pricing opportunity. The silhouette leans forward and uses trajectory lines rather than weapon imagery.
+1. character is the focal point and occupies most of the upper card;
+2. frame is thin and secondary;
+3. environment supports the role fantasy but is lower contrast than the figure;
+4. top crest is small, structural and original;
+5. bottom plate contains only function + archetype;
+6. no paragraph text/motto inside the card;
+7. art is cropped so face, hand gesture and signature prop survive;
+8. card remains readable at ~180 px width.
 
-Motto: **Find demand. Prove value.**
+## Responsive roster
 
-### Finance — The Keeper
+A four-column HTML table is prohibited for detailed card art because GitHub mobile compresses it too aggressively.
 
-Represents solvency, margin, capital discipline and budget envelopes. Closed geometric planes imply a vault; ledger marks imply controlled flow.
+README uses `<picture>`:
 
-Motto: **Protect the runway.**
+- desktop board: 4 × 2;
+- mobile board: 2 × 4.
 
-### Operations — The Forge
+The mobile board is a separately composed SVG, not a browser-scaled desktop afterthought.
 
-Represents delivery, logistics, capacity and repeatable execution. The portrait is built from interlocking plates and a heat core.
+## Diagram grammar V2
 
-Motto: **Turn plans into output.**
+Technical diagrams retain the same world but optimize comprehension over character spectacle.
 
-### Customer — The Envoy
+- authority/decision edges: gold;
+- competitive candidates: opposing accents;
+- verified outcomes: emerald;
+- data/evidence: indigo;
+- creative: magenta;
+- risk/escalation: violet.
 
-Represents service, support, customer truth and external relationships. Its geometry is open, signal-like and directional toward the reader.
+Complex diagrams ship in two compositions:
 
-Motto: **Hear. Resolve. Retain.**
+- landscape desktop;
+- portrait mobile with larger text and vertical flow.
 
-### Administration & Risk — The Sentinel
+## GitHub delivery invariants
 
-Represents policy, legal/compliance boundaries, approvals and operational risk. Strong shield silhouette, concentric watch arcs and high negative space.
+All standalone SVGs must:
 
-Motto: **Guard the constitution.**
+- be well-formed XML;
+- escape entities such as `&amp;`;
+- include `viewBox`, `role="img"`, `aria-labelledby`, `<title>` and `<desc>`;
+- contain no external/raster `<image>` content;
+- contain no script, event handlers, `foreignObject`, JavaScript or data-image payloads;
+- use unique IDs.
 
-### Data — The Oracle
+`pnpm run visuals:check` parses every SVG as XML and maps every README raw URL back to a repository asset. The validator exists specifically so the `Admin & Risk` unescaped-ampersand failure cannot recur.
 
-Represents the Company Data Plane, state, evidence, analytics and observed truth. Uses network geometry, an eye-like aperture and ordered constellations.
+## Character-art pipeline
 
-Motto: **Observe before belief.**
+```text
+business function truth
+→ Character DNA
+→ silhouette exploration
+→ pose/value composition
+→ original final raster illustration
+→ originality/crop review
+→ deterministic SVG frame/title overlay
+→ desktop/mobile boards
+→ public GitHub render review
+```
 
-### Creative — The Shaper
+Provider choice is outside the visual contract. The Creative Plane may later route image generation to whichever governed provider is strongest at that moment.
 
-Represents images, video, documents, 3D, CAD and brand systems. Prism geometry and asymmetric form-building communicate transformation without resembling a paint tool.
+## Originality boundary
 
-Motto: **Turn intent into form.**
+Never reproduce another game's:
 
-## Diagram grammar
+- characters or likenesses;
+- costumes/weapons/faction marks;
+- card frame or trade dress;
+- logos or typography;
+- lore/naming language.
 
-### Branching
+High craft is an ambition, not a license to copy visual identity.
 
-`FAN-OUT` uses equal-weight ivory lines from one owner to independent tasks.
+## README sequence
 
-`COMPETE` uses two opposing accent paths fed by the **same evidence node**, followed by a gold adjudication join.
+1. hero / thesis;
+2. Company Deck character roster;
+3. Competitive branching;
+4. Corporate evolution;
+5. Kernel/planes;
+6. capability/data/creative explanations;
+7. verified runtime evidence;
+8. quick start and deep docs.
 
-### Verification
+## Future extensions
 
-Unverified work is slate/ivory. Verified outcome edges become emerald with a small gold seal.
+The same system can represent:
 
-### Evolution
-
-Corporate Genes are shown as lineage sigils rather than DNA helixes. A champion receives a gold outer ring; challengers retain their role accent; silent variants fade to slate; quarantine uses violet warning geometry.
-
-### Capabilities
-
-Capabilities are not “employees”. They appear as tools/portals outside the role cards. Provider-specific names should not dominate diagrams; semantic capability names do.
-
-## README composition
-
-1. **Hero** — product thesis and runtime status.
-2. **Company Deck** — the eight stable functions.
-3. **How the company thinks** — Business Preflight + Mission Graph.
-4. **Competitive branching** — same-task blind candidates → critique → owner decision.
-5. **How it learns** — verified outcomes → fitness/Pareto → Corporate Genes.
-6. **Planes** — Data, Creative and Capability planes.
-7. **Evidence** — current verified runtime/Gym status.
-8. **Quick start** — shortest successful local run.
-9. **Deep docs** — architecture and runtime documents.
-
-## Delivery rules
-
-- SVG is pure vector and accessible.
-- README HTML images use canonical raw GitHub URLs.
-- Diagrams must match the current architecture, never roadmap claims presented as completed features.
-- Visual quality is reviewed separately from structural validation.
-- No asset may require a proprietary font or external image.
-
-## Future expansion
-
-The same card system can later represent:
-
-- temporary specialist workers as “operative” mini-cards;
-- process champions/challengers as variant frames;
-- Company lifecycle modes as environments;
+- temporary workers as smaller operative cards;
+- champion/challenger process variants through frame state;
+- lifecycle modes as environments;
 - business-unit spawning as new decks;
-- provider capabilities as tool relics/portals rather than characters;
-- real Control Plane UI without changing the visual mythology.
+- providers as tools/portals, never people;
+- a future Control Plane without changing the visual mythology.

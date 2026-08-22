@@ -154,9 +154,9 @@ ${commonBackground(role,id)}
   <path d="M104 785 L260 660 L400 725 L540 660 L696 785 V846 H104 Z" fill="${role.accent}" fill-opacity="0.06"/>
 </g>
 ${crest(role)}
-<text x="400" y="904" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="23" font-weight="800" letter-spacing="5" fill="${role.accent}">${role.function}</text>
-<text x="400" y="978" text-anchor="middle" font-family="Georgia,ui-serif,serif" font-size="48" font-weight="700" letter-spacing="2" fill="${C.ivory}">${role.name}</text>
-<text x="400" y="1030" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="22" fill="${C.muted}">${role.motto}</text>
+<text x="400" y="904" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="23" font-weight="800" letter-spacing="5" fill="${role.accent}">${esc(role.function)}</text>
+<text x="400" y="978" text-anchor="middle" font-family="Georgia,ui-serif,serif" font-size="48" font-weight="700" letter-spacing="2" fill="${C.ivory}">${esc(role.name)}</text>
+<text x="400" y="1030" text-anchor="middle" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="22" fill="${C.muted}">${esc(role.motto)}</text>
 <g transform="translate(400 1092)" stroke="${C.gold}" stroke-opacity="0.55"><path d="M-110 0 H-28"/><circle r="5" fill="${role.accent}" stroke="none"/><path d="M28 0 H110"/></g>
 </svg>`;
 }
@@ -202,9 +202,9 @@ function miniCard(role, x, y, w=300, h=420) {
     <path d="M56 100 L120 36 H680 L744 100 V770 L680 834 H120 L56 770 Z" fill="#070B14" stroke="#D6B56B" stroke-opacity="0.45" stroke-width="4"/>
     <circle cx="400" cy="430" r="250" fill="${role.accent}" fill-opacity="0.07"/>
     ${motif(role)}${faceBase(role)}
-    <text x="400" y="900" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="28" font-weight="800" letter-spacing="5" fill="${role.accent}">${role.function}</text>
-    <text x="400" y="972" text-anchor="middle" font-family="Georgia,serif" font-size="50" font-weight="700" fill="#F6F0DF">${role.name}</text>
-    <text x="400" y="1030" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="21" fill="#B9B2A3">${role.motto}</text>
+    <text x="400" y="900" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="28" font-weight="800" letter-spacing="5" fill="${role.accent}">${esc(role.function)}</text>
+    <text x="400" y="972" text-anchor="middle" font-family="Georgia,serif" font-size="50" font-weight="700" fill="#F6F0DF">${esc(role.name)}</text>
+    <text x="400" y="1030" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="21" fill="#B9B2A3">${esc(role.motto)}</text>
   </g>`;
 }
 
