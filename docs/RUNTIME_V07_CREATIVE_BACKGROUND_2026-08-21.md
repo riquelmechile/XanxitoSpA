@@ -1,6 +1,6 @@
 # XanxitoSpA V0.7 — Internal Creative Pipeline
 
-Status: **locally verified / four-lens APPROVED / public CI pending**
+Status: **released / four-lens APPROVED / public CI PASS**
 Date: 2026-08-21
 
 ## Decision
