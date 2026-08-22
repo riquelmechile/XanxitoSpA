@@ -156,7 +156,7 @@ At the point this document was created:
 ```text
 focused Company OS kernel tests   4 / 4 PASS
 TypeScript typecheck              PASS
-Company Gym                       120 / 120 PASS
+Company Gym                       123 / 123 PASS
 ChatGPT app MCP smoke             PASS
 ChatGPT app OAuth smoke           PASS
 ```

@@ -113,22 +113,40 @@ export async function runEnterpriseHardeningGym(): Promise<HardeningGymCaseResul
     expect(learned.experienceRefs.includes(trace.traceRef), "sanitized execution trace was not retained as learning evidence");
   }));
 
-  cases.push(await runCase("unverified or unsafe traces cannot teach corporate genes", () => {
+  const baseLearningEvidence = () => {
     const companyId = randomUUID();
     const workId = randomUUID();
-    const outcome: BusinessOutcome = {
-      id: randomUUID(), companyId, workId, verified: false,
-      dimensions: {}, evidenceRefs: [], cost: 0, riskIncidents: [], occurredAt: new Date().toISOString(),
-    };
-    const trace: ExecutionTraceSummary = {
-      id: randomUUID(), companyId, workId, traceRef: "trace:unsafe",
-      startedAt: "2026-08-21T10:00:00.000Z", completedAt: "2026-08-21T10:01:00.000Z",
-      stepCount: 1, failedStepCount: 0, decisionRefs: [], capabilityRefs: [], errorClasses: [], evidenceRefs: [],
-      sanitized: false, containsRawSecrets: true, containsRawConversation: false,
-    };
+    const outcome: BusinessOutcome = { id: randomUUID(), companyId, workId, verified: true, dimensions: { profit: 0.2 }, evidenceRefs: ["evidence:outcome"], cost: 1, riskIncidents: [], occurredAt: new Date().toISOString() };
+    const trace: ExecutionTraceSummary = { id: randomUUID(), companyId, workId, traceRef: "trace:guard", startedAt: "2026-08-21T10:00:00.000Z", completedAt: "2026-08-21T10:01:00.000Z", stepCount: 1, failedStepCount: 0, decisionRefs: [], capabilityRefs: [], errorClasses: [], evidenceRefs: [], sanitized: true, containsRawSecrets: false, containsRawConversation: false };
+    return { companyId, outcome, trace };
+  };
+
+  cases.push(await runCase("unverified outcomes cannot teach corporate genes", () => {
+    const { companyId, outcome, trace } = baseLearningEvidence();
     let rejected = false;
-    try { applyLearningEvidenceToGene(gene(companyId), outcome, trace, { minSamplesForChampion: 3 }); } catch { rejected = true; }
-    expect(rejected, "unsafe/unverified trace influenced institutional learning");
+    try { applyLearningEvidenceToGene(gene(companyId), { ...outcome, verified: false }, trace, { minSamplesForChampion: 3 }); } catch { rejected = true; }
+    expect(rejected, "unverified outcome influenced institutional learning");
+  }));
+
+  cases.push(await runCase("unsanitized traces cannot teach corporate genes", () => {
+    const { companyId, outcome, trace } = baseLearningEvidence();
+    let rejected = false;
+    try { applyLearningEvidenceToGene(gene(companyId), outcome, { ...trace, sanitized: false }, { minSamplesForChampion: 3 }); } catch { rejected = true; }
+    expect(rejected, "unsanitized trace influenced institutional learning");
+  }));
+
+  cases.push(await runCase("raw-secret traces cannot teach corporate genes", () => {
+    const { companyId, outcome, trace } = baseLearningEvidence();
+    let rejected = false;
+    try { applyLearningEvidenceToGene(gene(companyId), outcome, { ...trace, containsRawSecrets: true }, { minSamplesForChampion: 3 }); } catch { rejected = true; }
+    expect(rejected, "raw-secret trace influenced institutional learning");
+  }));
+
+  cases.push(await runCase("raw-conversation traces cannot teach corporate genes", () => {
+    const { companyId, outcome, trace } = baseLearningEvidence();
+    let rejected = false;
+    try { applyLearningEvidenceToGene(gene(companyId), outcome, { ...trace, containsRawConversation: true }, { minSamplesForChampion: 3 }); } catch { rejected = true; }
+    expect(rejected, "raw-conversation trace influenced institutional learning");
   }));
 
   cases.push(await runCase("MCP poisoned metadata is quarantined before registration", () => {

@@ -49,7 +49,7 @@ signal → heartbeat → restore state → business preflight
 Version                  1.0.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              120 / 120 PASS (local)
+Company Gym              123 / 123 PASS (local) + production-evidence meta guard
 MCP                      provider bridge + ChatGPT app Streamable HTTP + OAuth
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published

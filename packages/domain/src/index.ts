@@ -2,12 +2,20 @@ import type { AuthorityGrant, BudgetEnvelope, CapabilityRequest, CorporateGene, 
 
 export class DomainError extends Error {}
 
+export const MAX_DEBATE_ROUNDS = 2;
+
 export function assertPreflightPlan(plan: PreflightPlan): void {
   const routes = new Set(["noop", "direct", "fan_out", "collaborate", "challenge", "debate", "compete", "escalate"]);
   if (!routes.has(plan.route)) throw new DomainError(`unsupported preflight route: ${plan.route}`);
   if (!plan.objective.trim()) throw new DomainError("preflight objective is required");
   if (!plan.owner.trim()) throw new DomainError("preflight owner is required");
   if (!plan.terminalCondition.trim()) throw new DomainError("terminal condition is required");
+  if (plan.route === "debate") {
+    const rounds = plan.debateRounds ?? 1;
+    if (!Number.isInteger(rounds) || rounds < 1 || rounds > MAX_DEBATE_ROUNDS) throw new DomainError(`debate rounds must be 1..${MAX_DEBATE_ROUNDS}`);
+  } else if (plan.debateRounds !== undefined) {
+    throw new DomainError("debateRounds is only valid for debate route");
+  }
 }
 
 export function grantAllows(grant: AuthorityGrant, request: CapabilityRequest, now = new Date()): boolean {

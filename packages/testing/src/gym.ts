@@ -54,11 +54,18 @@ async function runCase(name: string, fn: () => void | Promise<void>): Promise<Gy
 export async function runCompanyGym(): Promise<GymResult> {
   const cases: GymCaseResult[] = [];
 
-  cases.push(await runCase("idle heartbeat invokes zero model work", () => {
+  cases.push(await runCase("idle heartbeat invokes zero model work", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
     let modelCalls = 0;
-    const material = false;
-    if (material) modelCalls += 1;
-    expect(modelCalls === 0, "idle path called model");
+    const engine = new HeartbeatEngine(
+      store,
+      { eventTypes: ["sales.material"], minimumJobMateriality: "medium" },
+      async () => { modelCalls += 1; },
+    );
+    const result = await engine.tick(companyId, "daemon-idle", new Date("2026-08-21T19:00:00Z"));
+    expect(result.state === "sleep" && result.wakeInvoked === false, "idle heartbeat did not stay asleep");
+    expect(modelCalls === 0, "idle heartbeat invoked model work");
   }));
 
   cases.push(await runCase("fan-out executes independent nodes then joins", async () => {
@@ -93,11 +100,14 @@ export async function runCompanyGym(): Promise<GymResult> {
   }));
 
   cases.push(await runCase("debate contract is max two rounds", () => {
-    const plan: PreflightPlan = { objective: "decide", materiality: "medium", risk: "medium", owner: "executive", route: "debate", departments: ["commercial", "finance"], workUnits: ["debate"], dependencies: [], parallelGroups: [], requiredSkills: [], requiredCapabilities: [], authorityChecks: [], budgetLimits: {}, evidenceRequired: [], successConditions: ["decision"], rollback: null, terminalCondition: "owner decision", escalationCondition: null, rationaleSummary: "bounded debate" };
-    const checked = validatePreflight({ companyId: "c1", goal: "x", trigger: "manual", requestingPrincipal: "founder", lifecycleMode: "operate", currentStateRef: "state:1", availableAuthorityRef: "auth:1", budgetRef: "budget:1" }, plan, { grants: [], budgets: [] });
-    expect(checked.route === "debate", "debate route rejected");
-    const configuredMaxRounds = 2;
-    expect(configuredMaxRounds === 2, "debate must cap at two rounds");
+    const input = { companyId: "c1", goal: "x", trigger: "manual", requestingPrincipal: "founder", lifecycleMode: "operate" as const, currentStateRef: "state:1", availableAuthorityRef: "auth:1", budgetRef: "budget:1" };
+    const plan: PreflightPlan = { objective: "decide", materiality: "medium", risk: "medium", owner: "executive", route: "debate", debateRounds: 2, departments: ["commercial", "finance"], workUnits: ["debate"], dependencies: [], parallelGroups: [], requiredSkills: [], requiredCapabilities: [], authorityChecks: [], budgetLimits: {}, evidenceRequired: [], successConditions: ["decision"], rollback: null, terminalCondition: "owner decision", escalationCondition: null, rationaleSummary: "bounded debate" };
+    const checked = validatePreflight(input, plan, { grants: [], budgets: [] });
+    expect(checked.route === "debate" && checked.debateRounds === 2, "two-round debate contract was rejected");
+    let rejected = false;
+    try { validatePreflight(input, { ...plan, debateRounds: 3 }, { grants: [], budgets: [] }); }
+    catch (error) { rejected = error instanceof DomainError && error.message.includes("debate rounds"); }
+    expect(rejected, "production preflight accepted debate beyond two rounds");
   }));
 
   cases.push(await runCase("action without grant is denied before side effect", async () => {

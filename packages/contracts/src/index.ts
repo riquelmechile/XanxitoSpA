@@ -123,6 +123,7 @@ export interface PreflightPlan {
   risk: Risk;
   owner: string;
   route: PreflightRoute;
+  debateRounds?: number;
   departments: string[];
   workUnits: string[];
   dependencies: Array<[string, string]>;
