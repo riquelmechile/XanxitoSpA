@@ -43,7 +43,7 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.6.0 candidate
+Version                  0.6.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
 Company Gym              70 / 70 PASS (local)
@@ -54,7 +54,7 @@ External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · pending public CI
+Release state             four-lens APPROVED · public CI PASS · released
 ```
 
 ---

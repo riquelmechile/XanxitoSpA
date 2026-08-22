@@ -1,7 +1,7 @@
 # XanxitoSpA V0.6 — One Model Law
 
 Date: 2026-08-21
-Status: **locally verified + four-lens APPROVED; pending public CI**
+Status: **released — local verification + four-lens APPROVED + public CI PASS**
 
 ## Decision
 
