@@ -43,10 +43,10 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.7.0
+Version                  0.8.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              79 / 79 PASS (local)
+Company Gym              87 / 87 PASS (local)
 MCP                      Streamable HTTP bridge + trust fingerprinting
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
@@ -54,7 +54,7 @@ External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · public CI PASS · released
+Release state             candidate · local gates PASS · review/CI pending
 ```
 
 ---
@@ -288,6 +288,11 @@ Business Event Ledger  → what happened
 Data Plane              → operational/application/analytics data
 Institutional Memory   → distilled reusable knowledge
 ```
+
+
+### Harness improvement loop (KAST)
+
+Every meaningful XanxitoSpA session now closes with a `SessionCloseReceipt`. Business learning and harness learning are deliberately separated: verified business outcomes can update `CorporateGene`, while runtime bugs, friction, missing capabilities and repeated workarounds become **KAST — Kernel Anomalies, Suggestions & Tasks**. KAST entries are evidence-backed, deduplicated by fingerprint, stored durably, and can only promote into ordinary `harness-maintenance` Work; they never patch the harness directly. A sanitized handoff can be consumed by Xanxittoo or another maintainer harness under the normal `preflight → review → verify` flow.
 
 ### Creative Plane
 

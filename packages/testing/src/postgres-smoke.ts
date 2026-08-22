@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { BusinessEvent, CorporateGene, Work } from "../../contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore } from "../../database/src/postgres.js";
+import { PostgresKastStore } from "../../database/src/postgres-kast.js";
+import { closeHarnessSession, recordKastObservation } from "../../kernel/src/index.js";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -59,6 +61,7 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
 
     const companyStore = new PostgresCompanyStore(app);
     const runtimeStore = new PostgresRuntimeStore(app);
+    const kastStore = new PostgresKastStore(app);
     const workA: Work = { id: randomUUID(), companyId: companyA, owner: "ops", objective: "A", scope: "demo", createdAt: new Date().toISOString() };
     const workB: Work = { id: randomUUID(), companyId: companyB, owner: "ops", objective: "B", scope: "demo", createdAt: new Date().toISOString() };
     await companyStore.saveWork(workA);
@@ -66,6 +69,36 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
 
     const visibleA = await app.withCompanyTransaction(companyA, async (client) => client.query<{ company_id: string }>("SELECT company_id FROM xspa.works ORDER BY id"));
     assert(visibleA.rows.length === 1 && visibleA.rows[0]?.company_id === companyA, "RLS leaked another Company work row");
+
+    const kastSession = "session:pg-smoke";
+    const kastEntry = await recordKastObservation(kastStore, {
+      companyId: companyA, sessionRef: kastSession, category: "bug", severity: "medium", title: "PG KAST smoke",
+      summary: "Verify durable KAST persistence and RLS.", reproduction: ["run postgres smoke"], affectedPaths: ["packages/database"],
+      affectedCapabilities: ["kast.persist"], evidenceRefs: ["smoke:postgres"], recommendation: "Keep regression.", verificationPlan: ["rerun smoke"],
+      containsRawSecrets: false, containsRawConversation: false, observedAt: new Date().toISOString(),
+    });
+    await closeHarnessSession(kastStore, { companyId: companyA, sessionRef: kastSession, containsRawSecrets: false, containsRawConversation: false, kastObservations: [], engramCandidates: [{ title: "KAST smoke", summary: "Postgres KAST persisted", topicKey: "kast/pg-smoke" }] });
+    assert((await kastStore.getByFingerprint(companyA, kastEntry.fingerprint))?.id === kastEntry.id, "KAST entry persistence failed");
+    assert((await kastStore.getSessionClose(companyA, kastSession))?.sessionRef === kastSession, "session close receipt persistence failed");
+    await Promise.all([
+      recordKastObservation(kastStore, {
+        companyId: companyA, sessionRef: "session:pg-race-a", category: "bug", severity: "medium", title: "PG KAST smoke",
+        summary: "Verify durable KAST persistence and RLS.", reproduction: ["run postgres smoke"], affectedPaths: ["packages/database"],
+        affectedCapabilities: ["kast.persist"], evidenceRefs: ["smoke:race:a"], recommendation: "Keep regression.", verificationPlan: ["rerun smoke"],
+        containsRawSecrets: false, containsRawConversation: false, observedAt: new Date().toISOString(),
+      }),
+      recordKastObservation(kastStore, {
+        companyId: companyA, sessionRef: "session:pg-race-b", category: "bug", severity: "high", title: "PG KAST smoke",
+        summary: "Verify durable KAST persistence and RLS.", reproduction: ["run postgres smoke"], affectedPaths: ["packages/database"],
+        affectedCapabilities: ["kast.persist"], evidenceRefs: ["smoke:race:b"], recommendation: "Keep regression.", verificationPlan: ["rerun smoke"],
+        containsRawSecrets: false, containsRawConversation: false, observedAt: new Date().toISOString(),
+      }),
+    ]);
+    const racedKast = await kastStore.getByFingerprint(companyA, kastEntry.fingerprint);
+    assert(racedKast?.occurrenceCount === 3, "concurrent KAST observations lost recurrence");
+    assert(racedKast.severity === "high" && racedKast.evidenceRefs.includes("smoke:race:a") && racedKast.evidenceRefs.includes("smoke:race:b"), "concurrent KAST merge lost severity/evidence");
+    const visibleKastA = await app.withCompanyTransaction(companyA, async (client) => client.query<{ company_id: string }>("SELECT company_id FROM xspa.kast_entries ORDER BY id"));
+    assert(visibleKastA.rows.length === 1 && visibleKastA.rows[0]?.company_id === companyA, "RLS leaked KAST entries");
 
     const geneA: CorporateGene = { id: "routing", companyId: companyA, type: "provider-routing", version: 1, parents: [], contextSignature: "demo", artifactRef: "gene:routing", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: ["trace:test"] };
     const geneB: CorporateGene = { ...geneA, companyId: companyB };
@@ -107,7 +140,7 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(!(await runtimeStore.markIdempotency(companyA, orphanKey, "worker-crashed", orphan.record.fencingToken, "applied", new Date(), { unsafe: true })), "stale idempotency owner settled after reconciliation takeover");
     assert(await runtimeStore.markIdempotency(companyA, orphanKey, "reconciler", recovery.fencingToken, "reconciled", new Date(), { observed: "not-applied" }), "reconciler could not settle durable orphan");
 
-    console.log("PASS PostgreSQL migrations/checksum lock + RLS + event idempotency + DB-clock fencing + orphan reconciliation");
+    console.log("PASS PostgreSQL migrations/checksum lock + RLS + KAST/session close + event idempotency + DB-clock fencing + orphan reconciliation");
   } finally {
     await app?.close();
     await admin.close();

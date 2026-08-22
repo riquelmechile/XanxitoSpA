@@ -34,3 +34,6 @@ export class InMemoryCompanyStore implements CompanyStore {
 
 export * from "./runtime-store.js";
 export * from "./postgres.js";
+
+export * from "./kast-store.js";
+export * from "./postgres-kast.js";

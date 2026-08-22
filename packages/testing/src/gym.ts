@@ -375,6 +375,7 @@ export async function runCompanyGym(): Promise<GymResult> {
   cases.push(...await runCapabilityPlaneGym());
   cases.push(...await runMcpBridgeGym());
   cases.push(...await runCreativePipelineGym());
+  cases.push(...await (await import("./kast-gym.js")).runKastGym());
   cases.push(...await (await import("./hardening-gym.js")).runEnterpriseHardeningGym());
 
   const passed = cases.filter((c) => c.ok).length;

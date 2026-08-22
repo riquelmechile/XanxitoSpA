@@ -582,3 +582,5 @@ export interface BootstrapExecutionState {
   pausedAtStepId?: string;
   completed: boolean;
 }
+
+export type { KASTCategory, KASTSeverity, KASTStatus, KASTObservation, KASTEntry, SessionCloseReceipt, HarnessImprovementHandoff, KASTPromotionResult } from "./kast.js";

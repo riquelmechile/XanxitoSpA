@@ -2234,3 +2234,19 @@ Luego agregar capacidades universales como providers desacoplados.
 > XanxitoSpA no programa una empresa concreta. Programa una forma disciplinada de formar, adoptar, dirigir, competir ideas, coordinar, equipar, verificar y evolucionar cualquier empresa.
 
 El Executive debe ser excelente mandando y consolidando. Los supervisores deben ser excelentes dirigiendo su función. Los workers deben ser pequeños, especializados y reemplazables. Las herramientas deben ser capabilities. La memoria sólo puede promover aprendizaje cuando existe outcome verificado; las trazas sanitizadas explican la ejecución sin sustituir esa evidencia. Las estrategias deben competir cuando la incertidumbre lo justifique. Los Corporate Genes deben sobrevivir por evidencia contextual, no por retórica. Y la autonomía debe crecer —o retroceder— con resultados verificados, nunca con cantidad de agentes.
+
+## 33. Harness Improvement Loop — KAST
+
+XanxitoSpA separa dos bucles de aprendizaje:
+
+```text
+BusinessOutcome → CorporateGene
+= mejora cómo opera la empresa
+
+Session/Trace → KAST → improvement Work
+= mejora el harness
+```
+
+**KAST = Kernel Anomalies, Suggestions & Tasks.** Cada sesión significativa debe cerrar con un `SessionCloseReceipt` que reparte deliberadamente hechos operacionales, candidatos de memoria empresarial, candidatos Engram, artifacts/traces, KAST, Work no resuelto y pistas para la siguiente sesión. Engram es memoria institucional saneada, nunca base operacional ni volcado de conversación.
+
+KAST deduplica por fingerprint, acumula recurrencia/evidencia y puede promover un hallazgo a `harness-maintenance` Work. Nunca modifica código/políticas por sí mismo. Un harness mantenedor externo (por ejemplo Xanxittoo) recibe sólo un `HarnessImprovementHandoff` saneado y debe recorrer preflight → change → review → verify. Un KAST sólo se considera `verified` si conserva referencias de regression guards y evidencia de verificación.
