@@ -462,8 +462,8 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   return server;
 }
 
-export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig }) {
-  const app = createMcpExpressApp();
+export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string }) {
+  const app = createMcpExpressApp({ host: input.host ?? "127.0.0.1" });
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
   app.post("/mcp", async (req: any, res: any) => {
@@ -505,7 +505,7 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
 export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; port: number }): Promise<HttpServer> {
   const host = input.host ?? "0.0.0.0";
   assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}) });
-  const app = createXspaMcpExpressApp(input); const server = createHttpServer(app);
+  const app = createXspaMcpExpressApp({ ...input, host }); const server = createHttpServer(app);
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(input.port, host, () => resolve()); });
   return server;
 }
