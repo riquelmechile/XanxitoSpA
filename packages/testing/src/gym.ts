@@ -20,6 +20,7 @@ import {
   validatePreflight,
 } from "../../kernel/src/index.js";
 import { ProviderRegistry } from "../../providers/src/index.js";
+import { runCapabilityPlaneGym } from "./capability-gym.js";
 
 export interface GymCaseResult { name: string; ok: boolean; detail: string }
 export interface GymResult { ok: boolean; passed: number; failed: number; cases: GymCaseResult[] }
@@ -368,6 +369,8 @@ export async function runCompanyGym(): Promise<GymResult> {
     const phoneProvision = plan.steps.find((step) => step.requirementId === "phone" && step.action === "provision");
     expect(Boolean(phoneApproval) && Boolean(phoneProvision) && phoneProvision?.dependsOn.includes(phoneApproval!.id), "KYC boundary was not placed before provisioning");
   }));
+
+  cases.push(...await runCapabilityPlaneGym());
 
   const passed = cases.filter((c) => c.ok).length;
   return { ok: passed === cases.length, passed, failed: cases.length - passed, cases };

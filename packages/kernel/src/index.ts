@@ -310,3 +310,7 @@ export function makeNode(id: string, kind: MissionNode["kind"], owner: string, o
 
 export * from "./heartbeat.js";
 export * from "./bootstrap.js";
+
+export * from "./bootstrap-executor.js";
+
+export * from "./control-catalog.js";

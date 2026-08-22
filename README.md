@@ -23,10 +23,11 @@ La empresa usa **GPT-5.6 Sol como único principal cognitivo**. Los demás model
 - [`docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md`](docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md) — arquitectura canónica v1.1.
 - [`docs/RUNTIME_V1_ESTADO_2026-08-21.md`](docs/RUNTIME_V1_ESTADO_2026-08-21.md) — primer kernel ejecutable.
 - [`docs/RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) — capa durable PostgreSQL/scheduler/providers/bootstrap.
+- [`docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md`](docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md) — secrets opacos, semantic capabilities, provider adapters y bootstrap executor.
 
 ## Estado
 
-Fase actual: **runtime V1.2 durable en sandbox / PostgreSQL real verificado**.
+Fase actual: **runtime V1.3 Capability Plane en sandbox / provider-neutral**.
 
 Ya existe código para:
 
@@ -46,15 +47,20 @@ Ya existe código para:
 - `HeartbeatEngine` determinístico: sleep sin wake cuando no hay materialidad;
 - `ProviderRegistry`: hard filters → quality/cost/latency/balanced routing;
 - `CompanyBootstrapPlanner`: reutiliza activos y coloca KYC/contratos/autoridad financiera como fronteras de aprobación;
-- Fastify `/health`, `/demo`, `/gym`, `/runtime/heartbeat/demo`, `/providers/route/demo`, `/bootstrap/demo`;
-- Company Gym con 31 invariantes ejecutables.
+- `SecretHandle` + `SecretResolver`: credenciales sólo dentro de callbacks scoped del provider adapter;
+- `SemanticCapabilityRegistry` + catálogo universal de herramientas empresariales provider-neutral;
+- `ProviderAdapterRegistry` + `CapabilityPlane`: routing, guards, idempotencia, fallback seguro y reconciliación;
+- `BootstrapExecutor`: pause/resume por approval, plan fingerprint, provisioning y verify-before-active;
+- `Control Catalog`: capabilities/providers/assets saneados sin credential refs ni metadata values privadas;
+- Fastify `/health`, `/demo`, `/gym`, `/runtime/heartbeat/demo`, `/providers/route/demo`, `/bootstrap/demo`, `/capabilities/catalog/demo`, `/bootstrap/execution/demo`;
+- Company Gym con 51 invariantes ejecutables.
 
 ### Verificación actual
 
 ```text
 pnpm run typecheck  PASS
 pnpm run test       PASS
-pnpm run gym        31/31 PASS
+pnpm run gym        51/51 PASS
 pnpm run build      PASS
 PostgreSQL 18 smoke PASS
 ```
@@ -69,14 +75,14 @@ Por seguridad rechaza hosts no-loopback, salvo que un CI aislado habilite explí
 
 ## Lo que todavía NO hace
 
-V1.2 **no es producción-ready** y deliberadamente todavía no contiene:
+V1.3 **no es producción-ready** y deliberadamente todavía no contiene:
 
 - credenciales o secretos reales;
 - Google Workspace/Twilio/Stripe/creative providers conectados;
-- `SecretCapability` con un secret manager real;
+- secret manager real detrás de `SecretResolver`;
 - Control Plane Web/PWA completo;
 - MCP productivo propio de XanxitoSpA;
 - scheduler daemon residente conectado a una Company real;
 - acciones financieras/productivas reales.
 
-La siguiente capa debe conectar esas capabilities sin romper el Gym ni mover política empresarial fuera del kernel.
+La siguiente capa debe conectar adapters reales/MCP y SecretResolver real sin romper el Gym ni mover política empresarial fuera del kernel.

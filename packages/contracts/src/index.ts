@@ -372,3 +372,88 @@ export interface BootstrapPlan {
   requestedCapabilities: string[];
   approvalBoundaries: Array<{ requirementId: string; reason: string }>;
 }
+
+export type CapabilitySideEffectClass = "none" | "reversible" | "external";
+export type BootstrapStepStatus = "pending" | "running" | "completed" | "paused" | "failed";
+
+export interface SecretHandle {
+  ref: string;
+  companyId: UUID;
+  providerId: string;
+  secretName: string;
+  version: number;
+}
+
+export interface SemanticCapabilityDescriptor {
+  name: string;
+  risk: Risk;
+  maxSensitivity: "public" | "internal" | "restricted";
+  sideEffectClass: CapabilitySideEffectClass;
+  inputFormats: string[];
+  outputFormats: string[];
+  credentialRequired: boolean;
+  description: string;
+}
+
+export interface ProviderAdapterDescriptor {
+  companyId: UUID;
+  providerId: string;
+  capabilities: string[];
+  credentialNames: string[];
+}
+
+export interface CapabilityPlaneRequest {
+  capabilityRequest: CapabilityRequest;
+  selection: ProviderSelectionRequest;
+  executionOwner: string;
+  allowFallback: boolean;
+  maxAttempts: number;
+  staleAfterMs: number;
+}
+
+export interface CapabilityAttemptRecord {
+  providerId: string;
+  ok: boolean;
+  sideEffectApplied: boolean;
+  evidenceRefs: string[];
+  cost: number;
+  error?: string;
+}
+
+export interface CapabilityPlaneResult {
+  capability: string;
+  providerId?: string;
+  attempts: CapabilityAttemptRecord[];
+  result: CapabilityResult;
+  fallbackUsed: boolean;
+  reconciliationRequired: boolean;
+}
+
+export interface ApprovalReceipt {
+  id: UUID;
+  companyId: UUID;
+  requirementId: string;
+  planFingerprint: string;
+  approvedBy: string;
+  approvedAt: ISODateTime;
+  expiresAt?: ISODateTime;
+}
+
+export interface BootstrapStepExecutionState {
+  stepId: string;
+  status: BootstrapStepStatus;
+  assetId?: UUID;
+  evidenceRefs: string[];
+  error?: string;
+}
+
+export interface BootstrapExecutionState {
+  executionId: UUID;
+  companyId: UUID;
+  planFingerprint: string;
+  startedAt: ISODateTime;
+  updatedAt: ISODateTime;
+  steps: BootstrapStepExecutionState[];
+  pausedAtStepId?: string;
+  completed: boolean;
+}
