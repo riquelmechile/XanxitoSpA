@@ -11,11 +11,13 @@ import type {
   CompeteDecision,
   CompeteResult,
   CorporateGene,
+  ExecutionTraceSummary,
   FitnessSnapshot,
   MissionGraph,
   MissionNode,
   PreflightInput,
   PreflightPlan,
+  PrincipalPolicy,
   Work,
 } from "../../contracts/src/index.js";
 import { assertPreflightPlan, budgetAllows, DomainError, grantAllows, validateGene } from "../../domain/src/index.js";
@@ -250,6 +252,35 @@ export function settle(input: {
     outcomeId: outcome.id, cost: input.cost, createdAt: now,
   };
   return { outcome, receipt };
+}
+
+
+export function validatePrincipalPolicy(policy: PrincipalPolicy): void {
+  if (policy.role !== "executive-principal") throw new DomainError("invalid principal role");
+  if (!policy.model.trim()) throw new DomainError("principal model required");
+  if (policy.mode === "pinned") {
+    if (policy.model !== "gpt-5.6-sol") throw new DomainError("V1 pinned principal must be gpt-5.6-sol");
+    if (policy.reasoningEffort !== "max") throw new DomainError("V1 pinned principal requires max reasoning effort");
+    if (policy.allowModelFallback) throw new DomainError("V1 pinned principal forbids model fallback");
+  }
+  if (!policy.capabilityProvidersReplaceable) throw new DomainError("capability provider replaceability must remain enabled");
+}
+
+export function applyLearningEvidenceToGene(
+  gene: CorporateGene,
+  outcome: BusinessOutcome,
+  trace: ExecutionTraceSummary,
+  options: { minSamplesForChampion: number; confidenceStep?: number },
+): CorporateGene {
+  if (!outcome.verified) throw new DomainError("unverified outcome cannot teach corporate gene");
+  if (trace.companyId !== gene.companyId || outcome.companyId !== gene.companyId) throw new DomainError("learning evidence company mismatch");
+  if (trace.workId !== outcome.workId) throw new DomainError("learning trace/outcome work mismatch");
+  if (!trace.sanitized || trace.containsRawSecrets || trace.containsRawConversation) throw new DomainError("unsafe execution trace cannot become institutional learning");
+  if (!trace.traceRef.trim()) throw new DomainError("learning trace reference required");
+  const next = applyVerifiedOutcomeToGene(gene, outcome, options);
+  if (!next.experienceRefs.includes(trace.traceRef)) next.experienceRefs.push(trace.traceRef);
+  validateGene(next);
+  return next;
 }
 
 export function dominates(a: FitnessSnapshot, b: FitnessSnapshot, higherIsBetter: string[]): boolean {

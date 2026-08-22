@@ -4,7 +4,13 @@
 
 <p align="center">
   <strong>A governed harness for forming, adopting, operating and evolving companies.</strong><br/>
-  GPT is the principal. Business functions coordinate and compete. Verified outcomes teach the organization how to work better.
+  V1 PrincipalPolicy is explicitly pinned to GPT-5.6 Sol. Business functions coordinate and compete. Verified outcomes and sanitized traces teach the organization how to work better.
+</p>
+
+<p align="center">
+  <img alt="CI" src="https://github.com/riquelmechile/XanxitoSpA/actions/workflows/ci.yml/badge.svg" />
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-D6B56B" />
+  <img alt="release" src="https://img.shields.io/github/v/release/riquelmechile/XanxitoSpA?display_name=tag" />
 </p>
 
 <p align="center">
@@ -37,14 +43,16 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.3.0
+Version                  0.5.0 candidate
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              51 / 51 PASS
-Review                    reliability + resilience APPROVED
+Company Gym              66 / 66 PASS (local)
+MCP                      Streamable HTTP bridge + trust fingerprinting
+Observability            OpenTelemetry / GenAI schema 1.42.0, content off
+External benchmark       TheAgentCompany adapter-ready; no score published
 External provider secrets none committed
-Current layer             Secure Capability Plane V1.3
-Next increment            Generic MCP Provider Bridge V1.4
+Durability direction      DBOS staged adoption (ADR-0001)
+Release state             pending CI + four-lens review
 ```
 
 ---
@@ -215,11 +223,54 @@ opaque secret handle
 external capability
 ```
 
-External models and services are **tools**, never principals. GPT remains the decision-making principal of the company.
+External models and services behind business capabilities are **tools**, never principals. Capability providers are replaceable; the executive principal is a separate constitutional `PrincipalPolicy`, intentionally pinned to GPT-5.6 Sol in V1.
 
 ### Secret boundary
 
 Workers do not receive raw API keys or passwords. A `SecretHandle` identifies a scoped credential; only the trusted provider adapter can resolve material inside an ephemeral callback. Credential material is rejected if it appears in returned results, events or control catalogs.
+
+### MCP trust boundary
+
+Mapped MCP tools require explicit Company/provider registration. Their descriptor is fingerprinted, poisoning-sensitive metadata is quarantined, and the descriptor is rediscovered and revalidated before every execution. Descriptor drift is a pre-effect denial. MCP output is marked `external-data` with `instructionsTrusted=false`. See [`MCP_SECURITY.md`](docs/MCP_SECURITY.md).
+
+### Observability
+
+OpenTelemetry spans are emitted alongside — never instead of — Business Events/Receipts. GenAI semantic conventions are pinned to schema `1.42.0` and prompt/tool body capture is disabled by default. See [`OBSERVABILITY.md`](docs/OBSERVABILITY.md).
+
+### Durable execution direction
+
+V1.2's PostgreSQL coordination remains verified, but generic workflow durability is not the moat. ADR-0001 selects **DBOS for staged adoption** before adding more custom workflow-engine machinery; Temporal remains the scale-out alternative. This is a decision/roadmap state, not a claim that DBOS already runs the runtime.
+
+---
+
+## External evidence
+
+`Company Gym` is an internal invariant suite. It is **not** a workplace-completion benchmark. TheAgentCompany 1.0.0 is kept only as an **external wind tunnel**; it is not a dependency or architecture source. Its separate environment LLM serves simulated NPCs/evaluators and is never counted as a XanxitoSpA principal or worker.
+
+The preferred experiment holds the principal constant and tests the architecture itself:
+
+```text
+same GPT-5.6 Sol + same task + same environment
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+      DIRECT         XANXITOSPA
+                       │
+             Preflight / FAN-OUT /
+             COMPETE / collaboration
+        │                 │
+        └────────┬────────┘
+                 ▼
+official score + cost + latency + reliability
+```
+
+No completion score is published until the official evaluator grades real trajectories. A full 175-task run is deferred until a representative paired pilot proves the adapter measures XanxitoSpA itself rather than another runtime.
+
+```bash
+pnpm run benchmark:theagentcompany:check
+```
+
+See [`benchmarks/theagentcompany/`](benchmarks/theagentcompany/), [`adr/0004-external-benchmarking.md`](docs/adr/0004-external-benchmarking.md) and [`EXTERNAL_REVIEW_2026-08-21.md`](docs/EXTERNAL_REVIEW_2026-08-21.md).
 
 ---
 
@@ -281,6 +332,9 @@ pnpm run typecheck
 pnpm run test
 pnpm run gym
 pnpm run build
+pnpm run visuals:check
+pnpm run mcp:smoke
+pnpm run benchmark:theagentcompany:check
 pnpm run dev
 ```
 
@@ -317,11 +371,20 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | [`RUNTIME_V1_ESTADO_2026-08-21.md`](docs/RUNTIME_V1_ESTADO_2026-08-21.md) | First executable kernel |
 | [`RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) | PostgreSQL, heartbeat, leases, providers, assets |
 | [`RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md`](docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md) | Secure semantic Capability Plane |
+| [`RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md`](docs/RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md) | MCP trust, OTel, trace learning, external evidence and release hardening |
+| [`MCP_SECURITY.md`](docs/MCP_SECURITY.md) | MCP registration, poisoning and external-data trust boundary |
+| [`OBSERVABILITY.md`](docs/OBSERVABILITY.md) | OpenTelemetry + GenAI semantic convention policy |
+| [`EXTERNAL_REVIEW_2026-08-21.md`](docs/EXTERNAL_REVIEW_2026-08-21.md) | Resolution of external architecture review |
+| [`adr/0001-durable-execution.md`](docs/adr/0001-durable-execution.md) | DBOS/Temporal durability decision |
+| [`adr/0002-principal-policy.md`](docs/adr/0002-principal-policy.md) | Principal vs capability-provider boundary |
+| [`adr/0003-authority-interoperability.md`](docs/adr/0003-authority-interoperability.md) | AP2/VC interoperability seam |
+| [`adr/0004-external-benchmarking.md`](docs/adr/0004-external-benchmarking.md) | External wind-tunnel policy; same-GPT DIRECT vs XANXITOSPA comparison |
 | [`VISUAL_SYSTEM.md`](docs/VISUAL_SYSTEM.md) | The Company Deck visual language |
 | [`CHARACTER_ART_DIRECTION.md`](docs/CHARACTER_ART_DIRECTION.md) | Character DNA, raster+SVG pipeline and originality rules |
 | [assets/characters/character-dna.json](assets/characters/character-dna.json) | Provider-neutral briefs/prompts for the 8 archetypes |
 | [`skills/svg-craft/SKILL.md`](skills/svg-craft/SKILL.md) | Project-local SVG/card/mobile delivery skill |
 | [`skills/character-art/SKILL.md`](skills/character-art/SKILL.md) | Project-local premium original character-art skill |
+| [`skills/design-competition/SKILL.md`](skills/design-competition/SKILL.md) | Creative COMPETE + VisualFitness adjudication |
 
 ---
 
@@ -335,7 +398,7 @@ Operational data is not memory.
 Only verified outcomes teach the company.
 Competition of ideas; cooperation in execution.
 Browser is a last resort.
-Providers are replaceable. Policy stays in the kernel.
+Capability providers are replaceable. PrincipalPolicy is explicit. Policy stays in the kernel.
 ```
 
 <p align="center">

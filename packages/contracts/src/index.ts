@@ -7,6 +7,17 @@ export type MissionNodeKind = "work" | "collaborate" | "challenge" | "debate" | 
 export type GeneStatus = "candidate" | "challenger" | "champion" | "silent" | "quarantine" | "retired";
 export type GeneType = "strategy" | "process" | "skill" | "team-composition" | "provider-routing";
 export type AutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
+export type PrincipalMode = "pinned" | "portable";
+export type PrincipalReasoningEffort = "max" | "xhigh";
+
+export interface PrincipalPolicy {
+  role: "executive-principal";
+  mode: PrincipalMode;
+  model: string;
+  reasoningEffort: PrincipalReasoningEffort;
+  allowModelFallback: boolean;
+  capabilityProvidersReplaceable: boolean;
+}
 
 export interface CompanyManifestSnapshot {
   companyId: UUID;
@@ -17,6 +28,7 @@ export interface CompanyManifestSnapshot {
   timezone: string;
   lifecycleModes: LifecycleMode[];
   reservedHumanActions: string[];
+  principalPolicy: PrincipalPolicy;
 }
 
 export interface Work {
@@ -181,6 +193,24 @@ export interface BusinessReceipt {
   createdAt: ISODateTime;
 }
 
+export interface ExecutionTraceSummary {
+  id: UUID;
+  companyId: UUID;
+  workId: UUID;
+  traceRef: string;
+  startedAt: ISODateTime;
+  completedAt: ISODateTime;
+  stepCount: number;
+  failedStepCount: number;
+  decisionRefs: string[];
+  capabilityRefs: string[];
+  errorClasses: string[];
+  evidenceRefs: string[];
+  sanitized: boolean;
+  containsRawSecrets: boolean;
+  containsRawConversation: boolean;
+}
+
 export interface FitnessSnapshot {
   sampleSize: number;
   confidence: number;
@@ -200,6 +230,7 @@ export interface CorporateGene {
   status: GeneStatus;
   fitness: FitnessSnapshot;
   negativeResultRefs: string[];
+  experienceRefs: string[];
 }
 
 export interface CompeteCandidate<T = unknown> {

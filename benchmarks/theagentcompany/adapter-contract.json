@@ -1,0 +1,72 @@
+{
+  "benchmark": "TheAgentCompany",
+  "version": "1.0.0",
+  "source": "https://github.com/TheAgentCompany/TheAgentCompany",
+  "role": "external-wind-tunnel",
+  "architectureDependency": false,
+  "agentUnderTest": {
+    "principalPolicy": "v1-pinned-gpt-5.6-sol",
+    "additionalReasoningModelsAllowed": false,
+    "openhandsRequired": false,
+    "businessPreflightRequired": true,
+    "missionGraphOwnedByXanxitoSpA": true,
+    "authorityAndBudgetGuardsRequired": true
+  },
+  "profiles": {
+    "direct": {
+      "description": "Same GPT principal with governed execution; cognitive FAN-OUT/COMPETE disabled except safety-required paths.",
+      "principalPolicy": "v1-pinned-gpt-5.6-sol"
+    },
+    "xanxitospa": {
+      "description": "Same GPT principal with native Business Preflight and bounded DIRECT/FAN-OUT/COMPETE/collaboration/challenge/debate routing.",
+      "principalPolicy": "v1-pinned-gpt-5.6-sol"
+    }
+  },
+  "environment": {
+    "environmentLlmRole": "benchmark NPCs and LLM-based evaluators only",
+    "environmentLlmIsXanxitoSpAPrincipal": false,
+    "recordExactConfiguration": true
+  },
+  "agentAdapter": {
+    "instructionPath": "/instruction/task.md",
+    "trajectoryOutput": "artifacts/theagentcompany/<profile>/<task-id>/trajectory.jsonl",
+    "taskMapping": {
+      "companyId": "benchmark-theagentcompany",
+      "lifecycleMode": "operate",
+      "trigger": "external-benchmark",
+      "workObjective": "contents of /instruction/task.md"
+    },
+    "evidencePolicy": {
+      "captureToolBodies": false,
+      "captureSecrets": false,
+      "recordBusinessEvents": true,
+      "recordStructuredExecutionTrace": true
+    }
+  },
+  "comparison": {
+    "paired": true,
+    "sameTask": true,
+    "sameBenchmarkVersion": true,
+    "sameEnvironmentState": true,
+    "sameEnvironmentLlm": true,
+    "samePrincipalModel": true,
+    "sameCommit": true,
+    "metrics": [
+      "official_evaluator_score",
+      "model_invocations",
+      "estimated_model_cost",
+      "capability_calls",
+      "external_cost",
+      "wall_clock_latency",
+      "reconciliation_events",
+      "human_interventions",
+      "branch_count",
+      "route_selected"
+    ]
+  },
+  "scoring": {
+    "authority": "official /utils/eval.py evaluator only",
+    "publishUnverifiedScore": false,
+    "publishSingleScoreWithoutProfileMetadata": false
+  }
+}

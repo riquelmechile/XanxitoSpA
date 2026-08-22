@@ -44,7 +44,7 @@ export async function runDemoVertical() {
     settle: async (_node, ctx) => {
       const { outcome, receipt } = settle({ work, actor: "commercial-supervisor", authorityRefs: [grant.id], budgetRefs: [], verified: true, dimensions: { businessValue: 0.82, quality: 0.9 }, evidenceRefs: ["demo:verification"], cost: 2 });
       await store.saveOutcome(outcome); await store.saveReceipt(receipt);
-      const gene: CorporateGene = { id: "pricing-recovery-growth-first", companyId, type: "strategy", version: 1, parents: [], contextSignature: "conversion-down-margin-safe", artifactRef: "strategy:growth-first", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [] };
+      const gene: CorporateGene = { id: "pricing-recovery-growth-first", companyId, type: "strategy", version: 1, parents: [], contextSignature: "conversion-down-margin-safe", artifactRef: "strategy:growth-first", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: [] };
       const evolved = applyVerifiedOutcomeToGene(gene, outcome, { minSamplesForChampion: 3 });
       await store.saveGene(evolved);
       return { outcome, receipt, gene: evolved, verification: ctx.outputs.get("verify") };

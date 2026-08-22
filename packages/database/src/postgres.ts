@@ -182,10 +182,10 @@ export class PostgresCompanyStore implements CompanyStore {
   async saveGene(gene: CorporateGene): Promise<void> {
     await this.db.withCompanyTransaction(gene.companyId, async (client) => {
       await client.query(
-        `INSERT INTO xspa.corporate_genes(id,company_id,type,version,parents,context_signature,artifact_ref,status,fitness,negative_result_refs)
-         VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::jsonb,$10::jsonb)
-         ON CONFLICT (company_id,id,version) DO UPDATE SET status=EXCLUDED.status, fitness=EXCLUDED.fitness, negative_result_refs=EXCLUDED.negative_result_refs, updated_at=now()`,
-        [gene.id, gene.companyId, gene.type, gene.version, JSON.stringify(gene.parents), gene.contextSignature, gene.artifactRef, gene.status, JSON.stringify(gene.fitness), JSON.stringify(gene.negativeResultRefs)],
+        `INSERT INTO xspa.corporate_genes(id,company_id,type,version,parents,context_signature,artifact_ref,status,fitness,negative_result_refs,experience_refs)
+         VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb)
+         ON CONFLICT (company_id,id,version) DO UPDATE SET status=EXCLUDED.status, fitness=EXCLUDED.fitness, negative_result_refs=EXCLUDED.negative_result_refs, experience_refs=EXCLUDED.experience_refs, updated_at=now()`,
+        [gene.id, gene.companyId, gene.type, gene.version, JSON.stringify(gene.parents), gene.contextSignature, gene.artifactRef, gene.status, JSON.stringify(gene.fitness), JSON.stringify(gene.negativeResultRefs), JSON.stringify(gene.experienceRefs)],
       );
     });
   }
@@ -193,7 +193,7 @@ export class PostgresCompanyStore implements CompanyStore {
   async listGenes(companyId: string): Promise<CorporateGene[]> {
     return this.db.withCompanyTransaction(companyId, async (client) => {
       const result = await client.query<QueryResultRow>(
-        `SELECT id,company_id,type,version,parents,context_signature,artifact_ref,status,fitness,negative_result_refs
+        `SELECT id,company_id,type,version,parents,context_signature,artifact_ref,status,fitness,negative_result_refs,experience_refs
          FROM xspa.corporate_genes WHERE company_id=$1 ORDER BY id,version`,
         [companyId],
       );
@@ -208,6 +208,7 @@ export class PostgresCompanyStore implements CompanyStore {
         status: row.status as CorporateGene["status"],
         fitness: row.fitness as CorporateGene["fitness"],
         negativeResultRefs: jsonArray(row.negative_result_refs),
+        experienceRefs: jsonArray(row.experience_refs),
       }));
     });
   }

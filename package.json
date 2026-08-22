@@ -1,6 +1,6 @@
 {
   "name": "xanxitospa",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,12 +12,19 @@
     "test": "vitest run",
     "gym": "tsx packages/testing/src/run-gym.ts",
     "pg:smoke": "tsx packages/testing/src/postgres-smoke.ts",
+    "mcp:smoke": "tsx packages/testing/src/mcp-streamable-smoke.ts",
     "visuals:generate": "node scripts/generate-visual-assets.mjs && node scripts/generate-character-deck-v2.mjs",
     "visuals:check": "node scripts/validate-visual-assets.mjs",
     "dev": "tsx apps/runtime/src/server.ts",
-    "start": "node dist/apps/runtime/src/server.js"
+    "start": "node dist/apps/runtime/src/server.js",
+    "benchmark:theagentcompany:check": "node scripts/theagentcompany-readiness.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/sdk-trace-base": "^2.10.0",
+    "ajv": "8.20.0",
     "fastify": "latest",
     "pg": "^8.23.0"
   },

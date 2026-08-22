@@ -67,12 +67,13 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const visibleA = await app.withCompanyTransaction(companyA, async (client) => client.query<{ company_id: string }>("SELECT company_id FROM xspa.works ORDER BY id"));
     assert(visibleA.rows.length === 1 && visibleA.rows[0]?.company_id === companyA, "RLS leaked another Company work row");
 
-    const geneA: CorporateGene = { id: "routing", companyId: companyA, type: "provider-routing", version: 1, parents: [], contextSignature: "demo", artifactRef: "gene:routing", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [] };
+    const geneA: CorporateGene = { id: "routing", companyId: companyA, type: "provider-routing", version: 1, parents: [], contextSignature: "demo", artifactRef: "gene:routing", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: ["trace:test"] };
     const geneB: CorporateGene = { ...geneA, companyId: companyB };
     await companyStore.saveGene(geneA);
     await companyStore.saveGene(geneB);
     const genesA = await companyStore.listGenes(companyA);
     assert(genesA.length === 1 && genesA[0]?.companyId === companyA, "RLS leaked another Company gene");
+    assert(genesA[0]?.experienceRefs.includes("trace:test"), "CorporateGene experience trace persistence failed");
 
     const now = new Date();
     const event: BusinessEvent = { id: randomUUID(), companyId: companyA, type: "sales.material", occurredAt: now.toISOString(), actorPrincipal: "commerce", correlationId: randomUUID(), idempotencyKey: `sale:${randomUUID()}`, payload: { materiality: "high" }, sensitivity: "internal", evidenceRefs: [] };

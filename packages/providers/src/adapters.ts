@@ -11,6 +11,7 @@ import type {
   SemanticCapabilityDescriptor,
 } from "../../contracts/src/index.js";
 import type { RuntimeStore } from "../../database/src/runtime-store.js";
+import { NoopTelemetrySink, type TelemetrySink } from "../../observability/src/index.js";
 import { DomainError, grantAllows } from "../../domain/src/index.js";
 import {
   CapabilityRegistry,
@@ -149,6 +150,7 @@ export class CapabilityPlane {
     private readonly secrets: SecretResolver,
     private readonly runtime: RuntimeStore,
     private readonly clock: () => Date = () => new Date(),
+    private readonly telemetry: TelemetrySink = new NoopTelemetrySink(),
   ) {}
 
   async execute(input: CapabilityPlaneRequest, guard: CapabilityPlaneGuardContext): Promise<CapabilityPlaneResult> {
@@ -290,7 +292,13 @@ export class CapabilityPlane {
       };
       let result: CapabilityResult;
       try {
-        result = await executeCapabilityRequest(attemptRequest, capabilityName, nodeContext);
+        result = await this.telemetry.withSpan(`execute_tool ${selection.capability}`, {
+          "gen_ai.operation.name": "execute_tool",
+          "gen_ai.tool.name": selection.capability,
+          "xanxitospa.company.id": request.companyId,
+          "xanxitospa.provider.id": providerId,
+          "xanxitospa.content.capture": false,
+        }, async () => executeCapabilityRequest(attemptRequest, capabilityName, nodeContext));
       } catch (error) {
         return failBeforeEffect(error);
       }

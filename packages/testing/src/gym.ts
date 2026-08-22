@@ -21,6 +21,7 @@ import {
 } from "../../kernel/src/index.js";
 import { ProviderRegistry } from "../../providers/src/index.js";
 import { runCapabilityPlaneGym } from "./capability-gym.js";
+import { runMcpBridgeGym } from "./mcp-gym.js";
 
 export interface GymCaseResult { name: string; ok: boolean; detail: string }
 export interface GymResult { ok: boolean; passed: number; failed: number; cases: GymCaseResult[] }
@@ -39,7 +40,7 @@ function baseRequest(companyId: string, amount = 0): CapabilityRequest {
   return { companyId, principal: "worker-a", action: "demo.write", scope: "demo", idempotencyKey: randomUUID(), payload: { value: 1 }, ...(amount > 0 ? { category: "ads", provider: "fake", beneficiary: "approved", amount, currency: "CLP" } : {}) };
 }
 function baseGene(companyId: string, id = "gene-a", dimensions: Record<string, number> = { value: 0.5 }, cost = 10): CorporateGene {
-  return { id, companyId, type: "strategy", version: 1, parents: [], contextSignature: "demo", artifactRef: `skill:${id}`, status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions, cost, riskIncidents: 0 }, negativeResultRefs: [] };
+  return { id, companyId, type: "strategy", version: 1, parents: [], contextSignature: "demo", artifactRef: `skill:${id}`, status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions, cost, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: [] };
 }
 
 async function runCase(name: string, fn: () => void | Promise<void>): Promise<GymCaseResult> {
@@ -371,6 +372,8 @@ export async function runCompanyGym(): Promise<GymResult> {
   }));
 
   cases.push(...await runCapabilityPlaneGym());
+  cases.push(...await runMcpBridgeGym());
+  cases.push(...await (await import("./hardening-gym.js")).runEnterpriseHardeningGym());
 
   const passed = cases.filter((c) => c.ok).length;
   return { ok: passed === cases.length, passed, failed: cases.length - passed, cases };

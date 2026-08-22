@@ -50,12 +50,13 @@ describePg("PostgreSQL durable runtime", () => {
       expect(visibleA.rows).toHaveLength(1);
       expect(visibleA.rows[0]?.company_id).toBe(companyA);
 
-      const geneA: CorporateGene = { id: "routing", companyId: companyA, type: "provider-routing", version: 1, parents: [], contextSignature: "demo", artifactRef: "gene:routing", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [] };
+      const geneA: CorporateGene = { id: "routing", companyId: companyA, type: "provider-routing", version: 1, parents: [], contextSignature: "demo", artifactRef: "gene:routing", status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions: {}, cost: 0, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: ["trace:test"] };
       const geneB: CorporateGene = { ...geneA, companyId: companyB };
       await companyStore.saveGene(geneA);
       await companyStore.saveGene(geneB);
       expect(await companyStore.listGenes(companyA)).toHaveLength(1);
       expect((await companyStore.listGenes(companyA))[0]?.companyId).toBe(companyA);
+      expect((await companyStore.listGenes(companyA))[0]?.experienceRefs).toEqual(["trace:test"]);
 
       const now = new Date();
       const event: BusinessEvent = { id: randomUUID(), companyId: companyA, type: "sales.material", occurredAt: now.toISOString(), actorPrincipal: "commerce", correlationId: randomUUID(), idempotencyKey: "sale:one", payload: { materiality: "high" }, sensitivity: "internal", evidenceRefs: [] };

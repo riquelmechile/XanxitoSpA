@@ -32,7 +32,7 @@ IO queda como investigación, laboratorio y biblioteca de invariantes. Xanxittoo
 
 ## 1.1 Model Law
 
-**GPT-5.6 Sol es el único principal cognitivo del sistema.**
+**`PrincipalPolicy` V1 fija explícitamente GPT-5.6 Sol como único principal cognitivo del sistema.** No es un provider oculto dentro del Capability Router: cambiar el principal sería una decisión constitucional/evaluada, no routing normal.
 
 GPT razona, dirige, delega, consolida, decide dentro de su autoridad, recupera memoria, ejecuta preflights y produce decisiones estructuradas.
 
@@ -50,7 +50,7 @@ Cambiar un proveedor creativo no debe alterar la arquitectura de la empresa.
 
 ## 1.2 Kernel pequeño
 
-Las capacidades externas no deben inflar el kernel. El núcleo conoce contratos semánticos y un Capability Router; los proveedores son reemplazables.
+Las capacidades externas no deben inflar el kernel. El núcleo conoce contratos semánticos y un Capability Router; **los proveedores de capabilities** son reemplazables. El principal cognitivo pertenece a `PrincipalPolicy`, fuera de ese router.
 
 ## 1.3 Empresa genérica
 
@@ -542,7 +542,7 @@ Commercial Memory
 
 # 9. Learning y evolución corporativa
 
-La empresa aprende únicamente de outcomes observables y comparables, no de cantidad de texto generado ni de autoevaluaciones del agente.
+La **promoción** institucional se activa únicamente por outcomes observables, verificados y comparables; para explicar por qué una variante ganó o falló, el learning puede consultar `ExecutionTraceSummary` sanitizadas y scoped. Scores o trazas por sí solos no autorizan promoción, y jamás se persisten secretos ni conversaciones crudas como conocimiento institucional.
 
 ```text
 operación
@@ -590,7 +590,7 @@ fitness:
   risk_incidents: ...
 ```
 
-La empresa desarrolla así un ADN organizacional auditable: lo que evoluciona son procesos, skills, estrategias, composiciones y routing, no la autoridad constitucional ni el modelo principal.
+La empresa desarrolla así un ADN organizacional auditable: lo que evoluciona son procesos, skills, estrategias, composiciones y routing, no la autoridad constitucional. El modelo principal tampoco muta mediante Corporate Evolution; sólo puede cambiar mediante una revisión explícita de `PrincipalPolicy`.
 
 ## 9.2 Fitness multiobjetivo y Pareto
 
@@ -1136,7 +1136,7 @@ El mismo motor de preflight/autoridad/evidencia gobierna datos; no se crea un fr
 
 La creatividad/diseño es una capacidad empresarial de primera clase.
 
-**GPT sigue siendo el cerebro.** Los modelos creativos son tools.
+**El `PrincipalPolicy` V1 sigue fijando GPT-5.6 Sol como cerebro.** Los modelos creativos son tools/capability providers y no comparten autoridad ejecutiva.
 
 ## 18.1 Capabilities semánticas
 
@@ -1340,7 +1340,7 @@ Cada modo cambia qué objetivos, procesos, skills, risk floors y KPIs tienen pri
    Business Receipt + Outcome + cost + KPI + authoritative state
 
 9. FITNESS / LEARN
-   update candidates/genes only from verified outcomes
+   update candidates/genes only when a verified outcome gates learning; attach sanitized trace evidence when available
 
 10. EVOLVE IF WARRANTED
    Pareto → champion/challenger/silent → bounded experiment/promotion
@@ -1560,7 +1560,7 @@ Se evalúa por:
 28. CAD/BIM se separa de 3D creativo.
 29. Documentos autoritativos se componen preferentemente con renderer determinista.
 30. Heartbeat 24/7 sin LLM cuando no hay novedad material.
-31. Learning basado únicamente en outcomes verificables y promoción.
+31. Learning con promoción gateada por outcomes verificables; trazas sanitizadas sirven como evidencia explicativa, nunca como autoridad autónoma.
 32. Corporate Genes versionan Strategy/Process/Skill/TeamComposition/ProviderRouting; no agentes ni pesos del modelo.
 33. Fitness es multiobjetivo, contextual y Pareto-first; no una única métrica global.
 34. Variantes conservan lineage, sample size, confidence, costo y resultados negativos.
@@ -1575,7 +1575,7 @@ Se evalúa por:
 
 # 29. Decisiones de implementación V1 cerradas
 
-Las 20 decisiones que estaban abiertas quedan cerradas en esta versión. Los proveedores externos son **defaults reemplazables**: su disponibilidad, precio o soporte regional puede cambiar sin reabrir la arquitectura. Si un proveedor no es elegible para una Company, el Provider Registry debe seleccionar otro o escalar; nunca deformar el kernel para acomodarlo.
+Las 20 decisiones que estaban abiertas quedan cerradas en esta versión. Los proveedores externos de capabilities son **defaults reemplazables**: su disponibilidad, precio o soporte regional puede cambiar sin reabrir la arquitectura. Si un proveedor no es elegible para una Company, el Provider Registry debe seleccionar otro o escalar; nunca deformar el kernel para acomodarlo.
 
 ## 29.1 Nombre, repo y namespaces
 
@@ -2205,4 +2205,4 @@ Luego agregar capacidades universales como providers desacoplados.
 
 > XanxitoSpA no programa una empresa concreta. Programa una forma disciplinada de formar, adoptar, dirigir, competir ideas, coordinar, equipar, verificar y evolucionar cualquier empresa.
 
-El Executive debe ser excelente mandando y consolidando. Los supervisores deben ser excelentes dirigiendo su función. Los workers deben ser pequeños, especializados y reemplazables. Las herramientas deben ser capabilities. La memoria debe aprender sólo de outcomes. Las estrategias deben competir cuando la incertidumbre lo justifique. Los Corporate Genes deben sobrevivir por evidencia contextual, no por retórica. Y la autonomía debe crecer —o retroceder— con resultados verificados, nunca con cantidad de agentes.
+El Executive debe ser excelente mandando y consolidando. Los supervisores deben ser excelentes dirigiendo su función. Los workers deben ser pequeños, especializados y reemplazables. Las herramientas deben ser capabilities. La memoria sólo puede promover aprendizaje cuando existe outcome verificado; las trazas sanitizadas explican la ejecución sin sustituir esa evidencia. Las estrategias deben competir cuando la incertidumbre lo justifique. Los Corporate Genes deben sobrevivir por evidencia contextual, no por retórica. Y la autonomía debe crecer —o retroceder— con resultados verificados, nunca con cantidad de agentes.
