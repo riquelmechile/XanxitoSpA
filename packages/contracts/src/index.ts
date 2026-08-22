@@ -495,6 +495,7 @@ export interface BootstrapPlan {
   reusedAssetIds: UUID[];
   requestedCapabilities: string[];
   approvalBoundaries: Array<{ requirementId: string; reason: string }>;
+  skillPlan?: import("./skill-registry.js").CompanySkillBootstrapPlan;
 }
 
 export type CapabilitySideEffectClass = "none" | "reversible" | "external";
@@ -585,3 +586,4 @@ export interface BootstrapExecutionState {
 
 export type { KASTCategory, KASTSeverity, KASTStatus, KASTObservation, KASTEntry, SessionCloseReceipt, HarnessImprovementHandoff, KASTPromotionResult } from "./kast.js";
 export type { KASTLawMode, KASTLawStatus, KASTMutableSurface, KASTConstitutionalSurface, KASTHarnessSurface, KASTLawTrigger, KASTMemoryRecord, KASTImprovementVariant, KASTVariantVerification, KASTVerifiedVariant, KASTAdjudication, KASTAdoptionResult, KASTLawResult, KASTLawPolicy } from "./kast-law.js";
+export type { SkillDefinitionStatus, SkillDomain, SkillRisk, SkillProvenance, SkillDefinition, SkillIndexEntry, SkillSearchInput, SkillMatch, SkillRegistryIssueKind, SkillRegistryIssue, SkillRegistryHealth, LoadedSkill, CompanySkillInstallationStatus, CompanySkillInstallationSource, CompanySkillInstallation, ObservedCompanyProcess, CompanySkillInstallPlan, CompanySkillReusePlan, CompanySkillGap, CompanySkillCreationCandidate, CompanySkillBootstrapInput, CompanySkillBootstrapPlan } from "./skill-registry.js";

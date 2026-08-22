@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "business-reporting",
+  "name": "Business Reporting",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Build evidence-backed operating and management reports from Company data and finance sources.",
+  "triggers": [
+    "business report",
+    "kpi report",
+    "management report",
+    "weekly operating report"
+  ],
+  "scopes": [
+    "company.reporting"
+  ],
+  "capabilities": [
+    "data.query",
+    "finance.read",
+    "document.render",
+    "notification.send"
+  ],
+  "defaultDepartments": [
+    "executive",
+    "finance",
+    "operations",
+    "commercial"
+  ],
+  "contentRef": "file:skills/business-reporting/SKILL.md",
+  "risk": "low",
+  "provenance": "project",
+  "tags": [
+    "reporting",
+    "kpi"
+  ]
+}

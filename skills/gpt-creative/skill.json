@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "gpt-creative",
+  "name": "GPT Creative",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Apply the company one-model creative execution policy and native image/vector routing.",
+  "triggers": [
+    "creative mission",
+    "gpt creative",
+    "generate visual asset"
+  ],
+  "scopes": [
+    "creative"
+  ],
+  "capabilities": [
+    "creative.image.generate",
+    "creative.image.edit",
+    "creative.vector.generate",
+    "document.render"
+  ],
+  "defaultDepartments": [
+    "creative",
+    "marketing"
+  ],
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "creative"
+  ],
+  "contentRef": "file:skills/gpt-creative/SKILL.md"
+}

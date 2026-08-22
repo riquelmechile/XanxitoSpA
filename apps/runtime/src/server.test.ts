@@ -7,7 +7,7 @@ describe("runtime control API", () => {
     const health = await app.inject({ method: "GET", url: "/health" });
     expect(health.statusCode).toBe(200);
     expect(health.json().ok).toBe(true);
-    expect(health.json().version).toBe("0.3.0");
+    expect(health.json().version).toBe("1.0.0");
 
     const gym = await app.inject({ method: "GET", url: "/gym" });
     expect(gym.statusCode).toBe(200);

@@ -23,6 +23,7 @@ import { ProviderRegistry } from "../../providers/src/index.js";
 import { runCapabilityPlaneGym } from "./capability-gym.js";
 import { runMcpBridgeGym } from "./mcp-gym.js";
 import { runCreativePipelineGym } from "./creative-gym.js";
+import { runKastRuntimeGym } from "./kast-runtime-gym.js";
 import { runKastLawGym } from "./kast-law-gym.js";
 
 export interface GymCaseResult { name: string; ok: boolean; detail: string }
@@ -376,6 +377,8 @@ export async function runCompanyGym(): Promise<GymResult> {
   cases.push(...await runCapabilityPlaneGym());
   cases.push(...await runMcpBridgeGym());
   cases.push(...await runCreativePipelineGym());
+  cases.push(...await (await import("./xspa-app-runtime-gym.js")).runXspaAppRuntimeGym());
+  cases.push(...await runKastRuntimeGym());
   cases.push(...await runKastLawGym());
   cases.push(...await (await import("./kast-gym.js")).runKastGym());
   cases.push(...await (await import("./hardening-gym.js")).runEnterpriseHardeningGym());

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "knowledge-management",
+  "name": "Knowledge Management",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Create, organize and maintain Company operational knowledge from authorized files and verified data.",
+  "triggers": [
+    "document process",
+    "knowledge management",
+    "update company knowledge",
+    "create operating procedure"
+  ],
+  "scopes": [
+    "company.knowledge",
+    "operations.knowledge"
+  ],
+  "capabilities": [
+    "file.read",
+    "file.write",
+    "data.query",
+    "data.write",
+    "document.render"
+  ],
+  "defaultDepartments": [
+    "operations",
+    "executive"
+  ],
+  "contentRef": "file:skills/knowledge-management/SKILL.md",
+  "risk": "low",
+  "provenance": "project",
+  "tags": [
+    "knowledge",
+    "process"
+  ]
+}

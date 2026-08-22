@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "project": "XanxitoSpA Company Deck",
+  "execution": {
+    "chatMode": "decision-only",
+    "candidateCount": 2,
+    "requiredSuccessfulCandidates": 2,
+    "maxRenderConcurrency": 2,
+    "maxEvaluationConcurrency": 2,
+    "principal": "gpt-5.6-sol",
+    "branchReasoning": "xhigh",
+    "ownerReasoning": "xhigh",
+    "executiveEscalation": "max-only-if-required",
+    "renderer": "responses-image-generation",
+    "video": "staged-unavailable"
+  },
+  "styleLock": "all eight belong to one visual universe: obsidian/navy atmosphere, warm ivory/gold structural language, restrained department-color energy, painterly edge control, shared contrast curve and cinematic depth",
+  "qualityTargets": [
+    "silhouette_readability",
+    "role_readability",
+    "face_expression",
+    "anatomy_proportion",
+    "pose_storytelling",
+    "materials",
+    "lighting_depth",
+    "composition_crop",
+    "roster_distinctiveness",
+    "brand_consistency",
+    "originality"
+  ],
+  "missions": [
+    {
+      "characterId": "executive",
+      "function": "Executive",
+      "archetype": "The Sovereign",
+      "briefRef": "character-dna:executive:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#D6B56B",
+      "basePrompt": "Original near-future enterprise archetype, The Sovereign: a tall human executive decision-owner in an asymmetric obsidian command coat with restrained ivory and brushed-gold structure, calm direct gaze, three-quarter standing pose, one open hand weighing a decision and one hand resting on a slim ceramic command baton with a compass-ring head, architectural decision chamber and distant city geometry, warm gold rim light, cinematic stylized digital painting, believable anatomy, expressive face and hands, compelling silhouette, areas of detail around eyes hands and baton with quieter coat planes, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Sovereign must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/executive.png"
+      }
+    },
+    {
+      "characterId": "commercial",
+      "function": "Commercial",
+      "archetype": "The Hunter",
+      "briefRef": "character-dna:commercial:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#E7525B",
+      "basePrompt": "Original near-future enterprise archetype, The Hunter: agile commercial strategist moving forward through an abstract market canyon, asymmetric obsidian performance jacket and a long crimson scarf-panel creating a sharp directional silhouette, focused confident face with subtle competitive smile, one hand projecting a small transparent market-range lens and trajectory marker, red light paths splitting toward opportunities, no bow no gun no medieval hunter costume, cinematic stylized digital painting, dramatic diagonal composition, clean silhouette, high detail face hands and transparent lens, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Hunter must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/commercial.png"
+      }
+    },
+    {
+      "characterId": "finance",
+      "function": "Finance",
+      "archetype": "The Keeper",
+      "briefRef": "character-dna:finance:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#4ED09B",
+      "basePrompt": "Original near-future enterprise archetype, The Keeper: grounded finance guardian in layered dark emerald-black mantle, calm analytical human face, symmetrical stance, both hands controlling a transparent circular ledger-vault instrument with concentric balance rings and thin ceramic ledger leaves, quiet treasury architecture receding behind, emerald rim light and warm brass highlights, stable centered composition, believable anatomy, tactile materials, detail concentrated on face hands and ledger rings, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Keeper must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/finance.png"
+      }
+    },
+    {
+      "characterId": "operations",
+      "function": "Operations",
+      "archetype": "The Forge",
+      "briefRef": "character-dna:operations:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#F28C45",
+      "basePrompt": "Original near-future enterprise archetype, The Forge: capable operations builder in charcoal utility wear with one reinforced heat-marked alloy shoulder and orange ceramic inserts, broad asymmetric silhouette, turning from a deep production line toward camera while a compact industrial torque multi-tool rests on one shoulder, pragmatic focused human expression, controlled sparks and machinery depth behind, amber rim light, tactile worn materials, believable anatomy, strong shoulder-tool triangle, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Forge must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/operations.png"
+      }
+    },
+    {
+      "characterId": "customer",
+      "function": "Customer",
+      "archetype": "The Envoy",
+      "briefRef": "character-dna:customer:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#55C7E8",
+      "basePrompt": "Original near-future enterprise archetype, The Envoy: human customer advocate with warm attentive expression, open stance leaning slightly toward an unseen person, one palm extended in a genuine listening gesture, dark soft textile clothing with a long translucent cyan signal-scarf creating gentle arcs, small ceramic listening pin at collar, layered distant human silhouettes and communication light arcs, cyan rim light, no headset cliché, believable anatomy and expressive hands, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Envoy must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/customer.png"
+      }
+    },
+    {
+      "characterId": "risk",
+      "function": "Administration & Risk",
+      "archetype": "The Sentinel",
+      "briefRef": "character-dna:risk:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#9B7BEA",
+      "basePrompt": "Original near-future enterprise archetype, The Sentinel: fair vigilant administration and risk guardian standing at an architectural threshold, violet-black layered technical clothing, one broad translucent ceramic policy shield-plane angled outward and one slim verification staff with restrained brass seal geometry, free hand signaling stop-and-verify rather than aggression, calm human face, layered permission gates behind, violet rim light, no fantasy knight armor, no authoritarian imagery, believable anatomy, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Sentinel must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/risk.png"
+      }
+    },
+    {
+      "characterId": "data",
+      "function": "Data",
+      "archetype": "The Oracle",
+      "briefRef": "character-dna:data:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#6E82F5",
+      "basePrompt": "Original near-future enterprise archetype, The Oracle: precise data observer in elongated indigo technical coat, quietly skeptical human expression, side-on analytical pose with one hand rotating a transparent evidence prism whose internal reflections form sparse constellations, clear optical glass and silver ceramic materials, dark observation chamber with minimal trace points and deep negative space, indigo rim light, no hooded hacker no code screens, believable anatomy, detail focused on face hand and prism, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Oracle must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/data.png"
+      }
+    },
+    {
+      "characterId": "creative",
+      "function": "Creative",
+      "archetype": "The Shaper",
+      "briefRef": "character-dna:creative:v2",
+      "evidenceSnapshotRef": "character-world:v2",
+      "accent": "#E56EB1",
+      "basePrompt": "Original near-future enterprise archetype, The Shaper: inventive creative maker in dark sculptural clothing, dynamic twisting pose while one hand pulls a luminous magenta ribbon-surface that visibly transforms from a flat design plane into a film-like strip and then a folded 3D object, absorbed slightly delighted human face, iridescent glass and graphite materials, studio void with a few floating physical models and light planes, magenta rim light, strong spiral S-curve composition, believable anatomy and expressive hands, cinematic stylized digital painting, premium game key art quality, 4:5 portrait, no text, no logos, original design high-end stylized realism with hand-painted cinematic finish, strong shape design, human skin and tactile material response; not a flat vector mascot and not glossy generic 3D. 50–70mm cinematic portrait language, full-body or three-quarter with readable hands/prop, slight low-to-neutral angle, strong foreground/midground/background separation. distinct adult human faces with asymmetry, pores/skin variation and specific emotion; eyes readable at card scale; no masks, helmets or mannequin faces. The Shaper must read as a unique human individual with a specific face, stance and material silhouette; never reuse another roster member's body pose, face geometry, coat shape or prop category.",
+      "directions": [
+        {
+          "id": "archetype-motion",
+          "intent": "maximize silhouette, role fantasy and environmental storytelling",
+          "instruction": "full or near-full body, stronger action line, role prop clearly readable, deeper environment narrative, dramatic but believable pose"
+        },
+        {
+          "id": "human-material",
+          "intent": "maximize face, emotion, tactile materials and premium portrait finish without losing role silhouette",
+          "instruction": "three-quarter hero crop, more facial storytelling and material micro-detail, restrained environment, hands and signature prop remain fully readable"
+        }
+      ],
+      "output": {
+        "aspect": "4:5",
+        "format": "png",
+        "visibility": "internal-candidate",
+        "selectedDestination": "assets/characters/final/creative.png"
+      }
+    }
+  ]
+}

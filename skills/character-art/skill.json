@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "character-art",
+  "name": "Character Art",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Create premium original character art using company character DNA and governed creative production.",
+  "triggers": [
+    "character art",
+    "create character",
+    "character dna"
+  ],
+  "scopes": [
+    "creative.character",
+    "creative.image"
+  ],
+  "capabilities": [
+    "creative.image.generate",
+    "creative.image.edit"
+  ],
+  "defaultDepartments": [
+    "creative",
+    "marketing"
+  ],
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "creative",
+    "image"
+  ],
+  "contentRef": "file:skills/character-art/SKILL.md"
+}

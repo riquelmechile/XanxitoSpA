@@ -43,18 +43,18 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.9.0
+Version                  1.0.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              102 / 102 PASS (local)
-MCP                      Streamable HTTP bridge + trust fingerprinting
+Company Gym              113 / 113 PASS (local)
+MCP                      provider bridge + ChatGPT app Streamable HTTP + OAuth
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
 External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · public CI PASS · released
+Release state             candidate · local gates PASS · review/CI pending
 ```
 
 ---
@@ -71,7 +71,7 @@ Stable functions are not disposable prompt personas. They are durable scopes wit
   </picture>
 </p>
 
-The public deck now uses **Character Concept V2**: full-body, role-specific silhouettes, poses, props and environments instead of repeated geometric busts. These vector concepts lock the roster DNA and mobile composition. The final painterly/splash-art layer is provider-neutral and specified in [assets/characters/character-dna.json](assets/characters/character-dna.json); it can replace the concept layer later without changing the card system.
+The public deck still uses the vector **Character Concept V2** while the production art pipeline is being replaced. The real raster roster is now specified by [Character DNA v2](assets/characters/character-dna.json) plus the [Character Mission Pack](assets/characters/character-missions.json): eight roles, two blind Sol/xhigh directions each, shared world/style lock, role-specific identity anchors, VisualFitness review and internal-only candidate assets. On a host without the runtime OpenAI credential the missions remain staged rather than leaking into chat or falling back to another model.
 
 | Function | Archetype | Visual read |
 | --- | --- | --- |
@@ -302,7 +302,39 @@ experience → KAST → Engram
                                               → SDD/TDD/RDD → adopt/reject → Engram
 ```
 
-The constitutional core — Model Law, Constitution, authority root, secret isolation, KAST/review/memory laws and human-reserved boundaries — is never auto-adopted. Those changes return `founder-required`. V0.8 KAST tables and `SessionCloseReceipt` remain as optional audit/telemetry; **KAST Law itself runs without PostgreSQL**. See [`RUNTIME_V09_KAST_LAW_2026-08-22.md`](docs/RUNTIME_V09_KAST_LAW_2026-08-22.md).
+The constitutional core — Model Law, Constitution, authority root, secret isolation, KAST/review/memory laws and human-reserved boundaries — is never auto-adopted. Those changes return `founder-required`. V0.8 KAST tables and `SessionCloseReceipt` remain as optional audit/telemetry; **KAST Law itself runs without PostgreSQL**. V1.0 wires the law to a real MCP Engram/workflow adapter plus isolated Git worktrees: the actual diff determines touched surfaces, tests/review bind to an exact source commit, and `GitAdoptionPort` refuses a moved/dirty base or protected surface. See [`RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md`](docs/RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md).
+
+### Company Skills + AutoSkills + Skill Registry
+
+XanxitoSpA is a **generic Company OS**. The Skill Registry is therefore part of the Company runtime, not merely a KAST self-improvement feature. It supports both `NEW COMPANY` bootstrap and `EXISTING COMPANY` adoption while keeping the global catalog lightweight through progressive disclosure.
+
+```text
+GLOBAL COMPANY SKILL REGISTRY
+(metadata only: identity/version/domain/triggers/scopes/capabilities/departments/risk)
+                    ↓
+NEW COMPANY                    EXISTING COMPANY
+purpose + requirements         observed systems/processes
+        ↓                              ↓
+match reusable skills          map what already works
+        ↓                              ↓
+install + capability gaps      reuse + preserve unmatched processes
+        └──────────────┬───────────────┘
+                       ↓
+              Company Skill Profile
+                       ↓
+            Work / Mission matching
+                       ↓
+              verified outcomes
+                       ↓
+          CorporateGene(type=skill)
+ candidate → challenger → champion / silent / quarantine / retired
+```
+
+Global `skill.json` definitions are Company-agnostic and contain no Company outcome counters. A deployment installs skills through Company-owned `skill-installation` assets. Company-specific processes are stored as `company-skill-definition` assets and evolve through the existing `CorporateGene(type=skill)` fitness/evidence lifecycle. This avoids a second learning system.
+
+`xspa_skill_install` applies reusable catalog choices as Company-owned installations without granting capabilities/authority. `xspa_autoskill_propose` creates a **Company-local** skill definition + installation + candidate SkillGene and does **not** invoke KAST. If a Company-local SkillGene later becomes a proven `champion` and appears reusable across Companies, `xspa_skill_global_promotion_propose` crosses the separate KAST boundary to propose a shared catalog change. KAST never governs ordinary Company learning.
+
+Registry list/search remain metadata-only. `xspa_skill_get` loads one installed skill body after matching. Registry health fails closed on invalid definitions, duplicate active versions or missing file-backed bodies; trigger overlap is surfaced as a review warning. Skills describe execution procedures but never grant authority, budget, credentials or legal capacity.
 
 ### Creative Plane
 
@@ -332,7 +364,7 @@ creative.model3d.generate → only via approved non-model/procedural tool seam
 creative.cad.generate     → approved CAD engine as a tool, not another cognitive model
 ```
 
-OpenAI's current specialized image backend is GPT Image 2, but it is treated as a renderer behind the tool — not a worker or principal. Final video generation stays disabled because GPT-5.6 Sol has no stable native video tool and the currently documented Sora 2 APIs are Legacy/Deprecated. GPT can still create scripts, shot lists, storyboards and image keyframes. See [`adr/0005-one-model-law.md`](docs/adr/0005-one-model-law.md).
+OpenAI's current specialized image backend is treated as a renderer behind the tool — not a worker or principal. `OpenAIResponsesImageRenderer` stores raw image bytes only through an internal asset sink; base64 never enters the chat receipt. Concept branches, visual evaluators and the Creative Supervisor are all GPT-5.6 Sol/xhigh. Final video generation stays disabled in V1. See [`adr/0005-one-model-law.md`](docs/adr/0005-one-model-law.md).
 
 ---
 
@@ -349,6 +381,27 @@ For new businesses, competing theses can be evaluated before bootstrap and launc
 ---
 
 <a id="run-it"></a>
+## ChatGPT app / MCP control surface
+
+XanxitoSpA V1 is operated primarily as a **remote MCP app from ChatGPT**. The human-facing app does not become the workflow engine: it submits governed company work and reads sanitized receipts while execution stays behind the runtime.
+
+```text
+ChatGPT app
+    ↓ MCP
+xspa_status
+xspa_work_create      → Company Work (no implicit authority/budget)
+xspa_work_get         → Company-scoped Work lookup
+xspa_creative_submit  → background CreativeMission
+xspa_creative_status  → selected receipt only
+xspa_kast_reflect      → NOOP / REMEMBER / IMPROVE
+    ↓
+XanxitoSpA runtime / Postgres / workers / Engram
+```
+
+One MCP deployment is scoped to one Company server-side; callers cannot switch `company_id`. Candidate prompts/images and losing creative assets stay internal. See [`CHATGPT_APP_MCP.md`](docs/CHATGPT_APP_MCP.md).
+
+---
+
 ## Run it
 
 Requirements:
@@ -363,7 +416,10 @@ pnpm run test
 pnpm run gym
 pnpm run build
 pnpm run visuals:check
+pnpm run character:check
 pnpm run mcp:smoke
+pnpm run mcp:app:smoke
+pnpm run mcp:app:oauth:smoke
 pnpm run benchmark:theagentcompany:check
 pnpm run dev
 ```
@@ -398,10 +454,12 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | Document | Purpose |
 | --- | --- |
 | [`XANXITOSPA_ARQUITECTURA_INICIAL_2026.md`](docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md) | Canonical company architecture and laws |
+| [`RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md`](docs/RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md) | Real MCP/Engram + Git KAST runtime and GPT-only character production pipeline |
 | [`RUNTIME_V1_ESTADO_2026-08-21.md`](docs/RUNTIME_V1_ESTADO_2026-08-21.md) | First executable kernel |
 | [`RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) | PostgreSQL, heartbeat, leases, providers, assets |
 | [`RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md`](docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md) | Secure semantic Capability Plane |
 | [`RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md`](docs/RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md) | MCP trust, OTel, trace learning, external evidence and release hardening |
+| [`CHATGPT_APP_MCP.md`](docs/CHATGPT_APP_MCP.md) | Primary ChatGPT remote-MCP control surface |
 | [`RUNTIME_V06_MODEL_LAW_2026-08-21.md`](docs/RUNTIME_V06_MODEL_LAW_2026-08-21.md) | One Model Law + GPT-only creative execution |
 | [`MCP_SECURITY.md`](docs/MCP_SECURITY.md) | MCP registration, poisoning and external-data trust boundary |
 | [`OBSERVABILITY.md`](docs/OBSERVABILITY.md) | OpenTelemetry + GenAI semantic convention policy |
@@ -418,6 +476,8 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | [`skills/character-art/SKILL.md`](skills/character-art/SKILL.md) | Project-local premium original character-art skill |
 | [`skills/design-competition/SKILL.md`](skills/design-competition/SKILL.md) | Creative COMPETE + VisualFitness adjudication |
 | [`skills/gpt-creative/SKILL.md`](skills/gpt-creative/SKILL.md) | One-model creative execution + native image tool policy |
+| [`skills/autoskill-creator/SKILL.md`](skills/autoskill-creator/SKILL.md) | Company-local AutoSkill creation backed by CompanyAsset + SkillGene learning |
+| [`skills/company-bootstrap/SKILL.md`](skills/company-bootstrap/SKILL.md) | NEW/EXISTING Company bootstrap with skill mapping, reuse and gap creation |
 
 ---
 

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "svg-craft",
+  "name": "SVG Craft",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Create deterministic SVG, cards and diagram assets for company communication and product work.",
+  "triggers": [
+    "create svg",
+    "render svg card",
+    "vector diagram"
+  ],
+  "scopes": [
+    "creative.vector",
+    "document.visual"
+  ],
+  "capabilities": [
+    "creative.vector.generate",
+    "document.render"
+  ],
+  "defaultDepartments": [
+    "creative",
+    "marketing"
+  ],
+  "risk": "low",
+  "provenance": "project",
+  "tags": [
+    "creative",
+    "vector"
+  ],
+  "contentRef": "file:skills/svg-craft/SKILL.md"
+}

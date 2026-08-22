@@ -96,3 +96,25 @@ At meaningful session close, ask only:
 - Is this worth NOOP, REMEMBER, or IMPROVE?
 
 If the answer is `IMPROVE`, invoke KAST directly. Do not create a separate maintainer bureaucracy first.
+
+
+## Company Skills boundary
+
+Ordinary Company skill learning is **not KAST**. `company-bootstrap` and `autoskill-creator` may map, install, create and evolve Company-local skills using CompanyAsset + `CorporateGene(type=skill)` under verified BusinessOutcome learning. KAST must not be inserted into that loop.
+
+KAST becomes relevant only when a proven Company-local `champion` skill is proposed as a reusable **global Skill Registry definition**, because that changes the shared harness/catalog surface. That promotion must remain isolated, verified, reviewed and adopted through the normal KAST law.
+
+The global catalog still uses progressive disclosure: registry metadata first, one selected `SKILL.md` body only after a match. KAST may modify global skill definitions but may not rewrite constitutional core surfaces or grant Company authority/budget.
+
+## Real execution bindings (V1.0)
+
+When the environment exposes them, prefer these bindings rather than inventing another maintenance subsystem:
+
+- Engram: `McpEngramMemoryPort` over a discovered/trusted MCP transport;
+- SDD/RDD evidence: `XanxitoMcpWorkflowEvidencePort`;
+- isolation: `GitWorktreeExperimentPort` from one exact base SHA;
+- mutation: GPT-controlled `KastMutationExecutor` inside the isolated worktree;
+- verification: real changed paths + regression runner + SDD/review evidence;
+- adoption: `GitAdoptionPort`, exact source commit binding, clean/unmoved base required.
+
+The proposer never gets to self-declare a safe surface. Git diff classification is authoritative for the adoption gate.

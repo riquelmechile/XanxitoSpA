@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { BusinessEvent, CorporateGene, Work } from "../../contracts/src/index.js";
+import type { BusinessEvent, CompanyAsset, CorporateGene, Work } from "../../contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore } from "../../database/src/postgres.js";
 import { PostgresKastStore } from "../../database/src/postgres-kast.js";
 import { closeHarnessSession, recordKastObservation } from "../../kernel/src/index.js";
@@ -66,6 +66,10 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const workB: Work = { id: randomUUID(), companyId: companyB, owner: "ops", objective: "B", scope: "demo", createdAt: new Date().toISOString() };
     await companyStore.saveWork(workA);
     await companyStore.saveWork(workB);
+    const fetchedA = await companyStore.getWork(companyA, workA.id);
+    const hiddenFromB = await companyStore.getWork(companyB, workA.id);
+    assert(fetchedA?.companyId === companyA && fetchedA.objective === "A", "Company Work lookup failed");
+    assert(hiddenFromB === null, "Company Work lookup crossed RLS Company boundary");
 
     const visibleA = await app.withCompanyTransaction(companyA, async (client) => client.query<{ company_id: string }>("SELECT company_id FROM xspa.works ORDER BY id"));
     assert(visibleA.rows.length === 1 && visibleA.rows[0]?.company_id === companyA, "RLS leaked another Company work row");
@@ -108,6 +112,18 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(genesA.length === 1 && genesA[0]?.companyId === companyA, "RLS leaked another Company gene");
     assert(genesA[0]?.experienceRefs.includes("trace:test"), "CorporateGene experience trace persistence failed");
 
+    const assetNow = new Date().toISOString();
+    const assetA: CompanyAsset = { id: randomUUID(), companyId: companyA, kind: "skill-installation", capability: "skill.execute", department: "operations", cost: 0, currency: "CLP", status: "active", grantRefs: [], restrictions: [], metadata: { installation: { companyId: companyA, assetId: "placeholder", skillRef: "skill://demo@1.0.0", department: "operations", scopes: ["operations.demo"], source: "catalog", status: "active" } }, createdAt: assetNow, updatedAt: assetNow };
+    (assetA.metadata.installation as { assetId: string }).assetId = assetA.id;
+    const assetB: CompanyAsset = { ...assetA, id: randomUUID(), companyId: companyB, metadata: { installation: { companyId: companyB, assetId: "placeholder", skillRef: "skill://demo@1.0.0", department: "operations", scopes: ["operations.demo"], source: "catalog", status: "active" } } };
+    (assetB.metadata.installation as { assetId: string }).assetId = assetB.id;
+    await runtimeStore.saveAsset(assetA);
+    const runtimeStoreB = new PostgresRuntimeStore(app);
+    await runtimeStoreB.saveAsset(assetB);
+    const assetsA = await runtimeStore.listAssets(companyA);
+    assert(assetsA.some((asset) => asset.id === assetA.id && asset.companyId === companyA), "CompanyAsset persistence failed");
+    assert(!assetsA.some((asset) => asset.id === assetB.id || asset.companyId === companyB), "RLS leaked another Company asset");
+
     const now = new Date();
     const event: BusinessEvent = { id: randomUUID(), companyId: companyA, type: "sales.material", occurredAt: now.toISOString(), actorPrincipal: "commerce", correlationId: randomUUID(), idempotencyKey: `sale:${randomUUID()}`, payload: { materiality: "high" }, sensitivity: "internal", evidenceRefs: [] };
     assert(await runtimeStore.appendEvent(event), "first event insert failed");
@@ -140,7 +156,7 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(!(await runtimeStore.markIdempotency(companyA, orphanKey, "worker-crashed", orphan.record.fencingToken, "applied", new Date(), { unsafe: true })), "stale idempotency owner settled after reconciliation takeover");
     assert(await runtimeStore.markIdempotency(companyA, orphanKey, "reconciler", recovery.fencingToken, "reconciled", new Date(), { observed: "not-applied" }), "reconciler could not settle durable orphan");
 
-    console.log("PASS PostgreSQL migrations/checksum lock + RLS + KAST/session close + event idempotency + DB-clock fencing + orphan reconciliation");
+    console.log("PASS PostgreSQL migrations/checksum lock + RLS + CompanyAsset/CorporateGene + KAST/session close + event idempotency + DB-clock fencing + orphan reconciliation");
   } finally {
     await app?.close();
     await admin.close();

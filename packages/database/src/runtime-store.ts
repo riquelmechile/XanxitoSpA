@@ -19,6 +19,7 @@ export interface RuntimeStore {
   releaseHeartbeatLease(lease: FencedLease, now: Date): Promise<boolean>;
 
   enqueueJob(job: ScheduledJob): Promise<void>;
+  getJob(companyId: string, jobId: string): Promise<ScheduledJob | null>;
   listDueJobs(companyId: string, now: Date, limit: number): Promise<ScheduledJob[]>;
   claimJob(companyId: string, jobId: string, owner: string, now: Date, leaseMs: number): Promise<FencedLease | null>;
   settleJob(lease: FencedLease, state: "completed" | "failed" | "cancelled", now: Date, error?: string): Promise<boolean>;
@@ -114,7 +115,13 @@ export class InMemoryRuntimeStore implements RuntimeStore {
   }
 
   async enqueueJob(job: ScheduledJob): Promise<void> {
-    this.jobs.set(`${job.companyId}:${job.id}`, clone(job));
+    const key = `${job.companyId}:${job.id}`;
+    if (!this.jobs.has(key)) this.jobs.set(key, clone(job));
+  }
+
+  async getJob(companyId: string, jobId: string): Promise<ScheduledJob | null> {
+    const job = this.jobs.get(`${companyId}:${jobId}`);
+    return job ? clone(job) : null;
   }
 
   async listDueJobs(companyId: string, now: Date, limit: number): Promise<ScheduledJob[]> {

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "market-research",
+  "name": "Market Research",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Research markets, competitors, customers and external evidence for Company decisions.",
+  "triggers": [
+    "research market",
+    "analyze competitors",
+    "customer research",
+    "market opportunity"
+  ],
+  "scopes": [
+    "research.market",
+    "strategy.evidence"
+  ],
+  "capabilities": [
+    "web.search",
+    "data.query",
+    "file.write",
+    "document.render"
+  ],
+  "defaultDepartments": [
+    "research",
+    "commercial",
+    "product"
+  ],
+  "contentRef": "file:skills/market-research/SKILL.md",
+  "risk": "low",
+  "provenance": "project",
+  "tags": [
+    "research",
+    "strategy"
+  ]
+}

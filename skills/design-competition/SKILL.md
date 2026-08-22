@@ -118,3 +118,8 @@ later outcome refs (when available)
 The public/chat surface does **not** stream Candidate A/B images, prompts or critiques by default. The runtime stores them as `internal-candidate` CompanyAssets, evaluators inspect them, and the named Creative Supervisor selects A/B/synthesis. Chat receives only the final decision receipt and selected asset reference unless an explicit review request asks to expose the candidate set.
 
 This preserves conversational continuity and keeps creative parallelism inside the company rather than turning the chat UI into the workflow engine.
+
+
+## Character mission pack
+
+For the Company Deck, `assets/characters/character-missions.json` is the canonical production brief. It freezes the shared style lock, two blind strategy overlays, VisualFitness dimensions and selected-asset destination for all eight roles. Candidate art remains internal; only the selected champion can be promoted to `assets/characters/final/`.

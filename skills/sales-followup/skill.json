@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "sales-followup",
+  "name": "Sales Follow-up",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Operate a disciplined lead and opportunity follow-up process using Company communication and data systems.",
+  "triggers": [
+    "follow up lead",
+    "sales followup",
+    "contact prospect",
+    "manage opportunity"
+  ],
+  "scopes": [
+    "commercial.sales",
+    "commercial.pipeline"
+  ],
+  "capabilities": [
+    "email.read",
+    "email.search",
+    "email.send",
+    "email.reply",
+    "contacts.search",
+    "calendar.create",
+    "data.query",
+    "data.write"
+  ],
+  "defaultDepartments": [
+    "commercial"
+  ],
+  "contentRef": "file:skills/sales-followup/SKILL.md",
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "sales",
+    "revenue"
+  ]
+}

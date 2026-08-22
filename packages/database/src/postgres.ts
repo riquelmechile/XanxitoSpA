@@ -135,6 +135,25 @@ export class PostgresCompanyStore implements CompanyStore {
     });
   }
 
+  async getWork(companyId: string, workId: string): Promise<Work | null> {
+    return this.db.withCompanyTransaction(companyId, async (client) => {
+      const result = await client.query<{ id: string; company_id: string; owner: string; objective: string; scope: string; created_at: Date | string }>(
+        `SELECT id,company_id,owner,objective,scope,created_at FROM xspa.works WHERE company_id=$1 AND id=$2`,
+        [companyId, workId],
+      );
+      const row = result.rows[0];
+      if (!row) return null;
+      return {
+        id: row.id,
+        companyId: row.company_id,
+        owner: row.owner,
+        objective: row.objective,
+        scope: row.scope,
+        createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString(),
+      };
+    });
+  }
+
   async saveEvent(event: BusinessEvent): Promise<void> {
     await this.db.withCompanyTransaction(event.companyId, async (client) => {
       await client.query(
@@ -333,6 +352,16 @@ export class PostgresRuntimeStore implements RuntimeStore {
          ON CONFLICT (id) DO NOTHING`,
         [job.id, job.companyId, job.kind, JSON.stringify(job.payload), job.materiality, job.dueAt, job.state, job.attempts, job.maxAttempts, job.leaseOwner ?? null, job.leaseUntil ?? null, job.fencingToken, job.lastError ?? null, job.createdAt, job.updatedAt],
       );
+    });
+  }
+
+  async getJob(companyId: string, jobId: string): Promise<ScheduledJob | null> {
+    return this.db.withCompanyTransaction(companyId, async (client) => {
+      const result = await client.query<QueryResultRow>(
+        `SELECT * FROM xspa.scheduler_jobs WHERE company_id=$1 AND id=$2`,
+        [companyId, jobId],
+      );
+      return result.rows[0] ? jobFromRow(result.rows[0]) : null;
     });
   }
 

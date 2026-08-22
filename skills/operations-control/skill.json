@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "operations-control",
+  "name": "Operations Control",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Monitor operational state, detect exceptions, coordinate follow-up and maintain verified operational records.",
+  "triggers": [
+    "operations review",
+    "operational control",
+    "check operations",
+    "resolve operational exception"
+  ],
+  "scopes": [
+    "operations.control"
+  ],
+  "capabilities": [
+    "data.query",
+    "data.write",
+    "notification.send",
+    "document.render"
+  ],
+  "defaultDepartments": [
+    "operations"
+  ],
+  "contentRef": "file:skills/operations-control/SKILL.md",
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "operations",
+    "control"
+  ]
+}

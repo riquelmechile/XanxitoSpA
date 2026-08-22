@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "people-ops",
+  "name": "People Operations",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Coordinate Company people administration, scheduling and documented HR operations within human-reserved boundaries.",
+  "triggers": [
+    "people operations",
+    "hr administration",
+    "onboard employee",
+    "schedule interview"
+  ],
+  "scopes": [
+    "people.operations"
+  ],
+  "capabilities": [
+    "email.search",
+    "email.send",
+    "calendar.read",
+    "calendar.create",
+    "calendar.update",
+    "contacts.search",
+    "file.read",
+    "file.write",
+    "data.query",
+    "data.write"
+  ],
+  "defaultDepartments": [
+    "people"
+  ],
+  "contentRef": "file:skills/people-ops/SKILL.md",
+  "risk": "high",
+  "provenance": "project",
+  "tags": [
+    "people",
+    "hr"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "company-bootstrap",
+  "name": "Company Bootstrap",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Bootstrap a new Company or adopt/map an existing Company, including its initial skills, departments, capabilities and assets without replacing what already works.",
+  "triggers": [
+    "bootstrap company",
+    "create company from scratch",
+    "adopt existing company",
+    "map existing business"
+  ],
+  "scopes": [
+    "company.bootstrap",
+    "company.adoption"
+  ],
+  "capabilities": [
+    "company.discover",
+    "skill.registry.search",
+    "skill.install",
+    "asset.provision"
+  ],
+  "defaultDepartments": [
+    "executive",
+    "operations"
+  ],
+  "contentRef": "file:skills/company-bootstrap/SKILL.md",
+  "risk": "high",
+  "provenance": "project",
+  "tags": [
+    "bootstrap",
+    "company-os"
+  ]
+}

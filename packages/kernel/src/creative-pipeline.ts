@@ -38,6 +38,7 @@ export interface CreativeConceptWorker {
 }
 
 export interface NativeImageRenderer {
+  availability?(): Promise<{ available: boolean; reason: string }>;
   render(input: {
     mission: CreativeMission;
     candidate: CreativeStrategyCandidate;
@@ -148,10 +149,21 @@ export async function submitCreativeMission(store: RuntimeStore, mission: Creati
   const submissionKey = `creative:submit:${mission.id}`;
   const submissionOwner = `creative-submit:${mission.id}`;
   const submission = await store.claimIdempotency(mission.companyId, submissionKey, { fingerprint }, submissionOwner, now);
+  let submissionOwnerActive = submissionOwner;
+  let submissionFencingToken = submission.record.fencingToken;
   if (!submission.claimed) {
     const prior = submission.record.intent as { fingerprint?: unknown };
     if (prior.fingerprint !== fingerprint) throw new DomainError(`IDEMPOTENCY_CONFLICT:creative_submission_changed:${mission.id}`);
-    return { missionId: mission.id, status: "queued", chatMode: "decision-only" };
+    if (submission.record.state === "applied") return { missionId: mission.id, status: "queued", chatMode: "decision-only" };
+    if (submission.record.state === "intent") {
+      const resolver = `${submissionOwner}:reconciler`;
+      const reconciliation = await store.claimStaleIdempotencyForReconciliation(mission.companyId, submissionKey, resolver, now, 60_000);
+      if (!reconciliation) throw new DomainError(`CONTENDED:creative_submission:${mission.id}`);
+      submissionOwnerActive = resolver;
+      submissionFencingToken = reconciliation.fencingToken;
+    } else {
+      throw new DomainError(`ESCALATE:creative_submission_reconciliation_required:${mission.id}`);
+    }
   }
   const job: ScheduledJob<CreativeMission> = {
     id: mission.id,
@@ -168,12 +180,20 @@ export async function submitCreativeMission(store: RuntimeStore, mission: Creati
     updatedAt: timestamp,
   };
   try {
-    await store.enqueueJob(job);
-    const settled = await store.markIdempotency(mission.companyId, submissionKey, submissionOwner, submission.record.fencingToken, "applied", now, { jobId: mission.id });
+    const existingJob = await store.getJob(mission.companyId, mission.id);
+    if (existingJob) {
+      const existingMission = existingJob.payload as CreativeMission;
+      if (existingJob.kind !== "creative.mission" || creativeMissionFingerprint(existingMission) !== fingerprint) {
+        throw new DomainError(`ESCALATE:creative_job_identity_conflict:${mission.id}`);
+      }
+    } else {
+      await store.enqueueJob(job);
+    }
+    const settled = await store.markIdempotency(mission.companyId, submissionKey, submissionOwnerActive, submissionFencingToken, "applied", now, { jobId: mission.id });
     if (!settled) throw new DomainError("creative submission idempotency fencing lost");
     return { missionId: mission.id, status: "queued", chatMode: "decision-only" };
   } catch (error) {
-    await store.markIdempotency(mission.companyId, submissionKey, submissionOwner, submission.record.fencingToken, "failed", now, undefined, safeCreativeError(error));
+    await store.markIdempotency(mission.companyId, submissionKey, submissionOwnerActive, submissionFencingToken, "failed", now, undefined, safeCreativeError(error));
     throw error;
   }
 }
@@ -303,13 +323,21 @@ export async function runCreativeMission(input: CreativeMissionRunInput): Promis
   if (adjudication.decisionOwner !== mission.supervisorPrincipal) throw new DomainError("ordinary creative adjudication must remain with Creative Supervisor");
   const winner = successfulCandidates.find((entry) => entry.candidate.id === adjudication.winnerId);
   if (!winner) throw new DomainError("creative adjudicator selected unavailable or failed candidate");
+  const selectedAsset: CompanyAsset = {
+    ...winner.asset,
+    kind: "creative-image-selected",
+    restrictions: winner.asset.restrictions.filter((restriction) => restriction !== "internal-candidate" && restriction !== "not-chat-visible"),
+    metadata: { ...winner.asset.metadata, visibility: "selected" },
+    updatedAt: new Date().toISOString(),
+  };
+  await input.store.saveAsset(selectedAsset);
 
   const decision: CreativeDecision = {
     missionId: mission.id,
     status: "selected",
     decisionOwner: mission.supervisorPrincipal,
     selectedCandidateId: winner.candidate.id,
-    selectedAssetId: winner.asset.id,
+    selectedAssetId: selectedAsset.id,
     rationale: chatSafeRationale(adjudication.rationale, candidates),
     escalationRequired: false,
   };
@@ -323,7 +351,7 @@ export async function runCreativeMission(input: CreativeMissionRunInput): Promis
       missionId: mission.id,
       status: "selected",
       decisionOwner: mission.supervisorPrincipal,
-      selectedAssetRefs: [winner.asset.id],
+      selectedAssetRefs: [selectedAsset.id],
       rationaleSummary: chatSafeRationale(adjudication.rationale, candidates),
       escalationRequired: false,
       chatMode: "decision-only",
@@ -342,6 +370,8 @@ export interface ProcessCreativeMissionJobInput extends CreativeMissionRunInput 
 }
 
 export async function processCreativeMissionJob(input: ProcessCreativeMissionJobInput): Promise<CreativeMissionRunResult> {
+  const availability = await input.renderer.availability?.();
+  if (availability && !availability.available) throw new DomainError(`STAGED:creative_renderer_unavailable:${availability.reason}`);
   const now = input.now ?? new Date();
   const lease = await input.store.claimJob(input.mission.companyId, input.mission.id, input.jobOwner, now, input.leaseMs ?? 120_000);
   if (!lease) throw new DomainError(`CONTENDED:creative_job:${input.mission.id}`);

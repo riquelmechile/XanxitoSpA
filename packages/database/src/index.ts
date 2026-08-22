@@ -2,6 +2,7 @@ import type { BusinessEvent, BusinessOutcome, BusinessReceipt, CorporateGene, Mi
 
 export interface CompanyStore {
   saveWork(work: Work): Promise<void>;
+  getWork(companyId: string, workId: string): Promise<Work | null>;
   saveEvent(event: BusinessEvent): Promise<void>;
   saveGraph(graph: MissionGraph): Promise<void>;
   saveOutcome(outcome: BusinessOutcome): Promise<void>;
@@ -19,6 +20,10 @@ export class InMemoryCompanyStore implements CompanyStore {
   readonly genes = new Map<string, CorporateGene>();
 
   async saveWork(work: Work): Promise<void> { this.works.set(`${work.companyId}:${work.id}`, structuredClone(work)); }
+  async getWork(companyId: string, workId: string): Promise<Work | null> {
+    const work = this.works.get(`${companyId}:${workId}`);
+    return work ? structuredClone(work) : null;
+  }
   async saveEvent(event: BusinessEvent): Promise<void> {
     const key = `${event.companyId}:${event.idempotencyKey}`;
     if (!this.events.has(key)) this.events.set(key, structuredClone(event));

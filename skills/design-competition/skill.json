@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "design-competition",
+  "name": "Design Competition",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Run bounded creative COMPETE variants and adjudicate with visual-fitness evidence.",
+  "triggers": [
+    "design competition",
+    "compete designs",
+    "visual fitness"
+  ],
+  "scopes": [
+    "creative.compete"
+  ],
+  "capabilities": [
+    "creative.image.generate",
+    "creative.vector.generate"
+  ],
+  "defaultDepartments": [
+    "creative",
+    "marketing"
+  ],
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "creative",
+    "competition"
+  ],
+  "contentRef": "file:skills/design-competition/SKILL.md"
+}

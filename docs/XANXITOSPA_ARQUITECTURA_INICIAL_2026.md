@@ -1967,6 +1967,28 @@ eval_suite
 
 Las versiones de una Skill pueden participar como `SkillGene`, pero la evolución sólo crea/promueve **candidatos declarativos**; nunca introduce código ejecutable arbitrario dentro de la Skill.
 
+### 29.11.1 Company Skill OS
+
+El Skill Registry se divide en dos dominios: `company` y `harness`. Las definiciones globales de dominio `company` son reutilizables y Company-agnostic; no contienen fitness ni outcomes de una empresa concreta. Las definiciones `harness` describen comportamiento del sistema compartido y no se instalan como skills operativas de una Company.
+
+Cada Company mantiene su propio **Company Skill Profile** mediante `CompanyAsset(kind=skill-installation)`. Un proceso específico descubierto o aprendido por una Company se conserva como `CompanyAsset(kind=company-skill-definition)` y su evolución utiliza el mecanismo ya existente `CorporateGene(type=skill)`. Por tanto, el aprendizaje empresarial no crea un segundo lifecycle paralelo: usa `candidate → challenger → champion → silent/quarantine/retired`, fitness multiobjetivo y BusinessOutcome verificado.
+
+```text
+Global Company Skill Registry
+        ↓ metadata match
+Company Skill installation
+        ↓
+Work / Mission
+        ↓
+verified BusinessOutcome
+        ↓
+SkillGene fitness/evolution
+```
+
+`company-bootstrap` consume este plano de skills tanto en `new` como en `existing`. En empresa nueva selecciona el set mínimo reusable y emite gaps. En empresa existente primero mapea procesos observados, reutiliza lo que ya funciona y convierte procesos sin match suficiente en candidatos Company-local; no reemplaza comportamiento útil sólo porque no exista una definición global equivalente.
+
+KAST queda fuera del loop normal de Business Learning. Sólo interviene cuando una SkillGene Company-local ya probada se propone como nueva definición reusable del **catálogo global compartido**, porque ahí sí se modifica el sistema/harness común.
+
 Importar una skill externa sigue:
 
 ```text
@@ -2271,3 +2293,63 @@ KAST puede detectar y recomendar, pero nunca auto-adoptar cambios sobre Model La
 ### 33.4 Cierre de sesión
 
 `SessionCloseReceipt` permanece disponible para auditoría, artifacts y continuidad, pero el cierre conceptual se simplifica a una reflexión KAST: qué falló, qué se repitió, qué workaround costó tiempo, qué capacidad/test faltó y si corresponde `NOOP`, `REMEMBER` o `IMPROVE`.
+
+
+### 33.5 Ejecución real V1.0
+
+KAST puede usar un `EngramMemoryPort` respaldado por MCP y un runtime Git real. Cada variante nace desde el mismo SHA base en un worktree/branch aislado; las mutaciones pueden ejecutarse en paralelo, mientras las operaciones administrativas de worktree se serializan. La verificación deriva las surfaces tocadas desde el diff real, no desde la descripción del proposer. SDD/review se leen como evidencia por el control plane; el commit fuente verificado debe coincidir con el commit adoptado. `GitAdoptionPort` rechaza base movida/sucia, parent mismatch, verificación no ligada, surface constitucional o cherry-pick fallido.
+
+Esto mantiene la forma simple del harness:
+
+```text
+GPT → KAST → Engram → A/B worktrees → tests + SDD/RDD → owner → adopt/reject → Engram
+```
+
+sin convertir KAST en un scheduler o ticketing system obligatorio.
+
+---
+
+# 34. Character Production Pipeline V2
+
+El Company Deck separa diseño conceptual de producción visual. `Character DNA v2` y `character-missions.json` definen ocho identidades y dos direcciones ciegas por personaje: `archetype-motion` y `human-material`. La identidad se protege por rostro, postura, silueta, materiales y categoría de prop; un simple cambio de color nunca cuenta como diferenciación.
+
+La producción final ocurre dentro de la empresa:
+
+```text
+DNA/style lock
+→ 2 Sol/xhigh concept branches
+→ 2 native image_generation renders en paralelo
+→ CompanyAssets internos
+→ evaluadores visuales Sol/xhigh
+→ Creative Supervisor Sol/xhigh
+→ selected asset
+→ assets/characters/final/<role>.png
+```
+
+El chat recibe sólo `decision-only`. Si falta credencial runtime, DB o Company context, la misión queda `STAGED` antes de reclamar el job y no consume intento. No existe fallback a chat rendering ni a otro modelo creativo. El Executive Sol/max sólo aparece ante una escalación de autoridad/riesgo, no para elegir cada render rutinario.
+
+
+---
+
+# 35. MCP App Control Surface Law
+
+La interfaz humana primaria V1 es **ChatGPT mediante MCP Streamable HTTP**. CLI y HTTP demo son superficies de ingeniería/operación, no la interfaz empresarial canónica. El chat controla; el runtime ejecuta.
+
+```text
+ChatGPT / GPT principal
+       ↓ MCP
+status · Work · Creative Mission · KAST
+       ↓
+Company runtime / Postgres / Engram / background workers
+```
+
+Leyes:
+
+- una deployment MCP representa una sola Company; `company_id` nunca es argumento del caller;
+- crear `Work` no concede AuthorityGrant ni BudgetEnvelope;
+- writes son idempotentes y un mismo ID con payload cambiado falla cerrado;
+- candidatos creativos, prompts, bytes y variantes perdedoras no cruzan al chat por defecto;
+- cambios constitucionales detectados por KAST devuelven `founder-required`;
+- binds remotos exigen OAuth; bearer interno sólo se permite en loopback;
+- herramientas declaran read/write scopes y el resource server valida JWT issuer/audience/signature por JWKS;
+- la app no sustituye Mission Graph, Preflight, COMPETE ni scheduler: sólo es la superficie de control.

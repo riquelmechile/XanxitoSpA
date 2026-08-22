@@ -1,4 +1,4 @@
-# XanxitoSpA Character Art v1 — Enterprise Archetypes
+# XanxitoSpA Character Art v2 — Enterprise Archetypes
 
 ## Purpose
 
@@ -94,3 +94,27 @@ Reject:
 - over-dark faces;
 - hands/props cropped accidentally;
 - empty glamour pose that does not explain the role.
+
+
+## Roster V2 style lock
+
+Before rendering any final roster asset, load `assets/characters/character-dna.json` and `assets/characters/character-missions.json`. The shared world lock is evidence, not optional flavor. Every character must share the same finishing language while remaining individually unmistakable.
+
+Default COMPETE directions:
+
+- `archetype-motion` — strongest silhouette, role fantasy, action line and environmental story;
+- `human-material` — strongest face, emotion, tactile material response and premium portrait finish.
+
+Both are GPT-5.6 Sol/xhigh branches and may render in parallel. The Creative Supervisor evaluates both with the same VisualFitness rubric. Do not expose either candidate to chat before adjudication.
+
+### Style champion protocol
+
+The first selected character becomes a temporary style champion only for rendering language: contrast curve, edge hierarchy, skin treatment, material response, atmospheric depth and crop behavior. It must **not** donate its face, pose, costume silhouette or prop to other characters. Once 3+ roster members are selected, replace the single-image anchor with a roster style board assembled from all champions to avoid clone drift.
+
+### Character identity guard
+
+Reject a candidate if its face geometry, shoulder silhouette, coat shape, hand pose or prop category is materially interchangeable with another roster member. Department color alone never counts as differentiation.
+
+### Background runtime law
+
+Generation is a company job. If the OpenAI runtime credential or artifact sink is unavailable, the mission remains `STAGED`/queued and consumes no render attempt. Never fall back to chat rendering or another model provider merely to complete the asset.

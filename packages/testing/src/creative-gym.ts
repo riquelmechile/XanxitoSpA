@@ -76,8 +76,11 @@ export async function runCreativePipelineGym(): Promise<CreativeGymCaseResult[]>
     });
     const assets = await store.listAssets(m.companyId);
     expect(maxRenders === 2 && maxEvals === 2, "creative work lost bounded parallel execution");
-    expect(assets.length === 2 && assets.every((asset: CompanyAsset) => asset.companyId === m.companyId && asset.metadata.visibility === "internal-candidate"), "rendered candidates were not stored as internal Company assets");
-    expect(result.receipt.selectedAssetRefs.length === 1 && !JSON.stringify(result.receipt).includes("prompt"), "decision receipt leaked candidate internals or lost selected asset");
+    const selected = assets.filter((asset: CompanyAsset) => asset.metadata.visibility === "selected");
+    const internal = assets.filter((asset: CompanyAsset) => asset.metadata.visibility === "internal-candidate");
+    expect(assets.length === 2 && selected.length === 1 && internal.length === 1 && assets.every((asset: CompanyAsset) => asset.companyId === m.companyId), "creative adjudication did not preserve one selected asset and one internal candidate");
+    expect(!selected[0]!.restrictions.includes("not-chat-visible") && internal[0]!.restrictions.includes("not-chat-visible"), "creative selection visibility boundary is wrong");
+    expect(result.receipt.selectedAssetRefs.length === 1 && result.receipt.selectedAssetRefs[0] === selected[0]!.id && !JSON.stringify(result.receipt).includes("prompt"), "decision receipt leaked candidate internals or lost selected asset");
   }));
 
   cases.push(await runCase("failed render does not cancel sibling and cannot be selected", async () => {
@@ -184,6 +187,32 @@ export async function runCreativePipelineGym(): Promise<CreativeGymCaseResult[]>
     let rejected = false;
     try { await submitCreativeMission(store, m, new Date(m.createdAt)); } catch (error) { rejected = error instanceof Error && error.message.includes("cannot exceed four"); }
     expect(rejected, "creative mission accepted unbounded concept fanout");
+  }));
+
+
+  cases.push(await runCase("creative job remains queued when native image runtime credential is unavailable", async () => {
+    const store = new InMemoryRuntimeStore(); const m = mission(); const now = new Date(m.createdAt);
+    await submitCreativeMission(store, m, now);
+    let staged = false;
+    try {
+      await processCreativeMissionJob({
+        mission: m, policy: policy(), store, currency: "USD", grantRefs: [], jobOwner: "creative-worker", now,
+        conceptWorkers: [
+          { id: "a", overlay: "a", run: async () => ({ prompt: "A", rationale: "A", evidenceRefs: [], cost: 0 }) },
+          { id: "b", overlay: "b", run: async () => ({ prompt: "B", rationale: "B", evidenceRefs: [], cost: 0 }) },
+        ],
+        renderer: {
+          availability: async () => ({ available: false, reason: "openai-runtime-credential-missing" }),
+          render: async () => { throw new Error("must not render"); },
+        },
+        evaluators: [{ id: "eval", evaluate: async () => ({ scores: { quality: 5 }, rationale: "ok", evidenceRefs: [] }) }],
+        adjudicator: { decide: async () => ({ winnerId: "never", decisionOwner: m.supervisorPrincipal, rationale: "never" }) },
+      });
+    } catch (error) { staged = error instanceof Error && error.message.includes("STAGED:creative_renderer_unavailable"); }
+    expect(staged, "missing runtime credential did not stage creative job");
+    const due = await store.listDueJobs(m.companyId, now, 10);
+    const job = due.find((entry) => entry.id === m.id);
+    expect(job?.state === "pending" && job.attempts === 0, "staged creative job consumed attempt or left pending state");
   }));
 
   return cases;

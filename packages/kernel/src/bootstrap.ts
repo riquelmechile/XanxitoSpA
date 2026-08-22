@@ -4,7 +4,9 @@ import type {
   BootstrapRequirement,
   BootstrapStep,
   CompanyAsset,
+  CompanySkillBootstrapInput,
 } from "../../contracts/src/index.js";
+import { planCompanySkillBootstrap } from "./company-skills.js";
 
 export interface BootstrapPlannerInput {
   companyId: string;
@@ -12,6 +14,7 @@ export interface BootstrapPlannerInput {
   requirements: BootstrapRequirement[];
   existingAssets: CompanyAsset[];
   autonomousCapabilities: string[];
+  skillBootstrap?: Omit<CompanySkillBootstrapInput, "companyId" | "mode">;
 }
 
 function reusableAsset(companyId: string, requirement: BootstrapRequirement, assets: CompanyAsset[]): CompanyAsset | undefined {
@@ -89,6 +92,7 @@ export function planCompanyBootstrap(input: BootstrapPlannerInput): BootstrapPla
     });
   }
 
+  const skillPlan = input.skillBootstrap ? planCompanySkillBootstrap({ companyId: input.companyId, mode: input.mode, ...input.skillBootstrap }) : undefined;
   return {
     companyId: input.companyId,
     mode: input.mode,
@@ -96,5 +100,6 @@ export function planCompanyBootstrap(input: BootstrapPlannerInput): BootstrapPla
     reusedAssetIds,
     requestedCapabilities: [...new Set(input.requirements.map((requirement) => requirement.capability))],
     approvalBoundaries,
+    ...(skillPlan ? { skillPlan } : {}),
   };
 }

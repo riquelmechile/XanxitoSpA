@@ -1,6 +1,6 @@
 {
   "name": "xanxitospa",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -14,10 +14,18 @@
     "pg:smoke": "tsx packages/testing/src/postgres-smoke.ts",
     "mcp:smoke": "tsx packages/testing/src/mcp-streamable-smoke.ts",
     "visuals:generate": "node scripts/generate-visual-assets.mjs && node scripts/generate-character-deck-v2.mjs",
-    "visuals:check": "node scripts/validate-visual-assets.mjs",
+    "visuals:check": "node scripts/validate-visual-assets.mjs && node scripts/validate-character-missions.mjs",
     "dev": "tsx apps/runtime/src/server.ts",
     "start": "node dist/apps/runtime/src/server.js",
-    "benchmark:theagentcompany:check": "node scripts/theagentcompany-readiness.mjs"
+    "benchmark:theagentcompany:check": "node scripts/theagentcompany-readiness.mjs",
+    "character:readiness": "node scripts/creative-runtime-readiness.mjs",
+    "character:run": "tsx scripts/run-character-roster.ts",
+    "character:check": "node scripts/validate-character-missions.mjs",
+    "mcp:app": "tsx apps/mcp/src/main.ts",
+    "mcp:app:smoke": "tsx packages/testing/src/xspa-app-mcp-smoke.ts",
+    "mcp:app:start": "node dist/apps/mcp/src/main.js",
+    "mcp:app:oauth:smoke": "tsx packages/testing/src/xspa-app-oauth-smoke.ts",
+    "skills:check": "tsx scripts/validate-skill-registry.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
@@ -26,6 +34,7 @@
     "@opentelemetry/sdk-trace-base": "^2.10.0",
     "ajv": "8.20.0",
     "fastify": "latest",
+    "jose": "^6.2.10",
     "pg": "^8.23.0"
   },
   "devDependencies": {

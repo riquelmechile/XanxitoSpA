@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "autoskill-creator",
+  "name": "Company AutoSkill Creator",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Turn repeated company work or mapped existing processes into company-local SkillGenes and reusable operational instructions.",
+  "triggers": [
+    "create autoskill",
+    "repeated work into skill",
+    "skill creator",
+    "map process to skill"
+  ],
+  "scopes": [
+    "company.skills",
+    "learning.skill"
+  ],
+  "capabilities": [
+    "skill.define",
+    "skill.install",
+    "learning.outcome"
+  ],
+  "defaultDepartments": [
+    "operations",
+    "executive"
+  ],
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "learning",
+    "skills",
+    "bootstrap"
+  ],
+  "contentRef": "file:skills/autoskill-creator/SKILL.md"
+}

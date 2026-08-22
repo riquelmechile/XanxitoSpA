@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "executive-planning",
+  "name": "Executive Planning",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Turn Company state, objectives and evidence into bounded Work, priorities, decisions and review cadence.",
+  "triggers": [
+    "executive planning",
+    "company priorities",
+    "business plan",
+    "plan company work"
+  ],
+  "scopes": [
+    "executive.planning",
+    "company.strategy"
+  ],
+  "capabilities": [
+    "data.query",
+    "finance.read",
+    "calendar.read",
+    "calendar.create",
+    "document.render",
+    "web.search"
+  ],
+  "defaultDepartments": [
+    "executive"
+  ],
+  "contentRef": "file:skills/executive-planning/SKILL.md",
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "executive",
+    "planning"
+  ]
+}

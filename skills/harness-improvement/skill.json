@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "harness-improvement",
+  "name": "Harness Improvement Compatibility",
+  "version": "0.8.0",
+  "domain": "harness",
+  "status": "deprecated",
+  "description": "Compatibility pointer for the older harness-improvement concept; KAST is canonical.",
+  "triggers": [
+    "legacy harness improvement"
+  ],
+  "scopes": [
+    "harness.legacy"
+  ],
+  "capabilities": [
+    "kast.reflect"
+  ],
+  "defaultDepartments": [],
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "harness",
+    "legacy"
+  ],
+  "contentRef": "file:skills/harness-improvement/SKILL.md"
+}

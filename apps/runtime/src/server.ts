@@ -6,7 +6,7 @@ import { runBootstrapExecutionDemo, runCapabilityCatalogDemo } from "./capabilit
 
 export function buildServer() {
   const app = Fastify({ logger: false });
-  app.get("/health", async () => ({ ok: true, service: "xanxitospa-runtime", version: "0.3.0" }));
+  app.get("/health", async () => ({ ok: true, service: "xanxitospa-runtime", version: "1.0.0" }));
   app.get("/gym", async (_request, reply) => {
     const result = await runCompanyGym();
     if (!result.ok) reply.code(500);

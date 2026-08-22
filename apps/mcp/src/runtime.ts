@@ -1,0 +1,503 @@
+import { createHash, randomUUID } from "node:crypto";
+import type { BusinessEvent, CompanyAsset, CorporateGene, CreativeDecisionReceipt, CreativeMission, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
+import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
+import { buildCompanySkillGene, companySkillDefinitionFromAsset, createCompanySkillDefinitionAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AutoskillProposeInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+
+const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
+const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
+
+function materiality(severity: KastReflectInput["severity"]): ScheduledJob["materiality"] {
+  if (severity === "critical" || severity === "high") return "high";
+  if (severity === "medium") return "medium";
+  return "low";
+}
+
+function isReceipt(value: unknown): value is CreativeDecisionReceipt {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const obj = value as Record<string, unknown>;
+  return typeof obj.missionId === "string" && typeof obj.status === "string" && typeof obj.decisionOwner === "string" && Array.isArray(obj.selectedAssetRefs);
+}
+
+function extractReceipt(value: unknown): CreativeDecisionReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const obj = value as Record<string, unknown>;
+  if (isReceipt(obj.receipt)) return structuredClone(obj.receipt);
+  return null;
+}
+
+export class EnvironmentXspaAppOperations implements XspaAppOperations {
+  constructor(
+    private readonly input: {
+      store?: RuntimeStore;
+      workStore?: Pick<CompanyStore, "saveWork" | "getWork" | "saveGene" | "listGenes">;
+      companyId?: string;
+      databaseConfigured: boolean;
+      creativeConfigured: boolean;
+      kastConfigured: boolean;
+      skillRegistry?: SkillRegistry;
+      creativeSupervisorPrincipal?: string;
+    },
+  ) {}
+
+  async status(): Promise<XspaAppStatus> {
+    const skillHealth = this.input.skillRegistry ? await this.input.skillRegistry.health() : undefined;
+    return {
+      version: "1.0.0",
+      modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
+      mcp: { ready: true, mode: "streamable-http" },
+      database: { configured: this.input.databaseConfigured },
+      creative: {
+        configured: this.input.creativeConfigured,
+        renderer: "responses-image-generation",
+        chatMode: "decision-only",
+        video: "staged",
+      },
+      kast: {
+        configured: this.input.kastConfigured,
+        execution: this.input.kastConfigured ? "queued" : "staged",
+      },
+      skills: {
+        configured: Boolean(this.input.skillRegistry),
+        healthy: skillHealth?.ok ?? false,
+        indexed: skillHealth?.indexed ?? 0,
+        activeCompanyCatalog: this.input.skillRegistry ? this.input.skillRegistry.list({ domain: "company" }).length : 0,
+      },
+    };
+  }
+
+  private requireRuntime(): { store: RuntimeStore; companyId: string } {
+    if (!this.input.store || !this.input.companyId) throw new Error("XanxitoSpA runtime store/company is not configured");
+    return { store: this.input.store, companyId: this.input.companyId };
+  }
+
+  private requireWorkRuntime(): { store: RuntimeStore; workStore: Pick<CompanyStore, "saveWork" | "getWork" | "saveGene" | "listGenes">; companyId: string } {
+    const { store, companyId } = this.requireRuntime();
+    if (!this.input.workStore) throw new Error("XanxitoSpA Work store is not configured");
+    return { store, workStore: this.input.workStore, companyId };
+  }
+
+  async workCreate(input: WorkCreateInput, context: XspaRequestContext): Promise<unknown> {
+    const { store, workStore, companyId } = this.requireWorkRuntime();
+    const now = new Date();
+    const intent = { owner: input.owner, objective: input.objective, scope: input.scope };
+    const fingerprint = createHash("sha256").update(JSON.stringify(intent)).digest("hex");
+    const idemKey = `work:create:${input.workId}`;
+    const idemOwner = `mcp:work:${input.workId}`;
+    const claim = await store.claimIdempotency(companyId, idemKey, { fingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const prior = claim.record.intent as { fingerprint?: unknown };
+      if (prior.fingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:work_changed:${input.workId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { workId: input.workId, status: "contended", created: false };
+      throw new Error(`Work creation requires reconciliation:${input.workId}`);
+    }
+    const work: Work = {
+      id: input.workId,
+      companyId,
+      owner: input.owner,
+      objective: input.objective,
+      scope: input.scope,
+      createdAt: now.toISOString(),
+    };
+    try {
+      await workStore.saveWork(work);
+      await store.appendEvent({
+        id: randomUUID(),
+        companyId,
+        type: "work.created",
+        occurredAt: now.toISOString(),
+        actorPrincipal: context.principal,
+        correlationId: input.workId,
+        idempotencyKey: `work:created:${input.workId}:${fingerprint}`,
+        payload: { workId: input.workId, owner: input.owner, objective: input.objective, scope: input.scope },
+        sensitivity: "internal",
+        evidenceRefs: [],
+      });
+      const result = { work, status: "created", companyScoped: true, grantsAuthority: false, grantsBudget: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Work creation idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Work creation failed");
+      throw error;
+    }
+  }
+
+  async workGet(workId: string, _context: XspaRequestContext): Promise<unknown> {
+    const { workStore, companyId } = this.requireWorkRuntime();
+    const work = await workStore.getWork(companyId, workId);
+    return work ? { work, state: "found", companyScoped: true } : { workId, state: "not-found", companyScoped: true };
+  }
+
+  async kastStatus(reflectionId: string, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const record = await store.getIdempotency(companyId, `kast:reflection:${reflectionId}`);
+    if (!record) return { reflectionId, state: "not-found", companyScoped: true };
+    if (record.state === "unknown") return { reflectionId, state: "reconciliation-required", companyScoped: true };
+    if (record.state === "failed") return { reflectionId, state: "failed", companyScoped: true };
+    const job = await store.getJob(companyId, reflectionId);
+    if (!job) {
+      const result = record.result as { status?: unknown } | undefined;
+      return { reflectionId, state: typeof result?.status === "string" ? result.status : record.state, companyScoped: true };
+    }
+    const state = job.state === "pending" ? "queued" : job.state;
+    return { reflectionId, state, kind: job.kind, attempts: job.attempts, companyScoped: true };
+  }
+
+  async assetGet(assetId: string, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const asset = (await store.listAssets(companyId)).find((item) => item.id === assetId);
+    if (!asset) return { assetId, state: "not-found", companyScoped: true };
+    const visibility = typeof asset.metadata.visibility === "string" ? asset.metadata.visibility : "";
+    if (asset.restrictions.includes("internal-candidate") || asset.restrictions.includes("not-chat-visible") || visibility === "internal-candidate") {
+      return { assetId, state: "not-found", companyScoped: true };
+    }
+    const rawRef = typeof asset.metadata.artifactRef === "string" ? asset.metadata.artifactRef : "";
+    const externallyResolvable = rawRef.startsWith("https://") || rawRef.startsWith("asset://");
+    return {
+      state: "found",
+      companyScoped: true,
+      asset: {
+        id: asset.id, kind: asset.kind, capability: asset.capability, department: asset.department, status: asset.status,
+        cost: asset.cost, currency: asset.currency, visibility: visibility || "selected",
+        ...(typeof asset.metadata.mimeType === "string" ? { mimeType: asset.metadata.mimeType } : {}),
+        ...(typeof asset.metadata.missionId === "string" ? { missionId: asset.metadata.missionId } : {}),
+        ...(externallyResolvable ? { artifactRef: rawRef, artifactReady: true } : { artifactReady: false }),
+      },
+    };
+  }
+
+  async creativeSubmit(input: CreativeSubmitInput, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const mission: CreativeMission = {
+      id: input.missionId,
+      companyId,
+      workId: input.workId,
+      supervisorPrincipal: this.input.creativeSupervisorPrincipal ?? "creative-supervisor",
+      briefRef: input.briefRef,
+      evidenceSnapshotRef: input.evidenceSnapshotRef,
+      candidateCount: input.candidateCount,
+      requiredSuccessfulCandidates: input.requiredSuccessfulCandidates,
+      executiveEscalationRequired: input.executiveEscalationRequired,
+      createdAt: new Date().toISOString(),
+    };
+    const receipt = await submitCreativeMission(store, mission);
+    return { ...receipt, candidateArtVisible: false, companyScoped: true };
+  }
+
+  async creativeStatus(missionId: string, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const completed = await store.getIdempotency(companyId, `creative:mission:${missionId}`);
+    if (completed?.state === "applied") {
+      const receipt = extractReceipt(completed.result);
+      return {
+        missionId,
+        state: "completed",
+        ...(receipt ? { receipt } : {}),
+        candidateArtVisible: false,
+      };
+    }
+    if (completed?.state === "unknown") return { missionId, state: "reconciliation-required", candidateArtVisible: false };
+    if (completed?.state === "intent") return { missionId, state: "running", candidateArtVisible: false };
+    const submitted = await store.getIdempotency(companyId, `creative:submit:${missionId}`);
+    if (submitted?.state === "applied") return { missionId, state: "queued", candidateArtVisible: false };
+    if (submitted?.state === "failed") return { missionId, state: "submission-failed", candidateArtVisible: false };
+    return { missionId, state: "not-found", candidateArtVisible: false };
+  }
+
+  private requireSkills(): SkillRegistry {
+    if (!this.input.skillRegistry) throw new Error("XanxitoSpA Skill Registry is not configured");
+    return this.input.skillRegistry;
+  }
+
+  private async companySkillState(): Promise<{ companyId: string; assets: CompanyAsset[]; installations: CompanyAsset[]; definitions: SkillDefinition[]; genes: CorporateGene[] }> {
+    const { store, companyId } = this.requireRuntime();
+    if (!this.input.workStore) throw new Error("XanxitoSpA Company skill store is not configured");
+    const [assets, genes] = await Promise.all([store.listAssets(companyId), this.input.workStore.listGenes(companyId)]);
+    const installations = assets.filter((asset) => asset.kind === "skill-installation" && asset.status === "active");
+    const definitions = assets.filter((asset) => asset.kind === "company-skill-definition" && asset.status === "active").map(companySkillDefinitionFromAsset);
+    return { companyId, assets, installations, definitions, genes };
+  }
+
+  async skillsList(_context: XspaRequestContext): Promise<unknown> {
+    const registry = this.requireSkills();
+    const state = await this.companySkillState();
+    const installed = state.installations.map(skillInstallationFromAsset).filter((item) => item.status === "active");
+    const installedRefs = new Set(installed.map((item) => item.skillRef));
+    const catalog = registry.list({ domain: "company", companyId: state.companyId }).map((skill) => ({ ...skill, installed: installedRefs.has(skillDefinitionRef(skill)) }));
+    const local = state.definitions.map((skill) => ({ ...skill, installed: installedRefs.has(skillDefinitionRef({ id: skill.id, version: skill.version })) }));
+    return { catalog, companyLocal: local, installations: installed, fullBodiesLoaded: false, progressiveDisclosure: true, companyScoped: true };
+  }
+
+  async skillsSearch(input: SkillSearchRequest, _context: XspaRequestContext): Promise<unknown> {
+    const registry = this.requireSkills();
+    const state = await this.companySkillState();
+    const installedMatches = resolveCompanySkillMatches({
+      companyId: state.companyId,
+      query: input.query,
+      ...(input.department ? { department: input.department } : {}),
+      ...(input.scope ? { scope: input.scope } : {}),
+      capabilities: input.capabilities,
+      catalog: registry.list({ domain: "company", companyId: state.companyId }),
+      installations: state.installations,
+      genes: state.genes,
+      companyDefinitions: state.definitions,
+      limit: input.limit,
+    });
+    const catalogSuggestions = registry.search({
+      query: input.query,
+      ...(input.department ? { department: input.department } : {}),
+      ...(input.scope ? { scope: input.scope } : {}),
+      capabilities: input.capabilities,
+      domain: "company",
+      companyId: state.companyId,
+      limit: input.limit,
+    });
+    return { installedMatches, catalogSuggestions, fullBodiesLoaded: false, progressiveDisclosure: true, companyScoped: true };
+  }
+
+  async skillGet(input: SkillGetRequest, _context: XspaRequestContext): Promise<unknown> {
+    const registry = this.requireSkills();
+    const state = await this.companySkillState();
+    const installedRefs = new Set(state.installations.map(skillInstallationFromAsset).filter((item) => item.status === "active").map((item) => item.skillRef));
+    const localAsset = state.assets.find((asset) => {
+      if (asset.kind !== "company-skill-definition") return false;
+      const definition = companySkillDefinitionFromAsset(asset);
+      return definition.id === input.skillId && (!input.version || definition.version === input.version);
+    });
+    if (localAsset) {
+      const definition = companySkillDefinitionFromAsset(localAsset);
+      const ref = skillDefinitionRef({ id: definition.id, version: definition.version });
+      if (!installedRefs.has(ref)) return { state: "not-installed", skillId: input.skillId, companyScoped: true };
+      const instructions = typeof localAsset.metadata.instructions === "string" ? localAsset.metadata.instructions : "";
+      return { state: "found", skill: { manifest: definition, body: instructions }, progressiveDisclosure: true, companyScoped: true };
+    }
+    const catalogEntry = registry.list({ domain: "company", companyId: state.companyId }).find((item) => item.id === input.skillId && (!input.version || item.version === input.version));
+    if (!catalogEntry) return { state: "not-found", skillId: input.skillId, companyScoped: true };
+    if (!installedRefs.has(skillDefinitionRef(catalogEntry))) return { state: "not-installed", skillId: input.skillId, companyScoped: true };
+    const loaded = await registry.get(input.skillId, { ...(input.version ? { version: input.version } : {}), domain: "company", companyId: state.companyId });
+    return loaded ? { state: "found", skill: loaded, progressiveDisclosure: true, companyScoped: true } : { state: "not-found", skillId: input.skillId, companyScoped: true };
+  }
+
+  async skillInstall(input: SkillInstallInput, context: XspaRequestContext): Promise<unknown> {
+    const registry = this.requireSkills();
+    const { store, companyId } = this.requireRuntime();
+    const now = new Date();
+    const definition = registry.resolveRef(input.skillRef, { domain: "company", companyId });
+    if (!definition) throw new Error(`active Company skill not found:${input.skillRef}`);
+    if (definition.ownerCompanyId) throw new Error("Company-local skills are installed through the Company AutoSkill path");
+    const stable = { skillRef: input.skillRef, department: input.department, scopes: [...new Set(input.scopes)].sort() };
+    const fingerprint = createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+    const idemKey = `company:skill-install:${input.installationId}`;
+    const idemOwner = `mcp:skill-install:${input.installationId}`;
+    const claim = await store.claimIdempotency(companyId, idemKey, { fingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const prior = claim.record.intent as { fingerprint?: unknown };
+      if (prior.fingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:skill_install_changed:${input.installationId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { installationId: input.installationId, status: "contended", companyScoped: true };
+      throw new Error(`Company skill installation requires reconciliation:${input.installationId}`);
+    }
+    try {
+      const activeInstallations = (await store.listAssets(companyId)).filter((asset) => asset.kind === "skill-installation" && asset.status === "active").map(skillInstallationFromAsset);
+      const existing = activeInstallations.find((item) => item.skillRef === input.skillRef && item.department === input.department);
+      if (existing) {
+        const result = { installationId: existing.assetId, skillRef: input.skillRef, status: "already-installed", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false };
+        const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+        if (!settled) throw new Error("Company skill installation idempotency fencing lost");
+        return result;
+      }
+      const asset = createSkillInstallationAsset({ companyId, skill: definition, department: input.department, scopes: input.scopes, source: "catalog", assetId: input.installationId }, now);
+      await store.saveAsset(asset);
+      await store.appendEvent({ id: randomUUID(), companyId, type: "company.skill.installed", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.installationId, idempotencyKey: `company:skill-installed:${input.installationId}:${fingerprint}`, payload: { installationId: asset.id, skillRef: input.skillRef, department: input.department, scopes: input.scopes }, sensitivity: "internal", evidenceRefs: [] });
+      const result = { installationId: asset.id, skillRef: input.skillRef, status: "installed", capabilitiesRequired: definition.capabilities, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Company skill installation idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Company skill installation failed");
+      throw error;
+    }
+  }
+
+  async skillsHealth(_context: XspaRequestContext): Promise<unknown> {
+    return this.requireSkills().health();
+  }
+
+  async companySkillPlan(input: CompanySkillPlanInput, _context: XspaRequestContext): Promise<unknown> {
+    const registry = this.requireSkills();
+    const state = await this.companySkillState();
+    const plan = planCompanySkillBootstrap({
+      companyId: state.companyId,
+      mode: input.mode,
+      purpose: input.purpose,
+      departments: input.departments,
+      requiredCapabilities: input.requiredCapabilities,
+      catalog: [...registry.list({ domain: "company", companyId: state.companyId }), ...state.definitions],
+      existingInstallations: state.installations.map(skillInstallationFromAsset),
+      observedProcesses: input.observedProcesses,
+    });
+    return { plan, companyScoped: true, grantsAuthority: false, grantsBudget: false };
+  }
+
+  async autoskillPropose(input: AutoskillProposeInput, context: XspaRequestContext): Promise<unknown> {
+    const { store, workStore, companyId } = this.requireWorkRuntime();
+    const now = new Date();
+    const stable = { skillId: input.skillId, name: input.name, description: input.description, instructions: input.instructions, department: input.department, triggers: [...new Set(input.triggers)].sort(), scopes: [...new Set(input.scopes)].sort(), capabilities: [...new Set(input.capabilities)].sort(), evidenceRefs: [...new Set(input.evidenceRefs)].sort() };
+    const fingerprint = createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+    const idemKey = `company:autoskill:${input.proposalId}`;
+    const idemOwner = `mcp:autoskill:${input.proposalId}`;
+    const claim = await store.claimIdempotency(companyId, idemKey, { fingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const prior = claim.record.intent as { fingerprint?: unknown };
+      if (prior.fingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:autoskill_changed:${input.proposalId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { proposalId: input.proposalId, status: "contended", companyScoped: true };
+      throw new Error(`Company AutoSkill requires reconciliation:${input.proposalId}`);
+    }
+    try {
+      const globalCollision = this.requireSkills().list({ domain: "company", companyId }).find((definition) => definition.id === input.skillId);
+      if (globalCollision) throw new Error(`company skill id conflicts with reusable catalog:${input.skillId}`);
+      const existingLocal = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-skill-definition" && asset.status === "active").map(companySkillDefinitionFromAsset).find((definition) => definition.id === input.skillId);
+      if (existingLocal) throw new Error(`company skill id already exists:${input.skillId}`);
+      const definitionAsset = createCompanySkillDefinitionAsset({ companyId, skillId: input.skillId, name: input.name, description: input.description, instructions: input.instructions, triggers: input.triggers, scopes: input.scopes, capabilities: input.capabilities, department: input.department, evidenceRefs: input.evidenceRefs }, now);
+      const definition = companySkillDefinitionFromAsset(definitionAsset);
+      const installationAsset = createSkillInstallationAsset({ companyId, skill: definition, department: input.department, scopes: input.scopes, source: "company-local" }, now);
+      const gene = buildCompanySkillGene({ companyId, skillId: definition.id, artifactRef: `asset://${definitionAsset.id}`, department: input.department, scopes: input.scopes, capabilities: input.capabilities, evidenceRefs: input.evidenceRefs });
+      await store.saveAsset(definitionAsset);
+      await store.saveAsset(installationAsset);
+      await workStore.saveGene(gene);
+      await store.appendEvent({ id: randomUUID(), companyId, type: "company.skill.candidate.created", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.proposalId, idempotencyKey: `company:autoskill:event:${input.proposalId}:${fingerprint}`, payload: { proposalId: input.proposalId, skillId: definition.id, definitionAssetId: definitionAsset.id, installationAssetId: installationAsset.id, geneId: gene.id }, sensitivity: "internal", evidenceRefs: input.evidenceRefs });
+      const result = { proposalId: input.proposalId, skillId: definition.id, status: "candidate", definitionAssetId: definitionAsset.id, installationAssetId: installationAsset.id, gene: { id: gene.id, type: gene.type, status: gene.status, version: gene.version }, companyScoped: true, directGlobalWrite: false, kastUsed: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Company AutoSkill idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Company AutoSkill failed");
+      throw error;
+    }
+  }
+
+  async globalSkillPromotionPropose(input: GlobalSkillPromotionInput, context: XspaRequestContext): Promise<unknown> {
+    const state = await this.companySkillState();
+    const asset = state.assets.find((item) => item.kind === "company-skill-definition" && companySkillDefinitionFromAsset(item).id === input.skillId);
+    if (!asset) throw new Error(`company-local skill not found:${input.skillId}`);
+    const gene = state.genes.filter((item) => item.type === "skill" && item.artifactRef === `asset://${asset.id}`).sort((a, b) => b.version - a.version)[0];
+    if (!gene || gene.status !== "champion") throw new Error("global skill promotion requires a champion Company SkillGene");
+    if (gene.fitness.sampleSize < 1 || gene.fitness.riskIncidents > 0) throw new Error("global skill promotion requires verified samples and zero risk incidents");
+    const definition = companySkillDefinitionFromAsset(asset);
+    const summary = [`Promote proven Company skill ${definition.id} (${definition.name}) to the reusable global Skill Registry.`, input.summary, `Source Company SkillGene: ${gene.id}@${gene.version}; sample_size=${gene.fitness.sampleSize}; confidence=${gene.fitness.confidence}; risk_incidents=${gene.fitness.riskIncidents}.`, "Preserve company-neutral behavior only; remove company-specific data; progressive disclosure and registry health remain mandatory."].join(" ").slice(0, 2000);
+    const result = await this.kastReflect({ reflectionId: input.proposalId, sessionRef: input.sessionRef, mode: "improve", category: "opportunity", severity: input.severity, summary, evidenceRefs: [...new Set([...input.evidenceRefs, ...gene.experienceRefs])], recurrence: Math.max(1, gene.fitness.sampleSize), affectedSurfaces: ["skill"], strategyOverlays: ["global-skill-promotion", "skill-registry"] }, context);
+    return { proposalId: input.proposalId, skillId: definition.id, sourceGene: { id: gene.id, version: gene.version, status: gene.status }, companyScoped: true, globalWriteDirect: false, kast: result };
+  }
+
+  async kastReflect(input: KastReflectInput, context: XspaRequestContext): Promise<unknown> {
+    const kastTextFields = [input.sessionRef, input.summary, ...input.evidenceRefs, ...input.strategyOverlays];
+    if (kastTextFields.some((value) => SECRET_LIKE.test(value))) throw new Error("KAST reflection contains secret-like material");
+    if (input.mode === "noop") return { reflectionId: input.reflectionId, status: "no-op" };
+    const { store, companyId } = this.requireRuntime();
+    const now = new Date();
+    const affected = [...new Set(input.affectedSurfaces)].sort();
+    const founderRequired = input.mode === "improve" && affected.some((surface) => PROTECTED.has(surface));
+    const stablePayload = {
+      id: input.reflectionId,
+      companyId,
+      sessionRef: input.sessionRef,
+      requestedMode: input.mode,
+      category: input.category,
+      severity: input.severity,
+      summary: input.summary,
+      evidenceRefs: [...new Set(input.evidenceRefs)].sort(),
+      recurrence: input.recurrence,
+      affectedSurfaces: affected,
+      strategyOverlays: [...new Set(input.strategyOverlays)].slice(0, 4),
+      containsRawSecrets: false,
+      containsRawConversation: false,
+    };
+    const payload = { ...stablePayload, observedAt: now.toISOString() };
+    const fingerprint = createHash("sha256").update(JSON.stringify(stablePayload)).digest("hex");
+    const idemKey = `kast:reflection:${input.reflectionId}`;
+    const idemOwner = `mcp:kast:${input.reflectionId}`;
+    const claim = await store.claimIdempotency(companyId, idemKey, { fingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const priorIntent = claim.record.intent as { fingerprint?: unknown };
+      if (priorIntent.fingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:kast_reflection_changed:${input.reflectionId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { reflectionId: input.reflectionId, status: "contended", queued: false };
+      throw new Error(`KAST reflection requires reconciliation:${input.reflectionId}`);
+    }
+    const event: BusinessEvent = {
+      id: randomUUID(),
+      companyId,
+      type: founderRequired ? "kast.reflection.founder_required" : "kast.reflection.requested",
+      occurredAt: now.toISOString(),
+      actorPrincipal: context.principal,
+      correlationId: input.sessionRef,
+      idempotencyKey: `kast:reflection:${input.reflectionId}:${fingerprint}`,
+      payload,
+      sensitivity: "internal",
+      evidenceRefs: payload.evidenceRefs,
+    };
+    try {
+      await store.appendEvent(event);
+      if (founderRequired) {
+        const result = { reflectionId: input.reflectionId, status: "founder-required", queued: false };
+        const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+        if (!settled) throw new Error("KAST reflection idempotency fencing lost");
+        return result;
+      }
+
+      const job: ScheduledJob<typeof payload> = {
+      id: input.reflectionId,
+      companyId,
+      kind: input.mode === "remember" ? "kast.remember" : "kast.improve",
+      payload,
+      materiality: materiality(input.severity),
+      dueAt: now.toISOString(),
+      state: "pending",
+      attempts: 0,
+      maxAttempts: 3,
+      fencingToken: 0,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+      await store.enqueueJob(job);
+      const result = { reflectionId: input.reflectionId, status: "queued", kind: job.kind, queued: true };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("KAST reflection idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "KAST reflection failed");
+      throw error;
+    }
+  }
+}
+
+export async function createEnvironmentXspaAppOperations(): Promise<{ operations: EnvironmentXspaAppOperations; close(): Promise<void> }> {
+  const databaseUrl = process.env.XSPA_DATABASE_URL?.trim();
+  const companyId = process.env.XSPA_COMPANY_ID?.trim() ?? process.env.XSPA_CREATIVE_COMPANY_ID?.trim();
+  let db: PostgresDatabase | undefined;
+  let store: PostgresRuntimeStore | undefined;
+  let workStore: PostgresCompanyStore | undefined;
+  if (databaseUrl && companyId) {
+    db = new PostgresDatabase(databaseUrl);
+    await db.migrate();
+    const digest = createHash("sha256").update(`xspa:${companyId}:v1`).digest("hex");
+    await db.ensureCompany(companyId, process.env.XSPA_COMPANY_NAME?.trim() || "XanxitoSpA Company", digest, 1);
+    store = new PostgresRuntimeStore(db);
+    workStore = new PostgresCompanyStore(db);
+  }
+  const skillRegistry = await createFileSystemSkillRegistry(process.env.XSPA_REPO_ROOT?.trim() || process.cwd());
+  const operations = new EnvironmentXspaAppOperations({
+    ...(store ? { store } : {}),
+    ...(workStore ? { workStore } : {}),
+    ...(companyId ? { companyId } : {}),
+    databaseConfigured: Boolean(store),
+    creativeConfigured: Boolean(store && process.env.OPENAI_API_KEY?.trim()),
+    kastConfigured: Boolean(store),
+    skillRegistry,
+    creativeSupervisorPrincipal: process.env.XSPA_CREATIVE_SUPERVISOR_PRINCIPAL?.trim() || "creative-supervisor",
+  });
+  return { operations, close: async () => { if (db) await db.close(); } };
+}

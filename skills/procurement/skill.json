@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "procurement",
+  "name": "Procurement",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Research, compare and coordinate suppliers and purchase requests under Company budget and authority controls.",
+  "triggers": [
+    "procure supplier",
+    "source vendor",
+    "purchase request",
+    "compare suppliers"
+  ],
+  "scopes": [
+    "operations.procurement",
+    "finance.procurement"
+  ],
+  "capabilities": [
+    "web.search",
+    "email.send",
+    "email.reply",
+    "finance.read",
+    "data.query",
+    "data.write",
+    "payment.request"
+  ],
+  "defaultDepartments": [
+    "operations",
+    "finance"
+  ],
+  "contentRef": "file:skills/procurement/SKILL.md",
+  "risk": "high",
+  "provenance": "project",
+  "tags": [
+    "procurement",
+    "suppliers"
+  ]
+}

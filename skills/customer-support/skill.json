@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "customer-support",
+  "name": "Customer Support",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Triage, investigate and resolve customer requests while preserving evidence and escalation boundaries.",
+  "triggers": [
+    "customer support",
+    "reply customer issue",
+    "support ticket",
+    "customer complaint"
+  ],
+  "scopes": [
+    "commercial.support",
+    "operations.support"
+  ],
+  "capabilities": [
+    "email.read",
+    "email.search",
+    "email.reply",
+    "data.query",
+    "data.write",
+    "notification.send"
+  ],
+  "defaultDepartments": [
+    "commercial",
+    "operations"
+  ],
+  "contentRef": "file:skills/customer-support/SKILL.md",
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "support",
+    "customer"
+  ]
+}

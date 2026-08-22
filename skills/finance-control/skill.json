@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "finance-control",
+  "name": "Finance Control",
+  "version": "1.0.0",
+  "domain": "company",
+  "status": "active",
+  "description": "Read financial evidence, reconcile operating signals and produce controlled finance summaries without granting payment authority.",
+  "triggers": [
+    "financial control",
+    "cash review",
+    "finance report",
+    "cost review"
+  ],
+  "scopes": [
+    "finance.control",
+    "finance.reporting"
+  ],
+  "capabilities": [
+    "finance.read",
+    "data.query",
+    "document.render",
+    "notification.send"
+  ],
+  "defaultDepartments": [
+    "finance",
+    "executive"
+  ],
+  "contentRef": "file:skills/finance-control/SKILL.md",
+  "risk": "medium",
+  "provenance": "project",
+  "tags": [
+    "finance",
+    "control"
+  ]
+}

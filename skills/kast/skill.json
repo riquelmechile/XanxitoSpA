@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "kast",
+  "name": "KAST — Kernel Adaptation & Self-Tuning",
+  "version": "1.0.0",
+  "domain": "harness",
+  "status": "active",
+  "description": "Harness self-improvement law for NOOP, REMEMBER and governed IMPROVE cycles.",
+  "triggers": [
+    "kast reflection",
+    "self improvement",
+    "harness improvement"
+  ],
+  "scopes": [
+    "harness.kast"
+  ],
+  "capabilities": [
+    "kast.reflect",
+    "engram.memory",
+    "workflow.verify"
+  ],
+  "defaultDepartments": [],
+  "risk": "critical",
+  "provenance": "project",
+  "tags": [
+    "harness",
+    "governance"
+  ],
+  "contentRef": "file:skills/kast/SKILL.md"
+}
