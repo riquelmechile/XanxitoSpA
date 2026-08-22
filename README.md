@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>A governed harness for forming, adopting, operating and evolving companies.</strong><br/>
-  V1 PrincipalPolicy is explicitly pinned to GPT-5.6 Sol. Business functions coordinate and compete. Verified outcomes and sanitized traces teach the organization how to work better.
+  V1 uses one cognitive model: GPT-5.6 Sol. Executive reasoning is `max`; every supervisor/worker/critic/verifier branch is the same Sol model at `xhigh`. Business functions coordinate and compete; verified outcomes and sanitized traces teach the organization how to work better.
 </p>
 
 <p align="center">
@@ -43,16 +43,18 @@ signal → heartbeat → restore state → business preflight
 ### Current verified state
 
 ```text
-Version                  0.5.0
+Version                  0.6.0 candidate
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              66 / 66 PASS (local)
+Company Gym              70 / 70 PASS (local)
 MCP                      Streamable HTTP bridge + trust fingerprinting
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
 External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
-Release state             released after four-lens APPROVED + public CI PASS
+Model law                Sol/max executive · Sol/xhigh branches · no model fallback
+Creative model policy     OpenAI-only V1 · native image tool · video staged
+Release state             four-lens APPROVED · pending public CI
 ```
 
 ---
@@ -223,7 +225,7 @@ opaque secret handle
 external capability
 ```
 
-External models and services behind business capabilities are **tools**, never principals. Capability providers are replaceable; the executive principal is a separate constitutional `PrincipalPolicy`, intentionally pinned to GPT-5.6 Sol in V1.
+Business services behind semantic capabilities are **tools**, never principals. Capability providers such as email, databases, payments, hosting and CAD engines remain replaceable. Cognitive/generative model routing is stricter in V1: the Executive is GPT-5.6 Sol/max, every subordinate reasoning branch is GPT-5.6 Sol/xhigh, secondary model providers are forbidden, and provider-managed multi-agent orchestration is disabled. XanxitoSpA owns FAN-OUT/COMPETE through its Mission Graph.
 
 ### Secret boundary
 
@@ -289,20 +291,31 @@ Institutional Memory   → distilled reusable knowledge
 
 ### Creative Plane
 
-GPT directs the creative task; specialist generation systems remain replaceable capability providers.
-
-Semantic surfaces include:
+V1 deliberately uses the **same GPT-5.6 Sol cognitive flow** for creative work. The Creative Supervisor and competing candidates are Sol/xhigh branches; only the Executive owner uses Sol/max.
 
 ```text
-creative.image.generate
-creative.vector.generate
-creative.video.generate
-creative.model3d.generate
-creative.cad.generate
-document.render
+brief / BrandDNA / CharacterDNA
+        ↓
+Sol/xhigh creative branches
+        ↓ optional COMPETE
+owner decision
+        ↓
+image_generation tool / deterministic renderer / business tool
 ```
 
-This lets a future provider registry choose the best available image/video/3D/CAD engine without changing the company kernel.
+Active V1 surfaces:
+
+```text
+creative.image.generate   → Responses built-in image_generation tool
+creative.image.edit       → same native image tool path
+creative.vector.generate  → GPT-authored deterministic SVG/code
+document.render           → GPT structure + deterministic renderer
+creative.video.generate   → STAGED / fail-closed in V1
+creative.model3d.generate → only via approved non-model/procedural tool seam
+creative.cad.generate     → approved CAD engine as a tool, not another cognitive model
+```
+
+OpenAI's current specialized image backend is GPT Image 2, but it is treated as a renderer behind the tool — not a worker or principal. Final video generation stays disabled because GPT-5.6 Sol has no stable native video tool and the currently documented Sora 2 APIs are Legacy/Deprecated. GPT can still create scripts, shot lists, storyboards and image keyframes. See [`adr/0005-one-model-law.md`](docs/adr/0005-one-model-law.md).
 
 ---
 
@@ -372,12 +385,14 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | [`RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) | PostgreSQL, heartbeat, leases, providers, assets |
 | [`RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md`](docs/RUNTIME_V13_CAPABILITY_PLANE_2026-08-21.md) | Secure semantic Capability Plane |
 | [`RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md`](docs/RUNTIME_V15_ENTERPRISE_HARDENING_2026-08-21.md) | MCP trust, OTel, trace learning, external evidence and release hardening |
+| [`RUNTIME_V06_MODEL_LAW_2026-08-21.md`](docs/RUNTIME_V06_MODEL_LAW_2026-08-21.md) | One Model Law + GPT-only creative execution |
 | [`MCP_SECURITY.md`](docs/MCP_SECURITY.md) | MCP registration, poisoning and external-data trust boundary |
 | [`OBSERVABILITY.md`](docs/OBSERVABILITY.md) | OpenTelemetry + GenAI semantic convention policy |
 | [`EXTERNAL_REVIEW_2026-08-21.md`](docs/EXTERNAL_REVIEW_2026-08-21.md) | Resolution of external architecture review |
 | [`adr/0001-durable-execution.md`](docs/adr/0001-durable-execution.md) | DBOS/Temporal durability decision |
 | [`adr/0002-principal-policy.md`](docs/adr/0002-principal-policy.md) | Principal vs capability-provider boundary |
 | [`adr/0003-authority-interoperability.md`](docs/adr/0003-authority-interoperability.md) | AP2/VC interoperability seam |
+| [`adr/0005-one-model-law.md`](docs/adr/0005-one-model-law.md) | Sol/max executive, Sol/xhigh branches and GPT-only creative law |
 | [`adr/0004-external-benchmarking.md`](docs/adr/0004-external-benchmarking.md) | External wind-tunnel policy; same-GPT DIRECT vs XANXITOSPA comparison |
 | [`VISUAL_SYSTEM.md`](docs/VISUAL_SYSTEM.md) | The Company Deck visual language |
 | [`CHARACTER_ART_DIRECTION.md`](docs/CHARACTER_ART_DIRECTION.md) | Character DNA, raster+SVG pipeline and originality rules |
@@ -385,6 +400,7 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | [`skills/svg-craft/SKILL.md`](skills/svg-craft/SKILL.md) | Project-local SVG/card/mobile delivery skill |
 | [`skills/character-art/SKILL.md`](skills/character-art/SKILL.md) | Project-local premium original character-art skill |
 | [`skills/design-competition/SKILL.md`](skills/design-competition/SKILL.md) | Creative COMPETE + VisualFitness adjudication |
+| [`skills/gpt-creative/SKILL.md`](skills/gpt-creative/SKILL.md) | One-model creative execution + native image tool policy |
 
 ---
 
@@ -398,7 +414,7 @@ Operational data is not memory.
 Only verified outcomes teach the company.
 Competition of ideas; cooperation in execution.
 Browser is a last resort.
-Capability providers are replaceable. PrincipalPolicy is explicit. Policy stays in the kernel.
+Business capability providers are replaceable. Cognitive model law is Sol-only. PrincipalPolicy and branch orchestration stay in the kernel.
 ```
 
 <p align="center">

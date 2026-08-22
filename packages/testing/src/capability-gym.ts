@@ -379,5 +379,54 @@ export async function runCapabilityPlaneGym(): Promise<CapabilityGymCaseResult[]
     expect(denied && calls === 1, "revoked principal read cached capability result or repeated provider call");
   }));
 
+  cases.push(await runCase("native creative image capability cannot route through arbitrary provider adapter", async () => {
+    const companyId = randomUUID();
+    const capability = "creative.image.generate";
+    const semantics = new SemanticCapabilityRegistry(); semantics.register({ ...semantic(capability, true), availability: "enabled" });
+    const providers = new ProviderRegistry(); providers.register(provider(companyId, "other-image-model", capability, 1));
+    const adapters = new ProviderAdapterRegistry(); let calls = 0;
+    adapters.register({ descriptor: { companyId, providerId: "other-image-model", capabilities: [capability], credentialNames: ["api-key"] }, execute: async () => { calls += 1; return { ok: true, sideEffectApplied: true, result: { image: true }, evidenceRefs: [], cost: 1 }; } });
+    const secrets = new InMemorySecretResolver(); secrets.register({ companyId, providerId: "other-image-model", secretName: "api-key", value: "OTHER-IMAGE-TEST-KEY" });
+    const plane = new CapabilityPlane(semantics, providers, adapters, secrets, new InMemoryRuntimeStore(), () => fixedNow);
+    const request = planeRequest(companyId, capability, "image:native-only");
+    let rejected = false;
+    try { await plane.execute(request, { principal: "worker-a", grants: [grant(companyId, capability, "bootstrap")], budgets: [] }); }
+    catch (error) { rejected = error instanceof DomainError && error.message === `NATIVE:capability_requires_responses_gateway:${capability}`; }
+    expect(rejected && calls === 0, "arbitrary image model provider bypassed native Responses gateway");
+  }));
+
+  cases.push(await runCase("custom semantic registry cannot re-enable staged creative video", async () => {
+    const companyId = randomUUID();
+    const capability = "creative.video.generate";
+    const semantics = new SemanticCapabilityRegistry(); semantics.register({ ...semantic(capability, true), availability: "enabled" });
+    const providers = new ProviderRegistry(); providers.register(provider(companyId, "custom-video", capability, 1));
+    const adapters = new ProviderAdapterRegistry(); let calls = 0;
+    adapters.register({ descriptor: { companyId, providerId: "custom-video", capabilities: [capability], credentialNames: ["api-key"] }, execute: async () => { calls += 1; return { ok: true, sideEffectApplied: true, result: { video: true }, evidenceRefs: [], cost: 1 }; } });
+    const secrets = new InMemorySecretResolver(); secrets.register({ companyId, providerId: "custom-video", secretName: "api-key", value: "CUSTOM-VIDEO-TEST-KEY" });
+    const plane = new CapabilityPlane(semantics, providers, adapters, secrets, new InMemoryRuntimeStore(), () => fixedNow);
+    const request = planeRequest(companyId, capability, "video:custom-registry");
+    let rejected = false;
+    try { await plane.execute(request, { principal: "worker-a", grants: [grant(companyId, capability, "bootstrap")], budgets: [] }); }
+    catch (error) { rejected = error instanceof DomainError && error.message === `STAGED:capability_unavailable:${capability}`; }
+    expect(rejected && calls === 0, "custom semantic registry re-enabled staged video");
+  }));
+
+  cases.push(await runCase("staged creative video capability is denied before provider routing", async () => {
+    const companyId = randomUUID();
+    const capability = "creative.video.generate";
+    const semantics = createUniversalSemanticCapabilityRegistry();
+    const providers = new ProviderRegistry(); providers.register(provider(companyId, "legacy-video", capability, 1));
+    const adapters = new ProviderAdapterRegistry(); let calls = 0;
+    adapters.register({ descriptor: { companyId, providerId: "legacy-video", capabilities: [capability], credentialNames: ["api-key"] }, execute: async () => { calls += 1; return { ok: true, sideEffectApplied: true, result: { video: true }, evidenceRefs: [], cost: 1 }; } });
+    const secrets = new InMemorySecretResolver(); secrets.register({ companyId, providerId: "legacy-video", secretName: "api-key", value: "LEGACY-VIDEO-TEST-KEY" });
+    const runtime = new InMemoryRuntimeStore();
+    const plane = new CapabilityPlane(semantics, providers, adapters, secrets, runtime, () => fixedNow);
+    const request = planeRequest(companyId, capability, "video:staged");
+    let rejected = false;
+    try { await plane.execute(request, { principal: "worker-a", grants: [grant(companyId, capability, "bootstrap")], budgets: [] }); }
+    catch (error) { rejected = error instanceof DomainError && error.message === `STAGED:capability_unavailable:${capability}`; }
+    expect(rejected && calls === 0, "staged video capability reached a provider");
+  }));
+
   return cases;
 }

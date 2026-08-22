@@ -8,11 +8,11 @@ The character must communicate its business function before the viewer reads the
 
 ## Pipeline
 
-`business truth → Character DNA → 6 silhouette thumbnails → 2 pose/value comps → 1 color/lighting comp → final splash art → crop test → SVG frame → GitHub mobile test`
+`business truth → Character DNA → 2 blind Sol/xhigh directions → owner decision → native image_generation → crop test → SVG frame → GitHub mobile test`
 
-The provider may change. The art direction contract does not.
+V1 uses GPT-5.6 Sol as the only cognitive model and the built-in OpenAI image-generation tool as renderer. The art direction contract is stable; no secondary model provider is used.
 
-## Provider-neutral generation contract
+## V1 GPT-only generation contract
 
 Preferred output:
 

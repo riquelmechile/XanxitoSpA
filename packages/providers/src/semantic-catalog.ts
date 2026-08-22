@@ -10,7 +10,8 @@ const cap = (
   description: string,
   inputFormats: string[] = ["json"],
   outputFormats: string[] = ["json"],
-): SemanticCapabilityDescriptor => ({ name, risk, sideEffectClass, maxSensitivity, credentialRequired, description, inputFormats, outputFormats });
+  availability: "enabled" | "native" | "staged" = "enabled",
+): SemanticCapabilityDescriptor => ({ name, risk, sideEffectClass, maxSensitivity, credentialRequired, availability, description, inputFormats, outputFormats });
 
 export const UNIVERSAL_SEMANTIC_CAPABILITIES: readonly SemanticCapabilityDescriptor[] = [
   cap("email.read", "low", "none", "restricted", true, "Read an authorized mailbox message or thread."),
@@ -39,9 +40,10 @@ export const UNIVERSAL_SEMANTIC_CAPABILITIES: readonly SemanticCapabilityDescrip
   cap("payment.request", "high", "external", "restricted", true, "Create a payment request subject to budgets and approvals."),
   cap("payment.execute", "high", "external", "restricted", true, "Execute an approved payment inside explicit authority and budget envelopes."),
 
-  cap("creative.image.generate", "low", "external", "internal", true, "Generate or edit image assets through an eligible creative provider."),
-  cap("creative.vector.generate", "low", "external", "internal", true, "Generate vector, logo or scalable design assets."),
-  cap("creative.video.generate", "low", "external", "internal", true, "Generate video assets through an eligible creative provider."),
+  cap("creative.image.generate", "low", "external", "internal", true, "Generate image assets through the V1 native image-generation tool.", ["json"], ["json"], "native"),
+  cap("creative.image.edit", "low", "external", "internal", true, "Edit image assets through the V1 native image-generation tool.", ["json"], ["json"], "native"),
+  cap("creative.vector.generate", "low", "reversible", "internal", false, "Generate vector, logo or scalable design assets through GPT-authored deterministic SVG/code."),
+  cap("creative.video.generate", "low", "external", "internal", true, "Final video generation is staged and unavailable in V1 until a stable supported video tool exists.", ["json"], ["json"], "staged"),
   cap("creative.model3d.generate", "low", "external", "internal", true, "Generate a non-authoritative 3D asset."),
   cap("creative.cad.generate", "medium", "external", "restricted", true, "Generate or modify technical CAD/BIM artifacts subject to verification."),
 

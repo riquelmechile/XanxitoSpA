@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use XanxitoSpA's competitive branching for design work without turning subjective taste into endless committee chat. This skill is provider-neutral: GPT defines the brief, candidate strategy and adjudication; image/video/vector/3D systems are rendering capabilities only.
+Use XanxitoSpA's competitive branching for design work without turning subjective taste into endless committee chat. V1 is one-model: Executive uses GPT-5.6 Sol/max; all creative candidates, critics and supervisors use GPT-5.6 Sol/xhigh. Diversity comes from strategy overlays, never from switching foundation models.
 
 ## Core law
 
@@ -26,7 +26,7 @@ Do not COMPETE every icon, spacing choice or routine production asset. Cost must
 ## Protocol
 
 1. **Freeze the brief** — objective, audience, brand DNA, output format, constraints, references and forbidden imitation.
-2. **Create strategy overlays** — normally two candidates. They may use the same rendering provider or different providers, but they must differ in concept rather than random seed alone.
+2. **Create strategy overlays** — normally two candidates. Both use the same GPT-5.6 Sol/xhigh profile and differ in concept, composition, narrative, silhouette, material or audience hypothesis rather than model/vendor or random seed alone.
 3. **Blind generation** — Candidate A and B do not see one another.
 4. **Independent review** — score both using VisualFitness before revealing the other candidate.
 5. **One cross-critique** — each candidate receives the other's result and may identify one material weakness and one synthesis opportunity.
@@ -74,15 +74,18 @@ A creative candidate becomes a reusable **style champion** only when:
 
 Keep useful losing directions as challengers/silent variants with a short negative-result note. Do not repeatedly regenerate a rejected direction unless the brief/context materially changed.
 
-## Provider law
+## Model / rendering law
 
-The skill says what to create and how to judge it. It never hardcodes `Gemini`, `GPT Image`, `Runway`, `Recraft`, `Meshy`, etc. Rendering goes through semantic capabilities such as:
+V1 allows one cognitive/generative model family only:
 
-- `creative.image.generate`
-- `creative.vector.generate`
-- `creative.video.generate`
-- `creative.model3d.generate`
-- `creative.cad.generate`
+- Executive reasoning: `gpt-5.6-sol / max`;
+- candidate/critic/supervisor reasoning: `gpt-5.6-sol / xhigh`;
+- image render: Responses `image_generation` tool;
+- vector/docs: GPT-authored deterministic SVG/code/renderers;
+- final video render: staged/unavailable in V1;
+- provider-managed multi-agent: disabled.
+
+Semantic capabilities remain stable (`creative.image.generate`, `creative.vector.generate`, `creative.video.generate`, `creative.model3d.generate`, `creative.cad.generate`), but V1 does not route creative cognition across Gemini/Runway/xAI/etc. Traditional business/CAD/3D tools may still exist as non-model capabilities.
 
 ## Safety / truth
 

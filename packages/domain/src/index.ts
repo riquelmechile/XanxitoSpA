@@ -1,4 +1,4 @@
-import type { AuthorityGrant, BudgetEnvelope, CapabilityRequest, CorporateGene, PreflightPlan } from "../../contracts/src/index.js";
+import type { AuthorityGrant, BudgetEnvelope, CapabilityRequest, CorporateGene, PreflightPlan, PrincipalPolicy, ReasoningRole } from "../../contracts/src/index.js";
 
 export class DomainError extends Error {}
 
@@ -41,4 +41,29 @@ export function validateGene(gene: CorporateGene): void {
   if (gene.fitness.sampleSize < 0) throw new DomainError("gene sample size cannot be negative");
   if (gene.fitness.confidence < 0 || gene.fitness.confidence > 1) throw new DomainError("gene confidence must be 0..1");
   if (gene.status === "champion" && gene.fitness.sampleSize === 0) throw new DomainError("champion requires evidence");
+}
+
+export function assertPrincipalModelLaw(policy: PrincipalPolicy): void {
+  if (policy.role !== "executive-principal") throw new DomainError("invalid principal role");
+  if (policy.mode !== "pinned") throw new DomainError("V1 principal policy must remain pinned");
+  if (policy.model !== "gpt-5.6-sol") throw new DomainError("V1 pinned principal must be gpt-5.6-sol");
+  if (policy.reasoningEffort !== "max") throw new DomainError("V1 executive principal requires max reasoning effort");
+  if (policy.subordinateModel !== "gpt-5.6-sol") throw new DomainError("V1 subordinate reasoning must remain on gpt-5.6-sol");
+  if (policy.subordinateReasoningEffort !== "xhigh") throw new DomainError("V1 subordinate reasoning requires xhigh effort");
+  if (!policy.maxReservedForExecutive) throw new DomainError("V1 max reasoning is reserved for executive principal");
+  if (policy.allowSecondaryModelProviders) throw new DomainError("V1 secondary model providers are forbidden");
+  if (policy.branchOrchestration !== "xanxitospa-mission-graph") throw new DomainError("V1 branch orchestration belongs to XanxitoSpA Mission Graph");
+  if (policy.allowProviderManagedMultiAgent) throw new DomainError("V1 provider-managed multi-agent orchestration is disabled");
+  if (policy.allowModelFallback) throw new DomainError("V1 pinned principal forbids model fallback");
+  if (!policy.capabilityProvidersReplaceable) throw new DomainError("capability provider replaceability must remain enabled");
+  if (policy.creativePolicy.providerFamily !== "openai-only") throw new DomainError("V1 creative model policy is OpenAI-only");
+  if (policy.creativePolicy.imageGeneration !== "responses-image-generation") throw new DomainError("V1 images require Responses image_generation");
+  if (policy.creativePolicy.videoGeneration !== "staged-unavailable" || policy.creativePolicy.allowLegacyVideo) throw new DomainError("V1 legacy video generation is disabled");
+}
+
+export function resolveModelLawProfile(policy: PrincipalPolicy, role: ReasoningRole): { model: "gpt-5.6-sol"; reasoningEffort: "max" | "xhigh" } {
+  assertPrincipalModelLaw(policy);
+  return role === "executive"
+    ? { model: "gpt-5.6-sol", reasoningEffort: "max" }
+    : { model: "gpt-5.6-sol", reasoningEffort: "xhigh" };
 }

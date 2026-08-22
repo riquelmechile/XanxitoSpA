@@ -5,7 +5,7 @@
   "role": "external-wind-tunnel",
   "architectureDependency": false,
   "agentUnderTest": {
-    "principalPolicy": "v1-pinned-gpt-5.6-sol",
+    "principalPolicy": "v06-sol-max-executive-xhigh-branches",
     "additionalReasoningModelsAllowed": false,
     "openhandsRequired": false,
     "businessPreflightRequired": true,
@@ -15,11 +15,11 @@
   "profiles": {
     "direct": {
       "description": "Same GPT principal with governed execution; cognitive FAN-OUT/COMPETE disabled except safety-required paths.",
-      "principalPolicy": "v1-pinned-gpt-5.6-sol"
+      "principalPolicy": "v06-sol-max-executive-xhigh-branches"
     },
     "xanxitospa": {
       "description": "Same GPT principal with native Business Preflight and bounded DIRECT/FAN-OUT/COMPETE/collaboration/challenge/debate routing.",
-      "principalPolicy": "v1-pinned-gpt-5.6-sol"
+      "principalPolicy": "v06-sol-max-executive-xhigh-branches"
     }
   },
   "environment": {

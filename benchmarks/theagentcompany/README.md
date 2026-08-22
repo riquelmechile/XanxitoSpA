@@ -23,7 +23,7 @@ The benchmark also uses a separate **environment LLM** for NPC coworkers and som
 The agent under test remains XanxitoSpA:
 
 ```text
-PrincipalPolicy = gpt-5.6-sol
+PrincipalPolicy = gpt-5.6-sol (Executive=max, all XanxitoSpA branches=xhigh, no fallback)
         │
         ▼
 Business Preflight

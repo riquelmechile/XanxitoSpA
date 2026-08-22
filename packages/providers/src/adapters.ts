@@ -157,6 +157,12 @@ export class CapabilityPlane {
     const request = input.capabilityRequest;
     const selection = structuredClone(input.selection);
     const semantic = this.semantics.get(selection.capability);
+    if (selection.capability === "creative.video.generate" || semantic.availability === "staged") {
+      throw new DomainError(`STAGED:capability_unavailable:${selection.capability}`);
+    }
+    if (selection.capability === "creative.image.generate" || selection.capability === "creative.image.edit" || semantic.availability === "native") {
+      throw new DomainError(`NATIVE:capability_requires_responses_gateway:${selection.capability}`);
+    }
     if (request.companyId !== selection.companyId) throw new DomainError("capability plane company mismatch");
     if (guard.principal !== request.principal) throw new DomainError("capability guard principal mismatch");
     if (!input.executionOwner.trim()) throw new DomainError("capability execution owner required");

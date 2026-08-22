@@ -18,9 +18,10 @@ import type {
   PreflightInput,
   PreflightPlan,
   PrincipalPolicy,
+  ReasoningRole,
   Work,
 } from "../../contracts/src/index.js";
-import { assertPreflightPlan, budgetAllows, DomainError, grantAllows, validateGene } from "../../domain/src/index.js";
+import { assertPreflightPlan, assertPrincipalModelLaw, budgetAllows, DomainError, grantAllows, resolveModelLawProfile, validateGene } from "../../domain/src/index.js";
 
 export interface Capability {
   name: string;
@@ -256,14 +257,11 @@ export function settle(input: {
 
 
 export function validatePrincipalPolicy(policy: PrincipalPolicy): void {
-  if (policy.role !== "executive-principal") throw new DomainError("invalid principal role");
-  if (!policy.model.trim()) throw new DomainError("principal model required");
-  if (policy.mode === "pinned") {
-    if (policy.model !== "gpt-5.6-sol") throw new DomainError("V1 pinned principal must be gpt-5.6-sol");
-    if (policy.reasoningEffort !== "max") throw new DomainError("V1 pinned principal requires max reasoning effort");
-    if (policy.allowModelFallback) throw new DomainError("V1 pinned principal forbids model fallback");
-  }
-  if (!policy.capabilityProvidersReplaceable) throw new DomainError("capability provider replaceability must remain enabled");
+  assertPrincipalModelLaw(policy);
+}
+
+export function resolveReasoningProfile(policy: PrincipalPolicy, role: ReasoningRole): { model: "gpt-5.6-sol"; reasoningEffort: "max" | "xhigh" } {
+  return resolveModelLawProfile(policy, role);
 }
 
 export function applyLearningEvidenceToGene(

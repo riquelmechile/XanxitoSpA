@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { BusinessOutcome, CorporateGene, ExecutionTraceSummary, PrincipalPolicy } from "../../contracts/src/index.js";
-import { applyLearningEvidenceToGene, validatePrincipalPolicy } from "../../kernel/src/index.js";
+import { applyLearningEvidenceToGene, resolveReasoningProfile, validatePrincipalPolicy } from "../../kernel/src/index.js";
+import { buildOpenAIResponsesPlan, getCreativeCapabilityAvailability } from "../../providers/src/openai-responses.js";
 import { McpToolTrustRegistry, analyzeMcpToolMetadata } from "../../providers/src/mcp-trust.js";
 
 export interface HardeningGymCaseResult { name: string; ok: boolean; detail: string }
@@ -39,13 +40,50 @@ export async function runEnterpriseHardeningGym(): Promise<HardeningGymCaseResul
       mode: "pinned",
       model: "gpt-5.6-sol",
       reasoningEffort: "max",
+      subordinateModel: "gpt-5.6-sol",
+      subordinateReasoningEffort: "xhigh",
+      maxReservedForExecutive: true,
+      allowSecondaryModelProviders: false,
+      branchOrchestration: "xanxitospa-mission-graph",
+      allowProviderManagedMultiAgent: false,
       allowModelFallback: false,
       capabilityProvidersReplaceable: true,
+      creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
     };
     validatePrincipalPolicy(policy);
     let rejected = false;
     try { validatePrincipalPolicy({ ...policy, model: "other-model" }); } catch { rejected = true; }
     expect(rejected, "pinned V1 principal silently accepted another model");
+    const executive = resolveReasoningProfile(policy, "executive");
+    const worker = resolveReasoningProfile(policy, "worker");
+    expect(executive.model === "gpt-5.6-sol" && executive.reasoningEffort === "max", "executive is not pinned to Sol/max");
+    expect(worker.model === "gpt-5.6-sol" && worker.reasoningEffort === "xhigh", "subordinate is not pinned to Sol/xhigh");
+    let subordinateMaxRejected = false;
+    try { validatePrincipalPolicy({ ...policy, subordinateReasoningEffort: "max" as never }); } catch { subordinateMaxRejected = true; }
+    expect(subordinateMaxRejected, "subordinate max was accepted");
+    let alternateSubordinateRejected = false;
+    try { validatePrincipalPolicy({ ...policy, subordinateModel: "gpt-5.6-terra" }); } catch { alternateSubordinateRejected = true; }
+    expect(alternateSubordinateRejected, "alternate subordinate model was accepted");
+    let providerMultiAgentRejected = false;
+    try { validatePrincipalPolicy({ ...policy, allowProviderManagedMultiAgent: true as never }); } catch { providerMultiAgentRejected = true; }
+    expect(providerMultiAgentRejected, "provider-managed multi-agent was accepted");
+  }));
+
+  cases.push(await runCase("GPT-only creative policy enables native image tool and stages video", () => {
+    const policy: PrincipalPolicy = {
+      role: "executive-principal", mode: "pinned", model: "gpt-5.6-sol", reasoningEffort: "max",
+      subordinateModel: "gpt-5.6-sol", subordinateReasoningEffort: "xhigh", maxReservedForExecutive: true,
+      allowSecondaryModelProviders: false, branchOrchestration: "xanxitospa-mission-graph", allowProviderManagedMultiAgent: false,
+      allowModelFallback: false, capabilityProvidersReplaceable: true,
+      creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+    };
+    const image = getCreativeCapabilityAvailability(policy.creativePolicy, "creative.image.generate");
+    const video = getCreativeCapabilityAvailability(policy.creativePolicy, "creative.video.generate");
+    expect(image.available, "native image generation should be available");
+    expect(!video.available && video.reason.includes("staged"), "video should fail closed as staged");
+    const plan = buildOpenAIResponsesPlan(policy, "worker", { prompt: "Create an original character", enableImageGeneration: true });
+    expect(plan.model === "gpt-5.6-sol" && plan.reasoning.effort === "xhigh", "worker Responses plan violated model law");
+    expect(plan.tools.some((tool) => tool.type === "image_generation"), "native image_generation tool missing");
   }));
 
   cases.push(await runCase("verified outcomes may teach from sanitized execution traces", () => {

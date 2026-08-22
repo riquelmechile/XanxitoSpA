@@ -32,21 +32,27 @@ IO queda como investigación, laboratorio y biblioteca de invariantes. Xanxittoo
 
 ## 1.1 Model Law
 
-**`PrincipalPolicy` V1 fija explícitamente GPT-5.6 Sol como único principal cognitivo del sistema.** No es un provider oculto dentro del Capability Router: cambiar el principal sería una decisión constitucional/evaluada, no routing normal.
+**`PrincipalPolicy` V1 fija explícitamente GPT-5.6 Sol como único modelo cognitivo del sistema.** Executive usa `max`; supervisores, workers, critics, verifiers y ramas `COMPETE` usan el mismo Sol en `xhigh`. No existe model fallback, secondary model provider ni provider-managed multi-agent. XanxitoSpA conserva el Mission Graph y la bifurcación como propiedad del kernel.
 
 GPT razona, dirige, delega, consolida, decide dentro de su autoridad, recupera memoria, ejecuta preflights y produce decisiones estructuradas.
 
-Los modelos externos de imagen, video, audio, 3D u otras modalidades son **recursos/herramientas especializadas**, nunca principals, supervisores, autoridades o empleados autónomos.
+V1 no incorpora otros modelos cognitivos/generativos como workers ni como rutas alternativas. La misma familia GPT ejecuta razonamiento y decide cuándo usar tools.
 
 ```text
-GPT-5.6 Sol
-= reasoning / authority / orchestration / consolidation
+GPT-5.6 Sol / max
+= Executive reasoning / authority / consolidation
 
-Gemini / Grok / Runway / Meshy / Tripo / etc.
-= specialized generation tools
+GPT-5.6 Sol / xhigh
+= supervisors / workers / critics / verifiers / COMPETE branches
+
+Responses image_generation
+= rendering tool selected by GPT; current OpenAI backend GPT Image 2
+
+email / database / CAD / hosting / MCP / etc.
+= business tools, not cognitive models
 ```
 
-Cambiar un proveedor creativo no debe alterar la arquitectura de la empresa.
+Cambiar o introducir otro model provider requiere una nueva decisión constitucional/evaluada; no es routing normal del Capability Plane.
 
 ## 1.2 Kernel pequeño
 
@@ -1161,46 +1167,53 @@ document.compose
 presentation.compose
 ```
 
-## 18.2 Routing por necesidad
+## 18.2 One Model Law creativo — V1
 
-El worker no debería decir “usa proveedor X” salvo que el proceso requiera una capacidad exclusiva.
-
-Debe expresar intención:
+La decisión vigente desde V0.6 simplifica el plano cognitivo/generativo:
 
 ```text
-model3d.generate
-quality=high
-material=PBR
-purpose=product-visualization
-budget=medium
+Executive owner           → gpt-5.6-sol / max
+Creative Supervisor       → gpt-5.6-sol / xhigh
+Creative Worker           → gpt-5.6-sol / xhigh
+COMPETE candidate A/B     → gpt-5.6-sol / xhigh
+Critic / verifier         → gpt-5.6-sol / xhigh
+secondary model provider  → forbidden
+provider-managed agents   → forbidden
 ```
 
-El router elige proveedor/modelo vigente.
+La diversidad de `COMPETE` viene de strategy overlays, no de mezclar modelos. XanxitoSpA mantiene ownership de FAN-OUT/COMPETE/Mission Graph. La beta Multi-agent del proveedor no es parte del runtime V1.
 
-## 18.3 Snapshot de proveedores considerado al 21-08-2026
+## 18.3 Imagen, video y renderers
 
-Este snapshot sirve para orientar providers iniciales y debe revalidarse antes de implementación porque el mercado cambia rápido.
+Según documentación oficial verificada al **21-08-2026**:
 
-- OpenAI: GPT Image 2 para imagen/edición.
-- Google: Nano Banana 2 / Pro para imagen; Gemini Omni Flash y Veo 3.1 para video según necesidad.
-- xAI: Grok Imagine para imagen/video.
-- Runway: API/router de modelos para workflows de video/creative production.
-- ByteDance: Seedream/Seedance como proveedores a evaluar según disponibilidad real de API/región.
-- MiniMax: H3/Hailuo como opción de video multimodal según disponibilidad/costo.
-- Recraft: vector, brand assets, mockups y outputs SVG.
-- Meshy 7: 3D general/PBR/producción.
-- Tripo H3.1: 3D high-fidelity y pipeline alternativo.
-- Seed3D: 3D/simulación cuando API y necesidad lo justifiquen.
-- Autodesk Platform Services: CAD/BIM/engines técnicos; separado de 3D creativo.
+- `gpt-5.6-sol` soporta la herramienta built-in `image_generation` dentro de Responses API;
+- el backend especializado de imagen vigente de OpenAI es GPT Image 2;
+- GPT Image 2 es renderer/tool, no principal cognitivo;
+- `gpt-5.6-sol` no produce video directamente;
+- los endpoints de video vigentes documentan Sora 2 / Sora 2 Pro como Legacy/Deprecated.
+
+Por tanto el routing V1 es:
+
+```text
+image.generate/edit      → Sol decide → Responses image_generation
+vector/logo/diagram      → Sol → SVG/code determinista → renderer
+document/presentation    → Sol → estructura/código → renderer determinista
+video brief/storyboard   → Sol → script/shot list/keyframes
+video final render       → STAGED / unavailable fail-closed
+CAD/3D engine            → tool empresarial aprobado, no segundo modelo cognitivo
+```
+
+No se mantienen Gemini, xAI, Runway, Recraft, Meshy, Tripo u otros modelos generativos como defaults activos V1. Pueden conservarse como investigación histórica, pero activarlos exigiría una nueva decisión constitucional/evaluación y no un simple cambio de ProviderRegistry.
 
 ## 18.4 CAD/BIM no es 3D creativo
 
 ```text
 3D creativo / marketing / concepto
-→ Meshy / Tripo / equivalentes
+→ Sol genera brief/spec/procedural asset; renderer/engine aprobado ejecuta si existe
 
 CAD / BIM / plano técnico / fabricación
-→ capability técnico (Autodesk APS u otro provider)
+→ capability técnico verificado (CAD/BIM engine), no segundo modelo cognitivo
 ```
 
 Un modelo visual generativo no debe presentarse como plano técnico certificado.
@@ -2060,32 +2073,28 @@ No existe vendor managed obligatorio. Provider adapters iniciales son `postgres`
 
 Toda base provisionada debe nacer con owner, backup policy, retention, health check y restore-test programado.
 
-## 29.17 Creative Plane y providers iniciales
+## 29.17 Creative Plane — implementación inicial V0.6
 
-La selección fue verificada contra documentación oficial disponible el **21 de agosto de 2026**. GPT-5.6 Sol sigue siendo el único principal cognitivo; estos modelos son herramientas.
-
-Routing inicial:
+La política activa es **one-model/OpenAI-only** para capacidades cognitivas y generativas. Business tools siguen siendo provider-neutral.
 
 ```text
-image.general          → GPT Image 2
-image.high-volume      → Gemini 3.1 Flash Image
-image.brand/complex    → Gemini 3 Pro Image
-vector/logo/design     → Recraft V4.1 Vector/Pro Vector
-product/mockup         → Recraft V4.1 Utility/Pro o GPT Image 2
-video.general          → Runway Model Router (balanced)
-video.google-specific  → Gemini Omni Flash / Veo 3.1 según feature
-image/video.alt        → xAI Grok Imagine si existe key elegible
-model3d.general        → Meshy 7
-model3d.high-fidelity  → Tripo H3.1 como alternativa/comparador
-cad/bim/engineering    → Autodesk Platform Services Automation API
-document/presentation  → GPT + renderer determinista + assets del Creative Plane
+executive reasoning      → gpt-5.6-sol / max
+all subordinate reason   → gpt-5.6-sol / xhigh
+image generation/edit    → Responses image_generation tool
+vector/diagrams          → GPT + deterministic SVG/code
+document/presentation    → GPT + deterministic renderer
+video final generation   → STAGED / unavailable
+secondary model provider → DENY
+provider multi-agent     → DENY
 ```
 
-Runway puede actuar como router interno para video, pero el Provider Registry de XanxitoSpA conserva ownership de presupuesto, compliance y provider eligibility.
+La capa semántica no contiene nombres de vendor; la One Model Law vive en `PrincipalPolicy`/`CreativePolicy`. Esto permite que `creative.image.generate` siga siendo lenguaje de negocio mientras V1 lo resuelve por la única ruta autorizada.
 
-La disponibilidad de una API key no es una decisión arquitectónica: `company-bootstrap` registra qué providers están activos para cada Company.
+El motivo de no activar video es explícito: al corte de agosto de 2026 GPT-5.6 Sol no expone video output/tool estable y los modelos documentados en `/v1/videos` (Sora 2 / Sora 2 Pro) aparecen Legacy/Deprecated. El sistema puede producir storyboard, guión, shot list y keyframes de imagen, pero no debe fingir soporte de render final.
 
-Fuentes de capacidad verificadas para esta decisión incluyen documentación oficial de OpenAI GPT Image 2, Gemini 3.1 Image, Runway Model Router (23-07-2026), Meshy API changelog (Meshy 7/Aug-2026), Recraft V4.1, Tripo H3.1 y Autodesk APS Automation API.
+CAD, hosting, correo, bases de datos y otros servicios pueden seguir usando adapters externos porque son herramientas empresariales, no principals/model providers.
+
+ADR canónico: `docs/adr/0005-one-model-law.md`.
 
 ## 29.18 Company Gym / evals iniciales
 

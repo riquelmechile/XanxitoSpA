@@ -9,14 +9,32 @@ export type GeneType = "strategy" | "process" | "skill" | "team-composition" | "
 export type AutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
 export type PrincipalMode = "pinned" | "portable";
 export type PrincipalReasoningEffort = "max" | "xhigh";
+export type ReasoningRole = "executive" | "supervisor" | "worker" | "critic" | "verifier";
+export type CreativeProviderFamily = "openai-only";
+export type CreativeImageGenerationMode = "responses-image-generation";
+export type CreativeVideoGenerationMode = "staged-unavailable";
+
+export interface CreativePolicy {
+  providerFamily: CreativeProviderFamily;
+  imageGeneration: CreativeImageGenerationMode;
+  videoGeneration: CreativeVideoGenerationMode;
+  allowLegacyVideo: false;
+}
 
 export interface PrincipalPolicy {
   role: "executive-principal";
   mode: PrincipalMode;
   model: string;
   reasoningEffort: PrincipalReasoningEffort;
+  subordinateModel: string;
+  subordinateReasoningEffort: "xhigh";
+  maxReservedForExecutive: true;
+  allowSecondaryModelProviders: false;
+  branchOrchestration: "xanxitospa-mission-graph";
+  allowProviderManagedMultiAgent: false;
   allowModelFallback: boolean;
   capabilityProvidersReplaceable: boolean;
+  creativePolicy: CreativePolicy;
 }
 
 export interface CompanyManifestSnapshot {
@@ -423,6 +441,7 @@ export interface SemanticCapabilityDescriptor {
   inputFormats: string[];
   outputFormats: string[];
   credentialRequired: boolean;
+  availability?: "enabled" | "native" | "staged";
   description: string;
 }
 

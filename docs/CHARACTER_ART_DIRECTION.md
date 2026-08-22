@@ -77,7 +77,7 @@ desktop/mobile roster
 GitHub public render review
 ```
 
-The image-generation provider is deliberately not part of this contract. GPT directs the brief; a governed Creative Plane can later route the actual render to the best available image provider.
+V1 rendering is intentionally single-provider at the model layer: GPT-5.6 Sol owns the brief and the built-in Responses `image_generation` tool renders the image. The current specialized backend is GPT Image 2, but it is a renderer rather than another principal. Secondary model providers are not part of the V1 art pipeline.
 
 ## Current repository state
 
@@ -94,7 +94,7 @@ They are **not claimed to be the final painterly splash-art layer**. The final r
 
 `assets/characters/character-dna.json`
 
-When a governed image-generation provider is connected, final art can replace the concept layer without rewriting the company architecture or README structure.
+Final image art can replace the vector concept layer through the native GPT/OpenAI image tool without changing the card system or Company architecture. A future second model provider would require an explicit architecture decision rather than ordinary creative routing.
 
 ## Mobile/GitHub rules
 

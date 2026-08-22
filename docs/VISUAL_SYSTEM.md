@@ -17,7 +17,7 @@ V2 separates responsibilities:
 - **character art** = anatomy, face, pose, prop, story, environment, materials and silhouette;
 - **SVG** = frame, crest, typography, effects, responsive roster and technical diagrams.
 
-The repository currently ships full-body **vector character concepts** to lock pose/silhouette/composition. Final painterly art is specified provider-neutrally in `assets/characters/character-dna.json` and can later replace only the art layer.
+The repository currently ships full-body **vector character concepts** to lock pose/silhouette/composition. Final painterly art is specified in `assets/characters/character-dna.json` and V1 renders it through the GPT/OpenAI native image-generation path; only the art layer changes, not the card system.
 
 ## Core palette
 
@@ -115,7 +115,7 @@ business function truth
 → public GitHub render review
 ```
 
-Provider choice is outside the visual contract. The Creative Plane may later route image generation to whichever governed provider is strongest at that moment.
+V1 does not competitively route image models. Creative direction may COMPETE between Sol/xhigh branches, while rendering uses the native image-generation tool under the same OpenAI model policy. Switching to another generative model provider is a constitutional/evaluated change, not normal visual routing.
 
 ## Originality boundary
 
