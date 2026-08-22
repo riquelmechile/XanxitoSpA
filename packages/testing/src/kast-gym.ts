@@ -1,3 +1,4 @@
+import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { randomUUID } from "node:crypto";
 import type { KASTObservation } from "../../contracts/src/index.js";
 import { InMemoryKastStore } from "../../database/src/index.js";
@@ -5,9 +6,6 @@ import { buildHarnessImprovementHandoff, closeHarnessSession, markKastVerified, 
 
 interface CaseResult { name: string; ok: boolean; detail: string }
 function expect(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
-async function runCase(name: string, fn: () => void | Promise<void>): Promise<CaseResult> {
-  try { await fn(); return { name, ok: true, detail: "pass" }; } catch (error) { return { name, ok: false, detail: error instanceof Error ? error.message : String(error) }; }
-}
 
 function observation(input: Partial<KASTObservation> = {}): KASTObservation {
   return {

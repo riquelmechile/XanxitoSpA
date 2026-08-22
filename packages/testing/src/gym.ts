@@ -1,3 +1,4 @@
+import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { randomUUID } from "node:crypto";
 import type { AuthorityGrant, BootstrapRequirement, BudgetEnvelope, BusinessEvent, BusinessOutcome, CapabilityRequest, CompanyAsset, CorporateGene, MissionGraph, PreflightPlan, ProviderDescriptor, ScheduledJob, Work } from "../../contracts/src/index.js";
 import { InMemoryCompanyStore, InMemoryRuntimeStore } from "../../database/src/index.js";
@@ -46,10 +47,6 @@ function baseGene(companyId: string, id = "gene-a", dimensions: Record<string, n
   return { id, companyId, type: "strategy", version: 1, parents: [], contextSignature: "demo", artifactRef: `skill:${id}`, status: "candidate", fitness: { sampleSize: 0, confidence: 0, dimensions, cost, riskIncidents: 0 }, negativeResultRefs: [], experienceRefs: [] };
 }
 
-async function runCase(name: string, fn: () => void | Promise<void>): Promise<GymCaseResult> {
-  try { await fn(); return { name, ok: true, detail: "pass" }; }
-  catch (error) { return { name, ok: false, detail: error instanceof Error ? error.message : String(error) }; }
-}
 
 export async function runCompanyGym(): Promise<GymResult> {
   const cases: GymCaseResult[] = [];

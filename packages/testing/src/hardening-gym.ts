@@ -1,3 +1,4 @@
+import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { randomUUID } from "node:crypto";
 import type { BusinessOutcome, CorporateGene, ExecutionTraceSummary, PrincipalPolicy } from "../../contracts/src/index.js";
 import { applyLearningEvidenceToGene, resolveReasoningProfile, validatePrincipalPolicy } from "../../kernel/src/index.js";
@@ -10,10 +11,6 @@ function expect(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-async function runCase(name: string, fn: () => void | Promise<void>): Promise<HardeningGymCaseResult> {
-  try { await fn(); return { name, ok: true, detail: "pass" }; }
-  catch (error) { return { name, ok: false, detail: error instanceof Error ? error.message : String(error) }; }
-}
 
 function gene(companyId: string): CorporateGene {
   return {

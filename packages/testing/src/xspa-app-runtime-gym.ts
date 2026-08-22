@@ -1,3 +1,4 @@
+import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { randomUUID } from "node:crypto";
 import type { SkillDefinition } from "../../contracts/src/index.js";
 import { SkillRegistry } from "../../kernel/src/skill-registry.js";
@@ -7,10 +8,6 @@ import { InMemoryRuntimeStore } from "../../database/src/runtime-store.js";
 
 interface GymCase { name: string; ok: boolean; detail: string }
 
-async function runCase(name: string, fn: () => Promise<void>): Promise<GymCase> {
-  try { await fn(); return { name, ok: true, detail: "pass" }; }
-  catch (error) { return { name, ok: false, detail: error instanceof Error ? error.message : String(error) }; }
-}
 function expect(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
 
 export async function runXspaAppRuntimeGym(): Promise<GymCase[]> {

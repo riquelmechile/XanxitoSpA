@@ -1,3 +1,4 @@
+import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,10 +17,6 @@ const execFileAsync = promisify(execFile);
 
 export interface KastRuntimeGymCaseResult { name: string; ok: boolean; detail: string }
 function expect(condition: unknown, message: string): asserts condition { if (!condition) throw new Error(message); }
-async function runCase(name: string, fn: () => void | Promise<void>): Promise<KastRuntimeGymCaseResult> {
-  try { await fn(); return { name, ok: true, detail: "pass" }; }
-  catch (error) { return { name, ok: false, detail: error instanceof Error ? error.message : String(error) }; }
-}
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync("git", args, { cwd, encoding: "utf8" });
