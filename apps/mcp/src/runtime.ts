@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { BusinessEvent, CompanyAsset, CorporateGene, CreativeDecisionReceipt, CreativeMission, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
+import type { BusinessEvent, CompanyAsset, CompanyOperatingModelPlan, CorporateGene, CreativeDecisionReceipt, CreativeMission, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, companySkillDefinitionFromAsset, createCompanySkillDefinitionAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AutoskillProposeInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AutoskillProposeInput, CompanyApplyInput, CompanyPlanInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
@@ -47,6 +47,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
       mcp: { ready: true, mode: "streamable-http" },
       database: { configured: this.input.databaseConfigured },
+      companyOs: { ready: Boolean(this.input.store && this.input.companyId), intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
       creative: {
         configured: this.input.creativeConfigured,
         renderer: "responses-image-generation",
@@ -128,6 +129,68 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const { workStore, companyId } = this.requireWorkRuntime();
     const work = await workStore.getWork(companyId, workId);
     return work ? { work, state: "found", companyScoped: true } : { workId, state: "not-found", companyScoped: true };
+  }
+
+  private async buildCompanyOperatingModel(input: CompanyPlanInput): Promise<CompanyOperatingModelPlan> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = await store.listAssets(companyId);
+    const installations = assets.filter((asset) => asset.kind === "skill-installation" && asset.status === "active").map(skillInstallationFromAsset);
+    const localDefinitions = assets.filter((asset) => asset.kind === "company-skill-definition" && asset.status === "active").map(companySkillDefinitionFromAsset);
+    const catalog = [...(this.input.skillRegistry?.list({ domain: "company", companyId }) ?? []), ...localDefinitions];
+    return planCompanyOperatingModel({ companyId, intake: input.intake, existingAssets: assets, catalog, existingInstallations: installations });
+  }
+
+  async companyPlan(input: CompanyPlanInput, _context: XspaRequestContext): Promise<unknown> {
+    const plan = await this.buildCompanyOperatingModel(input);
+    return { plan, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, invokesKast: false };
+  }
+
+  async companyApply(input: CompanyApplyInput, context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const now = new Date();
+    const idemKey = `company:operating-model:${input.formationId}`;
+    const idemOwner = `mcp:company-operating-model:${input.formationId}`;
+    const requestFingerprint = createHash("sha256").update(JSON.stringify({ intake: input.intake, expectedFingerprint: input.expectedFingerprint ?? null })).digest("hex");
+    const claim = await store.claimIdempotency(companyId, idemKey, { requestFingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const prior = claim.record.intent as { requestFingerprint?: unknown };
+      if (prior.requestFingerprint !== requestFingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:company_operating_model_changed:${input.formationId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { formationId: input.formationId, status: "contended", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false };
+      throw new Error(`Company operating model requires reconciliation:${input.formationId}`);
+    }
+    let assetPersisted = false;
+    try {
+      const plan = await this.buildCompanyOperatingModel(input);
+      if (input.expectedFingerprint && input.expectedFingerprint !== plan.fingerprint) throw new Error("PLAN_FINGERPRINT_MISMATCH:company_operating_model");
+      const asset = createCompanyOperatingModelAsset({ companyId, formationId: input.formationId, plan }, now);
+      await store.saveAsset(asset);
+      assetPersisted = true;
+      const evidenceRefs = [...new Set([...plan.departments.flatMap((department) => department.evidenceRefs), ...plan.processes.flatMap((process) => process.evidenceRefs)])];
+      await store.appendEvent({
+        id: randomUUID(), companyId, type: "company.operating-model.applied", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.formationId,
+        idempotencyKey: `company:operating-model:event:${input.formationId}:${plan.fingerprint}`,
+        payload: { formationId: input.formationId, assetId: asset.id, fingerprint: plan.fingerprint, mode: plan.mode, departmentCount: plan.departments.length, processCount: plan.processes.length },
+        sensitivity: "internal", evidenceRefs,
+      });
+      const result = { formationId: input.formationId, assetId: asset.id, fingerprint: plan.fingerprint, mode: plan.mode, status: "applied", recommendedWork: plan.recommendedWork, readinessGaps: plan.readinessGaps, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, invokesKast: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Company operating-model idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, assetPersisted ? "unknown" : "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Company operating model apply failed");
+      throw error;
+    }
+  }
+
+  async companyStatus(_context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-operating-model" && asset.status === "active");
+    if (assets.length === 0) return { state: "not-found", companyScoped: true };
+    const snapshots = assets.map((asset) => ({ asset, snapshot: companyOperatingModelFromAsset(asset) }));
+    snapshots.sort((a, b) => b.snapshot.appliedAt.localeCompare(a.snapshot.appliedAt) || b.asset.updatedAt.localeCompare(a.asset.updatedAt) || b.asset.id.localeCompare(a.asset.id));
+    const current = snapshots[0]!;
+    return { state: "found", assetId: current.asset.id, operatingModel: current.snapshot, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false };
   }
 
   async kastStatus(reflectionId: string, _context: XspaRequestContext): Promise<unknown> {

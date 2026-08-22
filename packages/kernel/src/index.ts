@@ -353,3 +353,4 @@ export * from "./git-kast.js";
 export * from "./kast-harness-runtime.js";
 export * from "./skill-registry.js";
 export * from "./company-skills.js";
+export * from "./company-os.js";

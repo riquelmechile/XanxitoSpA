@@ -27,7 +27,9 @@ function indexToDefinition(item: SkillIndexEntry): SkillDefinition {
   return result;
 }
 function definitions(items: Array<SkillIndexEntry | SkillDefinition>): SkillDefinition[] { return items.map((item) => "schemaVersion" in item ? validateSkillDefinition(item) : indexToDefinition(item)); }
-function departmentForCapability(capability: string, departments: string[]): string {
+function departmentForCapability(capability: string, departments: string[], capabilityDepartments?: Record<string, string>): string {
+  const explicit = capabilityDepartments?.[capability];
+  if (explicit && departments.includes(explicit)) return explicit;
   const c = capability.toLowerCase();
   const preferred = c.startsWith("crm.") || c.startsWith("sales.") || c.startsWith("marketing.") || c === "email.send" ? "commercial"
     : c.startsWith("inventory.") || c.startsWith("supplier.") || c.startsWith("logistics.") || c.startsWith("shipping.") ? "operations"
@@ -69,7 +71,7 @@ export function planCompanySkillBootstrap(input: CompanySkillBootstrapInput): Co
 
   for (const capability of cleanArray(input.requiredCapabilities)) {
     if (coveredCapabilities.has(capability)) continue;
-    const department = departmentForCapability(capability, input.departments);
+    const department = departmentForCapability(capability, input.departments, input.capabilityDepartments);
     const matches = registry.search({ query: `${input.purpose} ${capability}`, department, capabilities: [capability], domain: "company", companyId: input.companyId, limit: 4 });
     const best = matches.find((match) => match.skill.capabilities.includes(capability));
     if (best) {

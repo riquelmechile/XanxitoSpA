@@ -219,5 +219,52 @@ export async function runXspaAppRuntimeGym(): Promise<GymCase[]> {
     expect(result.plan?.createCandidates?.length === 0, "mapped existing Company process was unnecessarily replaced");
   }));
 
+  cases.push(await runCase("app Company OS plan/apply is idempotent, durable and grants no authority", async () => {
+    const companyId = randomUUID();
+    const store = new InMemoryRuntimeStore();
+    const workStore = new InMemoryCompanyStore();
+    const registry = new SkillRegistry([], { exists: async () => true, read: async () => "" });
+    const ops = new EnvironmentXspaAppOperations({ store, workStore, companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: true, skillRegistry: registry });
+    const intake = { mode: "new" as const, purpose: "Create a governed services company", businessModel: "B2B services", jurisdiction: "CL", timezone: "America/Santiago", objectives: ["Launch safely"], proposedDepartments: [], proposedProcesses: [], requiredCapabilities: ["email.send"], bootstrapRequirements: [{ id: "commercial-email", capability: "email.send", assetKind: "email-account", department: "commercial", estimatedCost: 0, currency: "CLP", humanBoundary: "none" as const }] };
+    const planned = await ops.companyPlan({ intake }, { principal: "founder", scopes: ["xspa.read"] }) as { plan?: { fingerprint?: string; departments?: unknown[] }; grantsAuthority?: boolean; grantsBudget?: boolean; grantsCapabilities?: boolean };
+    expect(Boolean(planned.plan?.fingerprint) && (planned.plan?.departments?.length ?? 0) >= 6, "Company OS plan did not produce universal operating model coverage");
+    const plannedFingerprint = planned.plan?.fingerprint;
+    expect(typeof plannedFingerprint === "string", "Company OS plan fingerprint missing");
+    expect(planned.grantsAuthority === false && planned.grantsBudget === false && planned.grantsCapabilities === false, "Company OS planning granted execution power");
+    const formationId = randomUUID();
+    const first = await ops.companyApply({ formationId, intake }, { principal: "founder", scopes: ["xspa.write"] }) as { status?: string; assetId?: string; grantsAuthority?: boolean; grantsBudget?: boolean; grantsCapabilities?: boolean; recommendedWork?: unknown };
+    const changedAt = new Date().toISOString();
+    await store.saveAsset({ id: randomUUID(), companyId, kind: "email-account", capability: "email.send", department: "commercial", cost: 0, currency: "CLP", status: "active", grantRefs: [], restrictions: [], metadata: {}, createdAt: changedAt, updatedAt: changedAt });
+    const replay = await ops.companyApply({ formationId, intake }, { principal: "founder", scopes: ["xspa.write"] }) as { assetId?: string; status?: string };
+    expect(first.status === "applied" && replay.status === "applied" && first.assetId === replay.assetId, "Company OS apply did not replay idempotently");
+    expect(first.grantsAuthority === false && first.grantsBudget === false && first.grantsCapabilities === false && Boolean(first.recommendedWork), "Company OS apply crossed Work/authority boundary");
+    const assets = await store.listAssets(companyId);
+    expect(assets.filter((asset) => asset.kind === "company-operating-model").length === 1, "Company OS apply did not persist exactly one operating model");
+    expect(store.jobs.size === 0, "Company OS apply unexpectedly invoked KAST or background jobs");
+    let stalePlanBlocked = false;
+    try { await ops.companyApply({ formationId: randomUUID(), intake, expectedFingerprint: plannedFingerprint }, { principal: "founder", scopes: ["xspa.write"] }); }
+    catch (error) { stalePlanBlocked = error instanceof Error && error.message.includes("PLAN_FINGERPRINT_MISMATCH"); }
+    expect(stalePlanBlocked, "Company OS apply accepted a stale preview fingerprint after Company state drift");
+    let conflict = false;
+    try { await ops.companyApply({ formationId, intake: { ...intake, purpose: "Changed company purpose" } }, { principal: "founder", scopes: ["xspa.write"] }); }
+    catch (error) { conflict = error instanceof Error && error.message.includes("IDEMPOTENCY_CONFLICT"); }
+    expect(conflict, "Company OS apply allowed changed payload under same formation id");
+  }));
+
+  cases.push(await runCase("app Company OS status is deployment-Company scoped", async () => {
+    const companyA = randomUUID();
+    const companyB = randomUUID();
+    const sharedStore = new InMemoryRuntimeStore();
+    const registry = new SkillRegistry([], { exists: async () => true, read: async () => "" });
+    const opsA = new EnvironmentXspaAppOperations({ store: sharedStore, workStore: new InMemoryCompanyStore(), companyId: companyA, databaseConfigured: true, creativeConfigured: false, kastConfigured: true, skillRegistry: registry });
+    const opsB = new EnvironmentXspaAppOperations({ store: sharedStore, workStore: new InMemoryCompanyStore(), companyId: companyB, databaseConfigured: true, creativeConfigured: false, kastConfigured: true, skillRegistry: registry });
+    const intake = { mode: "existing" as const, purpose: "Adopt Company A", businessModel: "Existing business", jurisdiction: "CL", timezone: "America/Santiago", objectives: ["Establish baseline"], observedDepartments: [], observedProcesses: [], proposedDepartments: [], proposedProcesses: [], requiredCapabilities: [], bootstrapRequirements: [] };
+    await opsA.companyApply({ formationId: randomUUID(), intake }, { principal: "founder-a", scopes: ["xspa.write"] });
+    const visibleA = await opsA.companyStatus({ principal: "reader-a", scopes: ["xspa.read"] }) as { state?: string; operatingModel?: { companyId?: string } };
+    const visibleB = await opsB.companyStatus({ principal: "reader-b", scopes: ["xspa.read"] }) as { state?: string; operatingModel?: unknown };
+    expect(visibleA.state === "found" && visibleA.operatingModel?.companyId === companyA, "Company A operating model was not visible in its deployment");
+    expect(visibleB.state === "not-found" && !visibleB.operatingModel, "Company OS status crossed tenant boundary");
+  }));
+
   return cases;
 }

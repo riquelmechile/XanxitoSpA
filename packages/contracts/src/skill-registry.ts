@@ -148,6 +148,7 @@ export interface CompanySkillBootstrapInput {
   purpose: string;
   departments: string[];
   requiredCapabilities: string[];
+  capabilityDepartments?: Record<string, string>;
   catalog: Array<SkillIndexEntry | SkillDefinition>;
   existingInstallations: CompanySkillInstallation[];
   observedProcesses: ObservedCompanyProcess[];

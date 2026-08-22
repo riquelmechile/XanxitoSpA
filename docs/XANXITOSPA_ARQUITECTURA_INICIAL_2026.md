@@ -1003,6 +1003,49 @@ Una `BusinessUnit` puede ser una división lógica, nueva marca, canal, país, p
 
 ---
 
+## 14.3 Company Operating Model Intake
+
+Company Bootstrap no parte sólo desde infraestructura. Antes de ejecutar Work material, XanxitoSpA debe poder transformar evidencia de una Company `NEW` o `EXISTING` en un **Operating Model** explícito y auditable.
+
+```text
+Company intake
+→ purpose + business model + objectives
+→ observed/proposed functions + departments
+→ observed/proposed processes
+→ Skill Registry / Company-local gaps
+→ semantic capability requirements
+→ asset/bootstrap requirements
+→ fingerprinted Company Operating Model
+→ explicit Work boundary
+```
+
+El kernel no inventa un organigrama sectorial desde texto libre. GPT/Executive realiza discovery y propone estructura; el kernel determinístico valida cobertura funcional, ownership, límites y consistencia.
+
+Cobertura funcional mínima V1:
+
+```text
+executive-strategy
+commercial-revenue
+finance
+operations
+customer
+administration-risk
+```
+
+Una Company existente puede cubrir varias funciones con un mismo equipo/rol. En modo `EXISTING`, departamentos y procesos observados se preservan primero; sólo se agrega cobertura donde exista un gap. Un proceso operativo sin match en el Skill Registry no se reemplaza: permanece como fuente de verdad y puede convertirse en Company-local Skill/Process candidate mediante Business Learning.
+
+El Operating Model mantiene la separación:
+
+```text
+Process    = cuándo/por qué
+Skill      = cómo
+Capability = con qué
+```
+
+Aplicar el Operating Model sólo persiste un snapshot Company-owned. **No crea Work, no concede authority/budget, no provisiona providers, no habilita capabilities y no invoca KAST.** El siguiente paso material continúa pasando por `Work + Delegation + Business Preflight + Mission Graph`.
+
+La superficie MCP V1 expone este camino como `xspa_company_plan`, `xspa_company_apply` y `xspa_company_status`. `company_id` sigue ligado al deployment y nunca es caller-selectable.
+
 # 15. Company Asset Registry
 
 Las cuentas pertenecen a Company, no al agente que las creó.

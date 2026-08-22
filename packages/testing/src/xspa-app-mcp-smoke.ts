@@ -15,7 +15,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
       version: "1.0.0",
       modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
       mcp: { ready: true, mode: "streamable-http" },
-      database: { configured: true },
+      database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
       creative: { configured: true, renderer: "responses-image-generation", chatMode: "decision-only", video: "staged" },
       kast: { configured: true, execution: "queued" },
       skills: { configured: true, healthy: true, indexed: 2, activeCompanyCatalog: 1 },
@@ -28,6 +28,9 @@ export async function verifyXspaAppMcp(): Promise<void> {
       if (workId === "99999999-9999-4999-8999-999999999999") throw new Error("token=super-secret-value Bearer hidden-bearer-value sk-hidden-openai-key");
       return { work: { id: workId, owner: "executive", objective: "Test objective", scope: "sandbox" }, state: "found", companyScoped: true };
     },
+    companyPlan: async (input, context) => ({ plan: { fingerprint: "a".repeat(64), mode: input.intake.mode, departments: [{ id: "executive" }], recommendedWork: { owner: "executive" } }, principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyApply: async (input, context) => ({ formationId: input.formationId, assetId: input.formationId, fingerprint: "a".repeat(64), status: "applied", principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyStatus: async (context) => ({ state: "found", operatingModel: { companyId: "deployment-company", mode: "new" }, principal: context.principal }),
     kastStatus: async (reflectionId) => ({ reflectionId, state: "queued", kind: "kast.improve", attempts: 0, companyScoped: true }),
     assetGet: async (assetId) => ({ state: "found", companyScoped: true, asset: { id: assetId, kind: "creative-image-selected", visibility: "selected", artifactRef: "https://assets.example.test/selected.png", artifactReady: true } }),
     creativeSubmit: async (input) => {
@@ -61,7 +64,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const metadata = { headers: { Authorization: `Bearer ${authToken}` } };
     const tools = await transport.listTools(metadata);
     const names = tools.map((tool) => tool.name).sort();
-    for (const required of ["xspa_status", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
+    for (const required of ["xspa_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
       assert(names.includes(required), `missing app MCP tool ${required}`);
     }
 

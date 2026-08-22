@@ -54,9 +54,12 @@ export async function verifyXspaAppOAuth(): Promise<void> {
   assert(remoteNoAuthRejected, "remote unauthenticated deployment was not rejected");
 
   const operations: XspaAppOperations = {
-    status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, creative: { configured: false, renderer: "responses-image-generation", chatMode: "decision-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
+    status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] }, creative: { configured: false, renderer: "responses-image-generation", chatMode: "decision-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
     workCreate: async (input, context) => ({ workId: input.workId, status: "created", principal: context.principal }),
     workGet: async (workId, context) => ({ workId, state: "found", principal: context.principal }),
+    companyPlan: async (input, context) => ({ plan: { fingerprint: "a".repeat(64), mode: input.intake.mode, departments: [{ id: "executive" }], recommendedWork: { owner: "executive" } }, principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyApply: async (input, context) => ({ formationId: input.formationId, assetId: input.formationId, fingerprint: "a".repeat(64), status: "applied", principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyStatus: async (context) => ({ state: "found", operatingModel: { companyId: "deployment-company", mode: "new" }, principal: context.principal }),
     kastStatus: async (reflectionId, context) => ({ reflectionId, state: "queued", principal: context.principal }),
     assetGet: async (assetId, context) => ({ assetId, state: "found", principal: context.principal }),
     creativeSubmit: async (input, context) => ({ missionId: input.missionId, status: "queued", principal: context.principal }),

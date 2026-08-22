@@ -46,7 +46,7 @@ signal → heartbeat → restore state → business preflight
 Version                  1.0.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              113 / 113 PASS (local)
+Company Gym              120 / 120 PASS (local)
 MCP                      provider bridge + ChatGPT app Streamable HTTP + OAuth
 Observability            OpenTelemetry / GenAI schema 1.42.0, content off
 External benchmark       TheAgentCompany adapter-ready; no score published
@@ -276,7 +276,39 @@ See [`benchmarks/theagentcompany/`](benchmarks/theagentcompany/), [`adr/0004-ext
 
 ---
 
-## Data and Creative planes
+## Company OS planes
+
+### Company Formation / Adoption
+
+The primary product path is now explicit in the runtime: **Company intake → operating model → governed bootstrap/adoption**. The kernel does not infer an industry-specific org chart from vibes; the Executive supplies discovery evidence and proposed optional structure, while deterministic Company OS logic validates universal functional coverage, preserves existing sources of truth, integrates Skill/Capability requirements and produces a stable operating-model fingerprint.
+
+```text
+NEW COMPANY                         EXISTING COMPANY
+purpose + business model            observed departments/processes/assets
+objectives + constraints             evidence + current sources of truth
+        │                                      │
+        └──────────────┬───────────────────────┘
+                       ▼
+              xspa_company_plan
+                       ↓
+      business functions + departments
+      processes + skills + capabilities
+      asset/bootstrap requirements
+                       ↓
+              fingerprinted plan
+                       ↓
+              xspa_company_apply
+                       ↓
+        Company-owned operating model
+                       ↓
+       explicit xspa_work_create boundary
+                       ↓
+ Mission Graph / governed execution / outcomes
+```
+
+`NEW` mode establishes minimum coverage for Executive & Strategy, Commercial & Revenue, Finance, Operations, Customer, and Administration & Risk, then adds optional functions justified by the business. `EXISTING` mode maps observed departments and processes first, preserves them, and only fills uncovered functions; an unmatched process becomes a Company-local learning/skill candidate rather than being replaced automatically.
+
+Applying an operating model **does not** provision providers, create Work, invoke KAST, grant authority, create budget, expose credentials or enable capabilities. It persists a Company-owned snapshot and returns a recommended bootstrap Work descriptor; external action remains behind the normal Work/Delegation/Capability guards. `xspa_company_status` reads the latest deployment-scoped operating model.
 
 ### Company Data Plane
 
@@ -290,9 +322,9 @@ Institutional Memory   → distilled reusable knowledge
 ```
 
 
-### KAST — harness self-improvement law
+### Supporting harness layer: KAST
 
-KAST is now **Kernel Adaptation & Self-Tuning**: a direct GPT-controlled harness primitive, not a maintainer ticket queue. A meaningful session may end with a tiny reflection: `NOOP`, `REMEMBER`, or `IMPROVE`. `REMEMBER` stores a sanitized lesson in Engram. `IMPROVE` restores prior Engram context, generates two blind Sol/xhigh variants by default, verifies them, lets the Sol/max Executive owner adjudicate, and only adopts a winner after SDD + TDD/regression + RDD/four-lens evidence passes.
+KAST is **not the Company OS** and is not part of ordinary Company formation, operation or Business Learning. It exists to improve the shared harness/runtime itself. KAST is now **Kernel Adaptation & Self-Tuning**: a direct GPT-controlled harness primitive, not a maintainer ticket queue. A meaningful session may end with a tiny reflection: `NOOP`, `REMEMBER`, or `IMPROVE`. `REMEMBER` stores a sanitized lesson in Engram. `IMPROVE` restores prior Engram context, generates two blind Sol/xhigh variants by default, verifies them, lets the Sol/max Executive owner adjudicate, and only adopts a winner after SDD + TDD/regression + RDD/four-lens evidence passes.
 
 ```text
 experience → KAST → Engram
@@ -389,11 +421,15 @@ XanxitoSpA V1 is operated primarily as a **remote MCP app from ChatGPT**. The hu
 ChatGPT app
     ↓ MCP
 xspa_status
-xspa_work_create      → Company Work (no implicit authority/budget)
-xspa_work_get         → Company-scoped Work lookup
-xspa_creative_submit  → background CreativeMission
-xspa_creative_status  → selected receipt only
-xspa_kast_reflect      → NOOP / REMEMBER / IMPROVE
+xspa_company_plan       → NEW/EXISTING Company intake + operating-model plan
+xspa_company_apply      → persist Company-owned model (no Work/authority/budget)
+xspa_company_status     → current deployment-scoped operating model
+xspa_work_create        → explicit Company Work boundary
+xspa_work_get           → Company-scoped Work lookup
+xspa_skills_search/get  → installed Company procedural knowledge
+xspa_creative_submit    → background CreativeMission
+xspa_creative_status    → selected receipt only
+xspa_kast_reflect       → supporting harness self-maintenance only
     ↓
 XanxitoSpA runtime / Postgres / workers / Engram
 ```
@@ -454,6 +490,7 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 | Document | Purpose |
 | --- | --- |
 | [`XANXITOSPA_ARQUITECTURA_INICIAL_2026.md`](docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md) | Canonical company architecture and laws |
+| [`RUNTIME_V11_COMPANY_OS_INTAKE_2026-08-22.md`](docs/RUNTIME_V11_COMPANY_OS_INTAKE_2026-08-22.md) | NEW/EXISTING Company intake, operating-model planning and governed apply/status path |
 | [`RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md`](docs/RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md) | Real MCP/Engram + Git KAST runtime and GPT-only character production pipeline |
 | [`RUNTIME_V1_ESTADO_2026-08-21.md`](docs/RUNTIME_V1_ESTADO_2026-08-21.md) | First executable kernel |
 | [`RUNTIME_V12_DURABLE_2026-08-21.md`](docs/RUNTIME_V12_DURABLE_2026-08-21.md) | PostgreSQL, heartbeat, leases, providers, assets |

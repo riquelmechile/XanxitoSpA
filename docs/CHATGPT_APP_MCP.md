@@ -33,10 +33,23 @@ Read-only. Returns only readiness and policy metadata:
 - One Model Law (`Sol/max` Executive, `Sol/xhigh` branches, no fallback);
 - MCP readiness;
 - database readiness;
+- Generic Company OS readiness (`NEW` / `EXISTING` intake + lifecycle vocabulary);
 - creative readiness;
-- KAST readiness.
+- KAST readiness as supporting harness metadata.
 
 It never returns credentials or database connection data.
+
+### `xspa_company_plan`
+
+Primary read-only Company OS intake tool. It accepts a `NEW` or `EXISTING` Company description plus structured discovery evidence and returns a fingerprinted operating model: business functions, departments, processes, skill/capability requirements, asset/bootstrap requirements and readiness gaps. Existing departments/processes are preserved first. The caller never supplies `company_id`. Planning grants no authority, budget, credentials or capabilities.
+
+### `xspa_company_apply`
+
+Idempotent Company write. Recomputes the deployment-scoped plan, optionally verifies `expected_fingerprint`, and persists one Company-owned `company-operating-model` asset. `formation_id` is the durable idempotency identity. Applying the model does **not** create Work, provision providers, invoke KAST, grant authority/budget or activate capabilities; it returns a recommended Work descriptor for the explicit `xspa_work_create` boundary.
+
+### `xspa_company_status`
+
+Read-only. Returns the latest operating-model snapshot for the deployment Company only. Another Company deployment sees `not-found`; there is no tenant selector argument.
 
 ### `xspa_work_create`
 
@@ -65,7 +78,7 @@ Read-only. Returns queue/running/reconciliation/completed state. When completed,
 
 ### `xspa_kast_reflect`
 
-Idempotent write for the KAST Law:
+Supporting harness self-maintenance only; it is not ordinary Company formation, operation or Business Learning. Idempotent write for the KAST Law:
 
 ```text
 NOOP | REMEMBER | IMPROVE
@@ -165,8 +178,11 @@ GET /.well-known/oauth-protected-resource
 and protected tools declare:
 
 ```text
-xspa_work_get         → xspa.read
-xspa_work_create      → xspa.write
+xspa_company_plan      → xspa.read
+xspa_company_status    → xspa.read
+xspa_company_apply     → xspa.write
+xspa_work_get          → xspa.read
+xspa_work_create       → xspa.write
 xspa_creative_status  → xspa.read
 xspa_creative_submit  → xspa.write
 xspa_kast_reflect     → xspa.write
@@ -192,7 +208,7 @@ In a ChatGPT workspace/account where custom MCP apps and Developer Mode are enab
 2. Enter the XanxitoSpA MCP endpoint.
 3. Select/configure OAuth and complete the authorization flow against the configured IdP.
 4. Choose **Scan Tools**.
-5. Confirm the six XanxitoSpA tools and their read/write annotations.
+5. Confirm the XanxitoSpA Company OS, Work, Skill, Creative and supporting KAST tools plus their read/write annotations.
 6. Create/enable the app.
 
 Write/modify MCP actions are subject to the ChatGPT plan/workspace controls in effect for that account.
@@ -209,6 +225,7 @@ The smoke test uses the official MCP SDK client/server path and verifies:
 - bearer authentication;
 - tool discovery;
 - One Model Law visibility;
+- NEW/EXISTING Company OS plan/apply/status, including no implicit authority/budget/capability grant;
 - Company-scoped Work create/get with no implicit authority or budget;
 - background creative queue contract;
 - no candidate-art leakage;

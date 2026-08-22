@@ -498,6 +498,110 @@ export interface BootstrapPlan {
   skillPlan?: import("./skill-registry.js").CompanySkillBootstrapPlan;
 }
 
+export type CoreBusinessFunction = "executive-strategy" | "commercial-revenue" | "finance" | "operations" | "customer" | "administration-risk";
+export type DepartmentDisposition = "preserve" | "create" | "extend";
+export type ProcessDisposition = "preserve" | "create" | "map";
+
+export interface ObservedDepartment {
+  id: string;
+  name: string;
+  functions: string[];
+  responsibilities: string[];
+  kpis: string[];
+  evidenceRefs: string[];
+}
+
+export interface ProposedDepartment {
+  id: string;
+  name: string;
+  functions: string[];
+  responsibilities: string[];
+  kpis: string[];
+}
+
+export interface ProposedProcess {
+  id: string;
+  name: string;
+  department: string;
+  objective: string;
+  description: string;
+  triggers: string[];
+  requiredSkills: string[];
+  requiredCapabilities: string[];
+  evidenceRefs: string[];
+}
+
+export interface CompanyIntakeInput {
+  mode: BootstrapMode;
+  purpose: string;
+  businessModel: string;
+  jurisdiction: string;
+  timezone: string;
+  objectives: string[];
+  requiredFunctions?: string[];
+  observedDepartments?: ObservedDepartment[];
+  observedProcesses?: import("./skill-registry.js").ObservedCompanyProcess[];
+  proposedDepartments?: ProposedDepartment[];
+  proposedProcesses?: ProposedProcess[];
+  requiredCapabilities?: string[];
+  bootstrapRequirements?: BootstrapRequirement[];
+}
+
+export interface DepartmentBlueprint {
+  id: string;
+  name: string;
+  functions: string[];
+  responsibilities: string[];
+  kpis: string[];
+  disposition: DepartmentDisposition;
+  evidenceRefs: string[];
+}
+
+export interface ProcessBlueprint {
+  id: string;
+  name: string;
+  department: string;
+  objective: string;
+  description: string;
+  triggers: string[];
+  requiredSkills: string[];
+  requiredCapabilities: string[];
+  disposition: ProcessDisposition;
+  evidenceRefs: string[];
+}
+
+export interface RecommendedCompanyWork {
+  owner: "executive";
+  objective: string;
+  scope: string;
+}
+
+export interface CompanyOperatingModelPlan {
+  schemaVersion: 1;
+  companyId: UUID;
+  mode: BootstrapMode;
+  lifecycleMode: "bootstrap";
+  purpose: string;
+  businessModel: string;
+  jurisdiction: string;
+  timezone: string;
+  objectives: string[];
+  departments: DepartmentBlueprint[];
+  processes: ProcessBlueprint[];
+  requiredCapabilities: string[];
+  requiredSkills: string[];
+  readinessGaps: string[];
+  skillPlan: import("./skill-registry.js").CompanySkillBootstrapPlan;
+  bootstrapPlan: BootstrapPlan;
+  fingerprint: string;
+  recommendedWork: RecommendedCompanyWork;
+}
+
+export interface CompanyOperatingModelSnapshot extends CompanyOperatingModelPlan {
+  formationId: UUID;
+  appliedAt: ISODateTime;
+}
+
 export type CapabilitySideEffectClass = "none" | "reversible" | "external";
 export type BootstrapStepStatus = "pending" | "running" | "completed" | "paused" | "failed";
 

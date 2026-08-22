@@ -5,6 +5,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
 
 export interface XspaAppStatus {
@@ -12,6 +13,7 @@ export interface XspaAppStatus {
   modelLaw: { executive: "gpt-5.6-sol/max"; branches: "gpt-5.6-sol/xhigh"; fallback: false };
   mcp: { ready: boolean; mode: "streamable-http" };
   database: { configured: boolean };
+  companyOs: { ready: boolean; intakeModes: ["new", "existing"]; lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] };
   creative: { configured: boolean; renderer: "responses-image-generation"; chatMode: "decision-only"; video: "staged" };
   kast: { configured: boolean; execution: "queued" | "available" | "staged" };
   skills: { configured: boolean; healthy: boolean; indexed: number; activeCompanyCatalog: number };
@@ -85,6 +87,15 @@ export interface CompanySkillPlanInput {
   observedProcesses: ObservedProcessRequest[];
 }
 
+export interface CompanyPlanInput {
+  intake: CompanyIntakeInput;
+}
+
+export interface CompanyApplyInput extends CompanyPlanInput {
+  formationId: string;
+  expectedFingerprint?: string;
+}
+
 export interface AutoskillProposeInput {
   proposalId: string;
   skillId: string;
@@ -122,6 +133,9 @@ export interface XspaAppOperations {
   skillInstall(input: SkillInstallInput, context: XspaRequestContext): Promise<unknown>;
   skillsHealth(context: XspaRequestContext): Promise<unknown>;
   companySkillPlan(input: CompanySkillPlanInput, context: XspaRequestContext): Promise<unknown>;
+  companyPlan(input: CompanyPlanInput, context: XspaRequestContext): Promise<unknown>;
+  companyApply(input: CompanyApplyInput, context: XspaRequestContext): Promise<unknown>;
+  companyStatus(context: XspaRequestContext): Promise<unknown>;
   autoskillPropose(input: AutoskillProposeInput, context: XspaRequestContext): Promise<unknown>;
   globalSkillPromotionPropose(input: GlobalSkillPromotionInput, context: XspaRequestContext): Promise<unknown>;
   kastReflect(input: KastReflectInput, context: XspaRequestContext): Promise<unknown>;
@@ -218,6 +232,67 @@ function parseCompanySkillPlan(args: unknown): CompanySkillPlanInput {
   if (departments.length === 0) throw new Error("departments required");
   return { mode, purpose: assertText(obj.purpose, "purpose", 2000), departments, requiredCapabilities: assertStringArray(obj.required_capabilities, "required_capabilities", 64), observedProcesses: parseObservedProcesses(obj.observed_processes) };
 }
+function parseObservedDepartments(value: unknown): NonNullable<CompanyIntakeInput["observedDepartments"]> {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 64) throw new Error("observed_departments invalid");
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`observed_departments[${index}] invalid`);
+    const obj = entry as Record<string, unknown>;
+    return { id: assertText(obj.id, `observed_departments[${index}].id`, 120), name: assertText(obj.name, `observed_departments[${index}].name`, 200), functions: assertStringArray(obj.functions, `observed_departments[${index}].functions`, 32), responsibilities: assertStringArray(obj.responsibilities, `observed_departments[${index}].responsibilities`, 64), kpis: assertStringArray(obj.kpis, `observed_departments[${index}].kpis`, 64), evidenceRefs: assertStringArray(obj.evidence_refs, `observed_departments[${index}].evidence_refs`, 64) };
+  });
+}
+function parseProposedDepartments(value: unknown): NonNullable<CompanyIntakeInput["proposedDepartments"]> {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 64) throw new Error("proposed_departments invalid");
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`proposed_departments[${index}] invalid`);
+    const obj = entry as Record<string, unknown>;
+    return { id: assertText(obj.id, `proposed_departments[${index}].id`, 120), name: assertText(obj.name, `proposed_departments[${index}].name`, 200), functions: assertStringArray(obj.functions, `proposed_departments[${index}].functions`, 32), responsibilities: assertStringArray(obj.responsibilities, `proposed_departments[${index}].responsibilities`, 64), kpis: assertStringArray(obj.kpis, `proposed_departments[${index}].kpis`, 64) };
+  });
+}
+function parseProposedProcesses(value: unknown): NonNullable<CompanyIntakeInput["proposedProcesses"]> {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 128) throw new Error("proposed_processes invalid");
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`proposed_processes[${index}] invalid`);
+    const obj = entry as Record<string, unknown>;
+    return { id: assertText(obj.id, `proposed_processes[${index}].id`, 120), name: assertText(obj.name, `proposed_processes[${index}].name`, 200), department: assertText(obj.department, `proposed_processes[${index}].department`, 160), objective: assertText(obj.objective, `proposed_processes[${index}].objective`, 1000), description: assertText(obj.description, `proposed_processes[${index}].description`, 2000), triggers: assertStringArray(obj.triggers, `proposed_processes[${index}].triggers`, 32), requiredSkills: assertStringArray(obj.required_skills, `proposed_processes[${index}].required_skills`, 32), requiredCapabilities: assertStringArray(obj.required_capabilities, `proposed_processes[${index}].required_capabilities`, 64), evidenceRefs: assertStringArray(obj.evidence_refs, `proposed_processes[${index}].evidence_refs`, 64) };
+  });
+}
+function parseBootstrapRequirements(value: unknown): NonNullable<CompanyIntakeInput["bootstrapRequirements"]> {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 128) throw new Error("bootstrap_requirements invalid");
+  const boundaries = new Set(["none", "kyc", "contract", "financial-authority", "identity", "reserved-action"]);
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`bootstrap_requirements[${index}] invalid`);
+    const obj = entry as Record<string, unknown>;
+    const estimatedCost = typeof obj.estimated_cost === "number" ? obj.estimated_cost : 0;
+    if (!Number.isFinite(estimatedCost) || estimatedCost < 0) throw new Error(`bootstrap_requirements[${index}].estimated_cost invalid`);
+    const humanBoundary = assertText(obj.human_boundary ?? "none", `bootstrap_requirements[${index}].human_boundary`, 40);
+    if (!boundaries.has(humanBoundary)) throw new Error(`bootstrap_requirements[${index}].human_boundary invalid`);
+    return { id: assertText(obj.id, `bootstrap_requirements[${index}].id`, 120), capability: assertText(obj.capability, `bootstrap_requirements[${index}].capability`, 160), assetKind: assertText(obj.asset_kind, `bootstrap_requirements[${index}].asset_kind`, 160), department: assertText(obj.department, `bootstrap_requirements[${index}].department`, 160), estimatedCost, currency: assertText(obj.currency, `bootstrap_requirements[${index}].currency`, 16), humanBoundary: humanBoundary as NonNullable<CompanyIntakeInput["bootstrapRequirements"]>[number]["humanBoundary"], preferredProviderIds: assertStringArray(obj.preferred_provider_ids, `bootstrap_requirements[${index}].preferred_provider_ids`, 16) };
+  });
+}
+function parseCompanyIntake(args: unknown): CompanyPlanInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const mode = assertText(obj.mode, "mode", 20);
+  if (mode !== "new" && mode !== "existing") throw new Error("mode must be new or existing");
+  const objectives = assertStringArray(obj.objectives, "objectives", 64);
+  if (objectives.length === 0) throw new Error("objectives required");
+  return { intake: { mode, purpose: assertText(obj.purpose, "purpose", 2000), businessModel: assertText(obj.business_model, "business_model", 2000), jurisdiction: assertText(obj.jurisdiction, "jurisdiction", 120), timezone: assertText(obj.timezone, "timezone", 120), objectives, requiredFunctions: assertStringArray(obj.required_functions, "required_functions", 32), observedDepartments: parseObservedDepartments(obj.observed_departments), observedProcesses: parseObservedProcesses(obj.observed_processes), proposedDepartments: parseProposedDepartments(obj.proposed_departments), proposedProcesses: parseProposedProcesses(obj.proposed_processes), requiredCapabilities: assertStringArray(obj.required_capabilities, "required_capabilities", 128), bootstrapRequirements: parseBootstrapRequirements(obj.bootstrap_requirements) } };
+}
+function parseCompanyApply(args: unknown): CompanyApplyInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const plan = parseCompanyIntake(obj);
+  const result: CompanyApplyInput = { formationId: assertId(obj.formation_id, "formation_id"), intake: plan.intake };
+  if (obj.expected_fingerprint !== undefined) {
+    const fingerprint = assertText(obj.expected_fingerprint, "expected_fingerprint", 64);
+    if (!/^[a-f0-9]{64}$/i.test(fingerprint)) throw new Error("expected_fingerprint invalid");
+    result.expectedFingerprint = fingerprint.toLowerCase();
+  }
+  return result;
+}
+
 function parseAutoskillPropose(args: unknown): AutoskillProposeInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
   const triggers = assertStringArray(obj.triggers, "triggers", 32);
@@ -256,6 +331,26 @@ function challenge(oauth: XspaOAuthConfig | undefined, scope: string) {
 }
 function requestContext(auth: XspaAuthContext): XspaRequestContext { return { principal: auth.subject || "chatgpt-app-user", scopes: [...auth.scopes] }; }
 
+const COMPANY_INTAKE_SCHEMA_PROPERTIES = {
+  mode: { type: "string", enum: ["new", "existing"] },
+  purpose: { type: "string", maxLength: 2000 },
+  business_model: { type: "string", maxLength: 2000 },
+  jurisdiction: { type: "string", maxLength: 120 },
+  timezone: { type: "string", maxLength: 120 },
+  objectives: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 64 },
+  required_functions: { type: "array", items: { type: "string" }, maxItems: 32 },
+  observed_departments: { type: "array", maxItems: 64, items: { type: "object", properties: { id: { type: "string", maxLength: 120 }, name: { type: "string", maxLength: 200 }, functions: { type: "array", items: { type: "string" }, maxItems: 32 }, responsibilities: { type: "array", items: { type: "string" }, maxItems: 64 }, kpis: { type: "array", items: { type: "string" }, maxItems: 64 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 64 } }, required: ["id", "name"], additionalProperties: false } },
+  observed_processes: { type: "array", maxItems: 100, items: { type: "object", properties: { id: { type: "string", maxLength: 120 }, name: { type: "string", maxLength: 200 }, department: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 2000 }, capabilities: { type: "array", items: { type: "string" }, maxItems: 32 }, triggers: { type: "array", items: { type: "string" }, maxItems: 32 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 } }, required: ["id", "name", "department", "description"], additionalProperties: false } },
+  proposed_departments: { type: "array", maxItems: 64, items: { type: "object", properties: { id: { type: "string", maxLength: 120 }, name: { type: "string", maxLength: 200 }, functions: { type: "array", items: { type: "string" }, maxItems: 32 }, responsibilities: { type: "array", items: { type: "string" }, maxItems: 64 }, kpis: { type: "array", items: { type: "string" }, maxItems: 64 } }, required: ["id", "name", "functions"], additionalProperties: false } },
+  proposed_processes: { type: "array", maxItems: 128, items: { type: "object", properties: { id: { type: "string", maxLength: 120 }, name: { type: "string", maxLength: 200 }, department: { type: "string", maxLength: 160 }, objective: { type: "string", maxLength: 1000 }, description: { type: "string", maxLength: 2000 }, triggers: { type: "array", items: { type: "string" }, maxItems: 32 }, required_skills: { type: "array", items: { type: "string" }, maxItems: 32 }, required_capabilities: { type: "array", items: { type: "string" }, maxItems: 64 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 64 } }, required: ["id", "name", "department", "objective", "description"], additionalProperties: false } },
+  required_capabilities: { type: "array", items: { type: "string" }, maxItems: 128 },
+  bootstrap_requirements: { type: "array", maxItems: 128, items: { type: "object", properties: { id: { type: "string", maxLength: 120 }, capability: { type: "string", maxLength: 160 }, asset_kind: { type: "string", maxLength: 160 }, department: { type: "string", maxLength: 160 }, estimated_cost: { type: "number", minimum: 0 }, currency: { type: "string", maxLength: 16 }, human_boundary: { type: "string", enum: ["none", "kyc", "contract", "financial-authority", "identity", "reserved-action"] }, preferred_provider_ids: { type: "array", items: { type: "string" }, maxItems: 16 } }, required: ["id", "capability", "asset_kind", "department", "currency", "human_boundary"], additionalProperties: false } },
+};
+const COMPANY_INTAKE_SCHEMA_REQUIRED = ["mode", "purpose", "business_model", "jurisdiction", "timezone", "objectives"];
+function companyIntakeSchema(extraProperties: Record<string, unknown> = {}, extraRequired: string[] = []) {
+  return { type: "object" as const, properties: { ...extraProperties, ...COMPANY_INTAKE_SCHEMA_PROPERTIES }, required: [...extraRequired, ...COMPANY_INTAKE_SCHEMA_REQUIRED], additionalProperties: false };
+}
+
 export function createXspaMcpServer(operations: XspaAppOperations, input: { auth: XspaAuthContext; oauth?: XspaOAuthConfig }): Server {
   const server = new Server({ name: "xanxitospa", version: "1.0.0" }, { capabilities: { tools: {} } });
   const readSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.readScope] }] : [{ type: "noauth" }];
@@ -264,6 +359,9 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_status", title: "XanxitoSpA status", description: "Use this when you need runtime and Model Law readiness. This is public metadata and never returns secrets.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: [{ type: "noauth" }], _meta: { securitySchemes: [{ type: "noauth" }] }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_create", title: "Create company Work", description: "Use this to create one Company-scoped Work item before material execution. The deployment owns company identity; creating Work does not grant authority or budget.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" }, owner: { type: "string", maxLength: 200 }, objective: { type: "string", maxLength: 4000 }, scope: { type: "string", maxLength: 4000 } }, required: ["work_id", "owner", "objective", "scope"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_get", title: "Get company Work", description: "Use this to read one Work item in the deployment Company scope. It cannot select another Company.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" } }, required: ["work_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_plan", title: "Plan Company operating model", description: "Primary Generic Company OS intake. Plan a NEW Company or adopt an EXISTING Company into functions, departments, processes, skills and semantic capabilities. Existing departments/processes are preserved first. Read-only: grants no authority, budget or capabilities.", inputSchema: companyIntakeSchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_apply", title: "Apply Company operating model", description: "Persist one deployment-Company operating-model snapshot after planning. It does not create Work, execute providers, invoke KAST, or grant authority/budget/capabilities. Use expected_fingerprint to fail if the preview drifted.", inputSchema: companyIntakeSchema({ formation_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["formation_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_status", title: "Get Company operating model", description: "Read the latest deployment-scoped Company operating-model snapshot. This is the current Company OS model, not harness/KAST state.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_kast_status", title: "KAST reflection status", description: "Use this to inspect one Company-scoped KAST reflection/job state. It returns only sanitized status metadata.", inputSchema: { type: "object", properties: { reflection_id: { type: "string", format: "uuid" } }, required: ["reflection_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_asset_get", title: "Get selected company asset", description: "Use this to read one selected/chat-visible CompanyAsset descriptor. Internal creative candidates and local filesystem paths are never exposed.", inputSchema: { type: "object", properties: { asset_id: { type: "string", format: "uuid" } }, required: ["asset_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_creative_submit", title: "Submit creative mission", description: "Use this when the company should create visual work in the background. It queues a governed Creative Mission; candidates remain internal and ChatGPT receives decision-only metadata.", inputSchema: { type: "object", properties: { mission_id: { type: "string", format: "uuid" }, work_id: { type: "string", format: "uuid" }, brief_ref: { type: "string" }, evidence_snapshot_ref: { type: "string" }, candidate_count: { type: "integer", minimum: 2, maximum: 4, default: 2 }, required_successful_candidates: { type: "integer", minimum: 1, maximum: 4, default: 1 }, executive_escalation_required: { type: "boolean", default: false } }, required: ["mission_id", "work_id", "brief_ref", "evidence_snapshot_ref"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -282,6 +380,18 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
+      if (request.params.name === "xspa_company_plan") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.companyPlan(parseCompanyIntake(request.params.arguments), requestContext(input.auth)), "Company operating model planned.");
+      }
+      if (request.params.name === "xspa_company_apply") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
+        return toolResult(await operations.companyApply(parseCompanyApply(request.params.arguments), requestContext(input.auth)), "Company operating model applied.");
+      }
+      if (request.params.name === "xspa_company_status") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.companyStatus(requestContext(input.auth)), "Company operating model loaded.");
+      }
       if (request.params.name === "xspa_work_get") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         const args = request.params.arguments as Record<string, unknown> | undefined;
