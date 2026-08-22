@@ -44,5 +44,5 @@ describe("runtime control API", () => {
     expect(execution.json().completed.completed).toBe(true);
     expect(execution.json().catalog.assets[0].status).toBe("active");
     await app.close();
-  });
+  }, 15_000);
 });

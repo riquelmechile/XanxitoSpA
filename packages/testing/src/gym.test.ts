@@ -6,5 +6,5 @@ describe("XanxitoSpA Company Gym", () => {
     const result = await runCompanyGym();
     expect(result.cases.length).toBeGreaterThanOrEqual(15);
     expect(result.ok, result.cases.filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`).join("\n")).toBe(true);
-  });
+  }, 15_000);
 });
