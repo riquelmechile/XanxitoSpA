@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-22",
+  "visualReference": "approved dark Company OS infographic direction",
+  "faceSource": "thispersondoesnotexist.com synthetic AI faces",
+  "note": "Faces are synthetic visual identities; they do not represent real employees or authority-bearing principals.",
+  "roles": [
+    {
+      "id": "executive",
+      "function": "EXECUTIVE",
+      "archetype": "THE SOVEREIGN",
+      "accent": "#D6B56B",
+      "portrait": "assets/characters/roster-v1/portrait-executive.jpg",
+      "card": "assets/characters/roster-v1/card-executive.jpg"
+    },
+    {
+      "id": "commercial",
+      "function": "COMMERCIAL",
+      "archetype": "THE HUNTER",
+      "accent": "#E7525B",
+      "portrait": "assets/characters/roster-v1/portrait-commercial.jpg",
+      "card": "assets/characters/roster-v1/card-commercial.jpg"
+    },
+    {
+      "id": "finance",
+      "function": "FINANCE",
+      "archetype": "THE KEEPER",
+      "accent": "#4ED09B",
+      "portrait": "assets/characters/roster-v1/portrait-finance.jpg",
+      "card": "assets/characters/roster-v1/card-finance.jpg"
+    },
+    {
+      "id": "operations",
+      "function": "OPERATIONS",
+      "archetype": "THE FORGE",
+      "accent": "#F28C45",
+      "portrait": "assets/characters/roster-v1/portrait-operations.jpg",
+      "card": "assets/characters/roster-v1/card-operations.jpg"
+    },
+    {
+      "id": "customer",
+      "function": "CUSTOMER",
+      "archetype": "THE ENVOY",
+      "accent": "#55C7E8",
+      "portrait": "assets/characters/roster-v1/portrait-customer.jpg",
+      "card": "assets/characters/roster-v1/card-customer.jpg"
+    },
+    {
+      "id": "risk",
+      "function": "ADMIN & RISK",
+      "archetype": "THE SENTINEL",
+      "accent": "#9B7BEA",
+      "portrait": "assets/characters/roster-v1/portrait-risk.jpg",
+      "card": "assets/characters/roster-v1/card-risk.jpg"
+    },
+    {
+      "id": "data",
+      "function": "DATA",
+      "archetype": "THE ORACLE",
+      "accent": "#67B7FF",
+      "portrait": "assets/characters/roster-v1/portrait-data.jpg",
+      "card": "assets/characters/roster-v1/card-data.jpg"
+    },
+    {
+      "id": "creative",
+      "function": "CREATIVE",
+      "archetype": "THE SHAPER",
+      "accent": "#E86BCB",
+      "portrait": "assets/characters/roster-v1/portrait-creative.jpg",
+      "card": "assets/characters/roster-v1/card-creative.jpg"
+    }
+  ]
+}

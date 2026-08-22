@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/hero.svg" alt="XanxitoSpA — autonomous company harness" width="100%" />
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/hero-real-mobile.jpg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/hero-real.jpg" alt="XanxitoSpA — Generic Company OS with real raster Company Deck" width="100%" />
+  </picture>
 </p>
 
 <p align="center">
@@ -66,12 +69,12 @@ Stable functions are not disposable prompt personas. They are durable scopes wit
 
 <p align="center">
   <picture>
-    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck-mobile.svg" />
-    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck.svg" alt="The Company Deck — eight original XanxitoSpA function character concepts" width="100%" />
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck-real-mobile.jpg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/brand/company-deck-real.jpg" alt="The Company Deck — eight raster XanxitoSpA business-function identities" width="100%" />
   </picture>
 </p>
 
-The public deck still uses the vector **Character Concept V2** while the production art pipeline is being replaced. The real raster roster is now specified by [Character DNA v2](assets/characters/character-dna.json) plus the [Character Mission Pack](assets/characters/character-missions.json): eight roles, two blind Sol/xhigh directions each, shared world/style lock, role-specific identity anchors, VisualFitness review and internal-only candidate assets. On a host without the runtime OpenAI credential the missions remain staged rather than leaking into chat or falling back to another model.
+The public GitHub deck now uses the committed **Raster Roster V1**: eight synthetic human visual identities rendered as real image assets, with Executive visually primary and every function carrying its own accent and archetype. [Character DNA v2](assets/characters/character-dna.json) remains the canonical art-direction and role-identity specification; [the raster roster](assets/characters/roster-v1/) is the public delivery layer. A face or card never grants authority, budget, credentials, employment status or runtime capability — those remain governed by Company OS contracts, Work, Delegation and explicit grants.
 
 | Function | Archetype | Visual read |
 | --- | --- | --- |

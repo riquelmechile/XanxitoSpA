@@ -81,20 +81,19 @@ V1 rendering is intentionally single-provider at the model layer: GPT-5.6 Sol ow
 
 ## Current repository state
 
-The repository currently ships **vector Character Concept V2** portraits. They are intentionally full-body/pose/prop concepts rather than the old repeated polygon busts. They establish:
+The public GitHub surface now ships **Raster Roster V1** instead of the vector concept deck. It contains eight committed synthetic human visual identities plus a raster hero and 4×2 Company Deck:
 
-- silhouette;
-- pose;
-- role prop;
-- department palette;
-- environment language;
-- responsive card framing.
+- `assets/brand/hero-real.jpg` / `hero-real-mobile.jpg`;
+- `assets/brand/company-deck-real.jpg` / `company-deck-real-mobile.jpg`;
+- `assets/characters/roster-v1/portrait-*.jpg`;
+- `assets/characters/roster-v1/card-*.jpg`;
+- `assets/characters/roster-v1/manifest.json`.
 
-They are **not claimed to be the final painterly splash-art layer**. The final rendering briefs are stored in:
+The visual language follows the approved Company OS reference: obsidian/navy atmosphere, human faces, warm structural typography, restrained department accents and a clearly dominant Executive composition. The eight cards are a **public visual identity layer**, not a runtime principal registry. A portrait does not create employment status, Work ownership, authority, budget, credentials or capability access.
 
-`assets/characters/character-dna.json`
+`assets/characters/character-dna.json` remains the canonical art-direction specification. It contains the richer silhouette/pose/prop/environment target for The Sovereign, Hunter, Keeper, Forge, Envoy, Sentinel, Oracle and Shaper. Raster Roster V1 gives GitHub a real human roster immediately; the native GPT image pipeline may later replace individual portrait/card assets with higher-fidelity cinematic key art without changing Company OS semantics or README structure.
 
-Final image art can replace the vector concept layer through the native GPT/OpenAI image tool without changing the card system or Company architecture. A future second model provider would require an explicit architecture decision rather than ordinary creative routing.
+The committed faces are synthetic visual identities and are not depictions of real employees or public figures. Asset provenance is recorded in `assets/characters/roster-v1/README.md` and `manifest.json`.
 
 ## Mobile/GitHub rules
 

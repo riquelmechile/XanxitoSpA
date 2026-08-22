@@ -52,6 +52,36 @@ try {
   }
 } catch (error) { errors.push(`character-dna.json invalid: ${error instanceof Error ? error.message : String(error)}`); }
 
+const rasterRequired = [
+  'assets/brand/hero-real.jpg',
+  'assets/brand/hero-real-mobile.jpg',
+  'assets/brand/company-deck-real.jpg',
+  'assets/brand/company-deck-real-mobile.jpg',
+  ...['executive','commercial','finance','operations','customer','risk','data','creative'].map((id) => `assets/characters/roster-v1/card-${id}.jpg`),
+];
+for (const rel of rasterRequired) {
+  try {
+    const file = path.join(root, rel);
+    const data = await readFile(file);
+    if (data.length < 10_000) errors.push(`${rel}: raster asset suspiciously small`);
+    if (!(data[0] === 0xff && data[1] === 0xd8 && data[data.length - 2] === 0xff && data[data.length - 1] === 0xd9)) errors.push(`${rel}: expected complete JPEG`);
+  } catch { errors.push(`${rel}: required raster asset missing`); }
+}
+
+try {
+  const roster = JSON.parse(await readFile(path.join(root, 'assets', 'characters', 'roster-v1', 'manifest.json'), 'utf8'));
+  const roles = Array.isArray(roster.roles) ? roster.roles : [];
+  if (roles.length !== 8) errors.push(`roster-v1 manifest: expected 8 roles, found ${roles.length}`);
+  const ids = roles.map((role) => role.id);
+  if (new Set(ids).size !== ids.length) errors.push('roster-v1 manifest: duplicate role id');
+  for (const role of roles) {
+    if (!role?.portrait || !role?.card) errors.push(`roster-v1 manifest: ${role?.id ?? 'unknown'} missing portrait/card ref`);
+    for (const rel of [role?.portrait, role?.card].filter(Boolean)) {
+      try { await stat(path.join(root, rel)); } catch { errors.push(`roster-v1 manifest: missing referenced asset ${rel}`); }
+    }
+  }
+} catch (error) { errors.push(`roster-v1 manifest invalid: ${error instanceof Error ? error.message : String(error)}`); }
+
 const readme = await readFile(path.join(root, 'README.md'), 'utf8');
 const rawUrls = [...new Set(
   [...readme.matchAll(/https:\/\/raw\.githubusercontent\.com\/riquelmechile\/XanxitoSpA\/main\/([^"')\s,]+)/g)].map((m) => m[1]),
@@ -66,4 +96,4 @@ if (errors.length) {
   console.error(errors.join('\n'));
   process.exit(1);
 }
-console.log(`PASS visual assets: ${count} SVGs are well-formed and structurally valid; ${rawUrls.length} README raw URLs resolve locally`);
+console.log(`PASS visual assets: ${count} SVGs valid; ${rasterRequired.length} required raster assets valid; 8-role raster manifest valid; ${rawUrls.length} README raw URLs resolve locally`);
