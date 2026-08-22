@@ -54,7 +54,7 @@ External provider secrets none committed
 Durability direction      DBOS staged adoption (ADR-0001)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             four-lens APPROVED · public CI pending
+Release state             four-lens APPROVED · public CI PASS · released
 ```
 
 ---

@@ -2,7 +2,7 @@
 
 ## Status
 
-Four-lens review APPROVED. Public CI pending before release.
+Four-lens review APPROVED. Public CI PASS. Released as v0.9.0.
 
 ## Why V0.9 exists
 
