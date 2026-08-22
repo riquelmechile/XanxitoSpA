@@ -1,0 +1,24 @@
+{
+  "name": "xanxitospa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run",
+    "gym": "tsx packages/testing/src/run-gym.ts",
+    "dev": "tsx apps/runtime/src/server.ts",
+    "start": "node dist/apps/runtime/src/server.js"
+  },
+  "dependencies": {
+    "fastify": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}
