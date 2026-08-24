@@ -537,3 +537,17 @@ Business capability providers are replaceable. Cognitive model law is Sol-only. 
 <p align="center">
   <sub>XanxitoSpA is an independent project. Xanxittoo is used as its development harness, not modified as part of this repository.</sub>
 </p>
+
+## v4 public verification bundle
+
+The complete frozen v4 verification bundle is published in this repository:
+
+- `manifest/fault-injection-v4-stateful.json` — frozen 20-pair / 40-arm campaign manifest.
+- `results/v4-stateful-final.json` — canonical paired ledger and aggregate.
+- `results/v4-governance-boundary.json` — separate governance boundary suite.
+- `results/v4-stateful-*.json` — per-arm/per-pair stateful evidence used by the aggregate.
+- `evidence/local-evidence-sha256-v4.json` — SHA-256 + byte-size manifest covering 40 referenced files.
+- `docs/v4-direct-arm-review.md` — unabridged source modules containing the five DIRECT baselines and fault injectors for independent review.
+- `docs/v4-report.md` — one-page hypothesis/design/results/limitations report, including the DIRECT-baseline limitation.
+
+The stateful p-value is computed only from the 20 frozen stateful pairs; the four governance-boundary cases are intentionally excluded from that test.

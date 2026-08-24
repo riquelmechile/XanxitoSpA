@@ -1,0 +1,25 @@
+# XanxitoSpA v4: Execution Integrity Under Deterministic Stateful Faults
+
+## Hypothesis
+XanxitoSpA is intended to add governance and recovery semantics without reducing baseline task capability. The v3 capability-matched experiment found no measurable capability difference (14 ties, one XSPA win, one DIRECT win; exact paired sign test p=1.0). v4 tests the orthogonal hypothesis that the execution-integrity substrate improves outcomes when stateful operations encounter deterministic failures.
+
+## Design
+We froze a paired action-plan benchmark before observing campaign results: five stateful TheAgentCompany surfaces (RocketChat, GitLab, Plane, OwnCloud, and a local server runtime), four conditions per surface, 20 paired scenarios / 40 arms. Each pair began from a fresh reset or fresh task container and executed the same designated mutation. Conditions included no-fault controls plus service-appropriate failures such as lost acknowledgement after commit, duplicate concurrent intent, credential/session expiry, service restart after commit, stale writer/revision, process death before health verification, port contention, and stale process takeover. The frozen manifest fingerprint is `25d2991fe2171591b349864ea2a230ff68268ba90fc7b2e1495b9e6bce168a75`.
+
+**DIRECT** executed the designated operation without the XanxitoSpA durable idempotency journal, reconciliation protocol, authority/budget enforcement, or fencing/lease substrate. **XANXITOSPA** executed the same operation through the production `CapabilityPlane` and its runtime store, with the relevant idempotency, reconciliation, and fencing semantics enabled. The primary endpoint was binary `integrityPreserved`; secondary descriptive endpoints included duplicate/unsafe effects, successful recovery, reconciliation, safe halt, and final service state.
+
+## Results
+Across the 20 frozen stateful pairs, DIRECT preserved integrity in **12/20 (60%)** and XANXITOSPA in **20/20 (100%)**. Pairwise outcomes were **8 XANXITOSPA wins, 12 ties, 0 DIRECT wins**. All eight discordant pairs favored XANXITOSPA; the exact two-sided paired sign test is **p = 0.0078125**. DIRECT produced **8 unsafe/duplicate effects** under the campaign metric, while XANXITOSPA produced **0**. XANXITOSPA recorded **9 successful recoveries**; one recovery occurred in an OwnCloud lost-ACK case that remained an integrity tie because repeated identical PUTs were state-idempotent.
+
+A separate four-case governance boundary suite tested budget overrun, missing authority, poisoned MCP metadata, and stale fencing. It is intentionally excluded from the 20-pair sign test. DIRECT-without-governance preserved integrity in **0/4** with **4 unsafe effects**; XANXITOSPA preserved integrity in **4/4** with **0 unsafe effects**.
+
+## Exclusions and analysis boundary
+v4 is not combined with v2/v3 capability scores and is not comparable to published TheAgentCompany absolute scores. It is an execution-integrity experiment using frozen action plans, not another model-reasoning benchmark. Invalid infrastructure attempts were discarded before scoring and rerun from fresh baselines. The governance suite is descriptive and excluded from the stateful p-value.
+
+## Limitations
+The most important limitation is the strength of the DIRECT baseline. DIRECT is a deliberately raw execution path, not a maximally engineered conventional resilience stack. It does not implement service-native or application-level best practices such as explicit idempotency keys where available, read-after-write reconciliation, ETag/If-Match optimistic concurrency, durable retry journals, process supervision, or carefully bounded retry policies. Therefore v4 supports the claim **“XanxitoSpA materially improves integrity relative to raw direct execution under these deterministic faults”**; it does **not** establish superiority over a strong `DIRECT+` baseline that implements conventional resilience mechanisms without XanxitoSpA. A follow-up should compare XSPA against DIRECT+.
+
+The campaign has only 20 paired scenarios across five surfaces and one deterministic realization per condition; fault classes were selected because they exercise execution-integrity mechanisms and are not an estimate of production fault prevalence. Some controls are naturally protected by the underlying service or OS, producing legitimate ties (for example state-idempotent PUT and port contention). The local-runtime task image required a reproducible offline dependency bootstrap; the wheelhouse fingerprint and fixed application hash are recorded in the evidence. Finally, the same system implemented the benchmark adapters, so independent source review of the DIRECT path and third-party reproduction are important checks.
+
+## Reproducibility
+The public repository contains the frozen manifest, per-arm/pair JSON evidence, canonical aggregate `results/v4-stateful-final.json`, separate governance results, and `evidence/local-evidence-sha256-v4.json`. The SHA manifest covers 40 referenced v4 files. The complete five-surface source review pack for the DIRECT baseline is in `docs/v4-direct-arm-review.md`.
