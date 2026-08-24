@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { BusinessEvent, CompanyAsset, CompanyOperatingModelPlan, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
+import type { BusinessEvent, CompanyAsset, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, GovernedWakeEngine, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
@@ -156,6 +156,23 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     return revisions[0]!.revision;
   }
 
+  private async latestOperatingModelSnapshot(): Promise<CompanyOperatingModelSnapshot | null> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-operating-model" && asset.status === "active");
+    if (assets.length === 0) return null;
+    const snapshots = assets.map((asset) => ({ asset, snapshot: companyOperatingModelFromAsset(asset) }));
+    snapshots.sort((a, b) => b.snapshot.appliedAt.localeCompare(a.snapshot.appliedAt) || b.asset.updatedAt.localeCompare(a.asset.updatedAt));
+    return snapshots[0]!.snapshot;
+  }
+
+  private async latestWakeState(): Promise<WakeAccumulatorState[]> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-wake-state" && asset.status === "active");
+    if (assets.length === 0) return [];
+    assets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+    return wakeStateFromAsset(assets[0]!);
+  }
+
   async companyDiscoveryPlan(input: CompanyDiscoveryPlanInput, _context: XspaRequestContext): Promise<unknown> {
     const { companyId } = this.requireRuntime();
     const parent = input.parentRevisionId ? await this.discoveryByRevisionId(input.parentRevisionId) : null;
@@ -202,6 +219,104 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   async companyDiscoveryStatus(_context: XspaRequestContext): Promise<unknown> {
     const revision = await this.latestDiscovery();
     return revision ? { state: "found", revision, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false } : { state: "not-found", companyScoped: true };
+  }
+
+  async companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const startedAt = new Date();
+    const idemKey = `company:wake:${input.evaluationId}`;
+    const idemOwner = `mcp:company-wake:${input.evaluationId}`;
+    const requestFingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    const existing = await store.getIdempotency(companyId, idemKey);
+    if (existing) {
+      const prior = existing.intent as { requestFingerprint?: unknown };
+      if (prior.requestFingerprint !== requestFingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:company_wake_changed:${input.evaluationId}`);
+      if (existing.state === "applied" && existing.result) return structuredClone(existing.result);
+      if (existing.state === "intent") return { evaluationId: input.evaluationId, status: "contended", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, workCreated: false };
+      throw new Error(`Company wake evaluation requires reconciliation:${input.evaluationId}`);
+    }
+    const leaseOwner = `mcp:company-wake:${input.evaluationId}`;
+    const lease = await store.claimHeartbeatLease(companyId, leaseOwner, startedAt, 30_000);
+    if (!lease) return { evaluationId: input.evaluationId, status: "contended", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, workCreated: false };
+    try {
+      const claim = await store.claimIdempotency(companyId, idemKey, { requestFingerprint }, idemOwner, startedAt);
+      if (!claim.claimed) {
+        const prior = claim.record.intent as { requestFingerprint?: unknown };
+        if (prior.requestFingerprint !== requestFingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:company_wake_changed:${input.evaluationId}`);
+        if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+        if (claim.record.state === "intent") return { evaluationId: input.evaluationId, status: "contended", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, workCreated: false };
+        throw new Error(`Company wake evaluation requires reconciliation:${input.evaluationId}`);
+      }
+      let persisted = false;
+      try {
+        const operatingModel = await this.latestOperatingModelSnapshot();
+        if (!operatingModel) throw new Error("COMPANY_OPERATING_MODEL_NOT_FOUND");
+        const discovery = await this.latestDiscovery();
+        const constitution = projectCompanyConstitution({ companyId, operatingModel, discovery });
+        const events = input.events.map((event) => ({ ...event, companyId }));
+        const signalClaims: Array<{ key: string; owner: string; fencingToken: number; eventId: string }> = [];
+        const settledSignalKeys = new Set<string>();
+        const freshEvents: BusinessEvent[] = [];
+        for (const event of events) {
+          const key = `company:wake:signal:${event.id}`;
+          const owner = `${idemOwner}:signal:${event.id}`;
+          const eventFingerprint = createHash("sha256").update(JSON.stringify(event)).digest("hex");
+          const signalClaim = await store.claimIdempotency(companyId, key, { eventFingerprint }, owner, startedAt);
+          if (!signalClaim.claimed) {
+            const prior = signalClaim.record.intent as { eventFingerprint?: unknown };
+            if (prior.eventFingerprint !== eventFingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:company_wake_signal_changed:${event.id}`);
+            if (signalClaim.record.state === "applied") continue;
+            throw new Error(`Company wake signal requires reconciliation:${event.id}`);
+          }
+          signalClaims.push({ key, owner, fencingToken: signalClaim.record.fencingToken, eventId: event.id });
+          freshEvents.push(event);
+        }
+        try {
+          const priorState = await this.latestWakeState();
+          const wake = new GovernedWakeEngine().evaluate({ companyId, constitution, events: freshEvents, priorState, now: startedAt });
+          await store.saveAsset(createWakeStateAsset({ companyId, evaluationId: input.evaluationId, state: wake.state }, startedAt));
+          persisted = true;
+          for (const proposal of wake.proposals) await store.saveAsset(createWakeProposalAsset(proposal, input.evaluationId, startedAt));
+          await store.appendEvent({
+            id: randomUUID(), companyId, type: "company.wake.evaluated", occurredAt: startedAt.toISOString(), actorPrincipal: context.principal, correlationId: input.evaluationId,
+            idempotencyKey: `company:wake:event:${input.evaluationId}:${requestFingerprint}`,
+            payload: { evaluationId: input.evaluationId, eventCount: events.length, newEventCount: freshEvents.length, duplicateEventCount: events.length - freshEvents.length, decisionCount: wake.decisions.length, proposalIds: wake.proposals.map((proposal) => proposal.id) },
+            sensitivity: "internal", evidenceRefs: [...new Set(freshEvents.flatMap((event) => event.evidenceRefs))],
+          });
+          for (const signalClaim of signalClaims) {
+            const signalSettled = await store.markIdempotency(companyId, signalClaim.key, signalClaim.owner, signalClaim.fencingToken, "applied", startedAt, { eventId: signalClaim.eventId, evaluationId: input.evaluationId });
+            if (!signalSettled) throw new Error(`Company wake signal idempotency fencing lost:${signalClaim.eventId}`);
+            settledSignalKeys.add(signalClaim.key);
+          }
+          const result = { evaluationId: input.evaluationId, status: "evaluated", ...wake, companyScoped: true, workCreated: false, requiresAuthorityAdjudication: wake.proposals.length > 0, duplicateEventCount: events.length - freshEvents.length };
+          const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", startedAt, result);
+          if (!settled) throw new Error("Company wake idempotency fencing lost");
+          return result;
+        } catch (error) {
+          const failureTime = new Date();
+          for (const signalClaim of signalClaims) {
+            if (settledSignalKeys.has(signalClaim.key)) continue;
+            await store.markIdempotency(companyId, signalClaim.key, signalClaim.owner, signalClaim.fencingToken, persisted ? "unknown" : "failed", failureTime, undefined, error instanceof Error ? error.message.slice(0, 240) : "Company wake signal failed");
+          }
+          throw error;
+        }
+      } catch (error) {
+        await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, persisted ? "unknown" : "failed", new Date(), undefined, error instanceof Error ? error.message.slice(0, 240) : "Company wake evaluation failed");
+        throw error;
+      }
+    } finally {
+      await store.releaseHeartbeatLease(lease, new Date());
+    }
+  }
+
+  async companyWakeStatus(_context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = await store.listAssets(companyId);
+    const stateAssets = assets.filter((asset) => asset.kind === "company-wake-state" && asset.status === "active").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id));
+    const proposalAssets = assets.filter((asset) => asset.kind === "company-wake-proposal" && asset.status === "active").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id));
+    const state = stateAssets[0] ? wakeStateFromAsset(stateAssets[0]) : [];
+    const proposals = proposalAssets.slice(0, 50).map((asset) => asset.metadata.proposal).filter(Boolean);
+    return { state: stateAssets.length > 0 ? "found" : "not-found", accumulatorState: state, proposals, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false, workCreated: false };
   }
 
   private async buildCompanyOperatingModel(input: CompanyPlanInput): Promise<CompanyOperatingModelPlan> {

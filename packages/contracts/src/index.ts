@@ -591,8 +591,77 @@ export interface AgentSubscription {
   targetDepartment: string;
   targetRole: string;
   capabilityScopes: string[];
+  objectiveId: string;
+  objective: string;
+  match: { topics: string[]; capabilityScopes: string[] };
+  urgencyPolicy: {
+    opportunityCostWeight: number;
+    actionWindowWeight: number;
+    defaultOpportunityCost: number;
+    defaultActionWindowMinutes: number;
+  };
+  threshold: number;
+  accumulationWindowSeconds: number;
+  accumulationCap: number;
   wakeIntentOnly: true;
   grantsAuthority: false;
+}
+
+export interface SignalCursor {
+  sourceId: string;
+  position: string | null;
+}
+
+export interface SignalPollResult {
+  events: BusinessEvent[];
+  cursor: SignalCursor;
+}
+
+export interface WakeAccumulatorState {
+  subscriptionId: string;
+  windowStartedAt: ISODateTime;
+  score: number;
+  processedEventKeys: string[];
+  pendingEventIds: UUID[];
+  pendingEvidenceRefs: string[];
+}
+
+export interface WakeWorkProposal {
+  id: UUID;
+  companyId: UUID;
+  subscriptionId: string;
+  targetDepartment: string;
+  targetRole: string;
+  owner: string;
+  objective: string;
+  scope: string;
+  eventIds: UUID[];
+  evidenceRefs: string[];
+  urgency: number;
+  createdAt: ISODateTime;
+  grantsAuthority: false;
+  grantsBudget: false;
+  grantsCapabilities: false;
+  executesWork: false;
+}
+
+export interface WakeDecision {
+  subscriptionId: string;
+  state: "sleep" | "accumulate" | "wake";
+  eventId?: UUID;
+  urgency: number;
+  accumulatedUrgency: number;
+  reason: string;
+}
+
+export interface GovernedWakeResult {
+  decisions: WakeDecision[];
+  proposals: WakeWorkProposal[];
+  state: WakeAccumulatorState[];
+  grantsAuthority: false;
+  grantsBudget: false;
+  grantsCapabilities: false;
+  executesWork: false;
 }
 
 export interface CompanyConstitution {

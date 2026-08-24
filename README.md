@@ -36,6 +36,8 @@ Every discovery revision keeps provenance, confidence, parent lineage and a dete
 
 The constitution projection turns the operating model into durable objectives, authority boundaries, reserved-action escalation, business signal sources and agent subscriptions. These surfaces are intentionally descriptive: discovery, constitution, signals and subscriptions never grant authority, budget, credentials or capabilities, and a wake/attention signal cannot execute Work. Material execution still goes through the governed Work and authority path.
 
+The governed wake engine operationalizes that attention plane without creating a second scheduler. Existing fenced heartbeat cursors remain the timing boundary; `BusinessSignalAdapter` implementations such as the deterministic `CsvSignalSource` emit `BusinessEvent`s, subscriptions match them declaratively, and urgency combines opportunity cost of inaction with action-window pressure. Sub-threshold urgency accumulates durably and replayed event/subscription pairs are deduplicated. Crossing a threshold emits a `WakeWorkProposal` only: `workCreated=false`, `executesWork=false`, and all authority/budget/capability grants remain false until the normal Work + adjudication path accepts it.
+
 ## What XanxitoSpA is
 
 Most agent systems try to make one model do more work. **XanxitoSpA models the company itself.**

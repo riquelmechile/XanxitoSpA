@@ -52,7 +52,11 @@ describe("Company Constitution projection", () => {
     const constitution = projectCompanyConstitution({ companyId, operatingModel: model(), discovery: discovery() });
     expect(constitution.durableObjectives.map((item) => item.statement)).toEqual(["Protect cash", "Grow repeatable revenue"]);
     expect(constitution.signalSources.some((source) => source.capabilityScopes.includes("crm.read"))).toBe(true);
-    expect(constitution.subscriptions.some((sub) => sub.targetDepartment === "revenue-team")).toBe(true);
+    const crmSubscription = constitution.subscriptions.find((sub) => sub.targetDepartment === "revenue-team");
+    expect(crmSubscription).toBeDefined();
+    expect(crmSubscription?.objective).toBe("Protect cash");
+    expect(crmSubscription?.threshold).toBe(0.75);
+    expect(crmSubscription?.urgencyPolicy).toMatchObject({ opportunityCostWeight: 0.65, actionWindowWeight: 0.35 });
     expect(constitution.grantsAuthority).toBe(false);
     expect(constitution.grantsBudget).toBe(false);
     expect(constitution.grantsCapabilities).toBe(false);
