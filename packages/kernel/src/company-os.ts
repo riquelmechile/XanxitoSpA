@@ -12,6 +12,7 @@ import type {
   ProcessBlueprint,
   SkillDefinition,
   SkillIndexEntry,
+  DiscoveryRevision,
 } from "../../contracts/src/index.js";
 import { planCompanyBootstrap } from "./bootstrap.js";
 import { planCompanySkillBootstrap } from "./company-skills.js";
@@ -42,6 +43,7 @@ export interface CompanyOperatingModelPlannerInput {
   existingAssets: CompanyAsset[];
   catalog: Array<SkillDefinition | SkillIndexEntry>;
   existingInstallations: CompanySkillInstallation[];
+  discovery?: DiscoveryRevision | null;
 }
 
 function clean(values: readonly string[] | undefined): string[] {
@@ -102,8 +104,9 @@ export function fingerprintCompanyOperatingModel(plan: Omit<CompanyOperatingMode
   return createHash("sha256").update(JSON.stringify(canonicalize(semantic))).digest("hex");
 }
 
-function departmentForCapability(capability: string, departments: DepartmentBlueprint[], processHints: Map<string, string>, requirements: CompanyIntakeInput["bootstrapRequirements"]): string {
-  const hinted = processHints.get(capability) ?? requirements?.find((item) => item.capability === capability)?.department;
+function departmentForCapability(capability: string, departments: DepartmentBlueprint[], processHints: Map<string, string>, requirements: CompanyIntakeInput["bootstrapRequirements"], discovery?: DiscoveryRevision | null): string {
+  const discoveredHint = discovery?.capabilities.find((item) => item.name === capability)?.preferredDepartmentHint;
+  const hinted = processHints.get(capability) ?? discoveredHint ?? requirements?.find((item) => item.capability === capability)?.department;
   if (hinted && departments.some((department) => department.id === hinted)) return hinted;
   const lower = capability.toLowerCase();
   const fn: CoreBusinessFunction = lower.startsWith("finance.") || lower.startsWith("billing.") || lower.startsWith("accounting.") ? "finance"
@@ -253,11 +256,12 @@ export function planCompanyOperatingModel(input: CompanyOperatingModelPlannerInp
   for (const process of processes) for (const capability of process.requiredCapabilities) if (!processHints.has(capability)) processHints.set(capability, process.department);
   const requiredCapabilities = clean([
     ...(input.intake.requiredCapabilities ?? []),
+    ...(input.discovery?.capabilities.map((capability) => capability.name) ?? []),
     ...processes.flatMap((process) => process.requiredCapabilities),
     ...(input.intake.bootstrapRequirements ?? []).map((requirement) => requirement.capability),
   ]);
   const requiredSkills = clean(processes.flatMap((process) => process.requiredSkills));
-  const capabilityDepartments = Object.fromEntries(requiredCapabilities.map((capability) => [capability, departmentForCapability(capability, departments, processHints, input.intake.bootstrapRequirements)]));
+  const capabilityDepartments = Object.fromEntries(requiredCapabilities.map((capability) => [capability, departmentForCapability(capability, departments, processHints, input.intake.bootstrapRequirements, input.discovery)]));
   const sameCompanyAssets = input.existingAssets.filter((asset) => asset.companyId === input.companyId);
 
   const skillPlan = planCompanySkillBootstrap({
@@ -293,7 +297,10 @@ export function planCompanyOperatingModel(input: CompanyOperatingModelPlannerInp
     processes,
     requiredCapabilities,
     requiredSkills,
-    readinessGaps,
+    readinessGaps: clean([
+      ...readinessGaps,
+      ...(input.discovery?.unknowns.filter((unknown) => unknown.status === "open").map((unknown) => `discovery unknown: ${unknown.question}`) ?? []),
+    ]),
     skillPlan,
     bootstrapPlan,
     recommendedWork: {

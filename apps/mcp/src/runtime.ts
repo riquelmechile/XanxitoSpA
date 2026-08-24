@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { BusinessEvent, CompanyAsset, CompanyOperatingModelPlan, CorporateGene, CreativeDecisionReceipt, CreativeMission, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
+import type { BusinessEvent, CompanyAsset, CompanyOperatingModelPlan, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AutoskillProposeInput, CompanyApplyInput, CompanyPlanInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
@@ -131,13 +131,87 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     return work ? { work, state: "found", companyScoped: true } : { workId, state: "not-found", companyScoped: true };
   }
 
+  private discoveryFromAsset(asset: CompanyAsset): DiscoveryRevision {
+    const snapshot = asset.metadata.snapshot;
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("company discovery asset snapshot missing");
+    return structuredClone(snapshot as DiscoveryRevision);
+  }
+
+  private async discoveryByRevisionId(revisionId: string): Promise<DiscoveryRevision | null> {
+    const { store, companyId } = this.requireRuntime();
+    for (const asset of await store.listAssets(companyId)) {
+      if (asset.kind !== "company-discovery" || asset.status !== "active") continue;
+      const revision = this.discoveryFromAsset(asset);
+      if (revision.revisionId === revisionId) return revision;
+    }
+    return null;
+  }
+
+  private async latestDiscovery(): Promise<DiscoveryRevision | null> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-discovery" && asset.status === "active");
+    if (assets.length === 0) return null;
+    const revisions = assets.map((asset) => ({ asset, revision: this.discoveryFromAsset(asset) }));
+    revisions.sort((a, b) => b.revision.sequence - a.revision.sequence || b.revision.createdAt.localeCompare(a.revision.createdAt) || b.asset.updatedAt.localeCompare(a.asset.updatedAt));
+    return revisions[0]!.revision;
+  }
+
+  async companyDiscoveryPlan(input: CompanyDiscoveryPlanInput, _context: XspaRequestContext): Promise<unknown> {
+    const { companyId } = this.requireRuntime();
+    const parent = input.parentRevisionId ? await this.discoveryByRevisionId(input.parentRevisionId) : null;
+    if (input.parentRevisionId && !parent) throw new Error("DISCOVERY_PARENT_NOT_FOUND");
+    const revision = buildDiscoveryRevision({ companyId, evidence: input.evidence, facts: input.facts, unknowns: input.unknowns, capabilities: input.capabilities, parent });
+    return { revision, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false };
+  }
+
+  async companyDiscoveryApply(input: CompanyDiscoveryApplyInput, context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const now = new Date();
+    const idemKey = `company:discovery:${input.discoveryId}`;
+    const idemOwner = `mcp:company-discovery:${input.discoveryId}`;
+    const requestFingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    const claim = await store.claimIdempotency(companyId, idemKey, { requestFingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const prior = claim.record.intent as { requestFingerprint?: unknown };
+      if (prior.requestFingerprint !== requestFingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:company_discovery_changed:${input.discoveryId}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { discoveryId: input.discoveryId, status: "contended", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false };
+      throw new Error(`Company discovery requires reconciliation:${input.discoveryId}`);
+    }
+    let assetPersisted = false;
+    try {
+      const parent = input.parentRevisionId ? await this.discoveryByRevisionId(input.parentRevisionId) : null;
+      if (input.parentRevisionId && !parent) throw new Error("DISCOVERY_PARENT_NOT_FOUND");
+      const revision = buildDiscoveryRevision({ companyId, evidence: input.evidence, facts: input.facts, unknowns: input.unknowns, capabilities: input.capabilities, parent }, now);
+      if (input.expectedFingerprint && input.expectedFingerprint !== revision.fingerprint) throw new Error("PLAN_FINGERPRINT_MISMATCH:company_discovery");
+      const asset = createDiscoveryAsset({ companyId, revision }, now);
+      asset.metadata.discoveryId = input.discoveryId;
+      await store.saveAsset(asset);
+      assetPersisted = true;
+      await store.appendEvent({ id: randomUUID(), companyId, type: "company.discovery.applied", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.discoveryId, idempotencyKey: `company:discovery:event:${input.discoveryId}:${revision.fingerprint}`, payload: { discoveryId: input.discoveryId, assetId: asset.id, revisionId: revision.revisionId, parentRevisionId: revision.parentRevisionId, sequence: revision.sequence, fingerprint: revision.fingerprint }, sensitivity: "internal", evidenceRefs: revision.sourceRefs });
+      const result = { discoveryId: input.discoveryId, assetId: asset.id, revision, status: "applied", companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Company discovery idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, assetPersisted ? "unknown" : "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Company discovery apply failed");
+      throw error;
+    }
+  }
+
+  async companyDiscoveryStatus(_context: XspaRequestContext): Promise<unknown> {
+    const revision = await this.latestDiscovery();
+    return revision ? { state: "found", revision, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false } : { state: "not-found", companyScoped: true };
+  }
+
   private async buildCompanyOperatingModel(input: CompanyPlanInput): Promise<CompanyOperatingModelPlan> {
     const { store, companyId } = this.requireRuntime();
     const assets = await store.listAssets(companyId);
     const installations = assets.filter((asset) => asset.kind === "skill-installation" && asset.status === "active").map(skillInstallationFromAsset);
     const localDefinitions = assets.filter((asset) => asset.kind === "company-skill-definition" && asset.status === "active").map(companySkillDefinitionFromAsset);
     const catalog = [...(this.input.skillRegistry?.list({ domain: "company", companyId }) ?? []), ...localDefinitions];
-    return planCompanyOperatingModel({ companyId, intake: input.intake, existingAssets: assets, catalog, existingInstallations: installations });
+    const discovery = await this.latestDiscovery();
+    return planCompanyOperatingModel({ companyId, intake: input.intake, existingAssets: assets, catalog, existingInstallations: installations, discovery });
   }
 
   async companyPlan(input: CompanyPlanInput, _context: XspaRequestContext): Promise<unknown> {

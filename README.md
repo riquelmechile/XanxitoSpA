@@ -27,6 +27,15 @@
 
 ---
 
+
+## Company discovery and constitution
+
+XanxitoSpA now treats company adoption as a revisioned discovery flow before organization changes: `discover -> infer -> ask -> constitute -> perceive -> attend`. Discovery records source evidence separately from facts, unresolved unknowns and inferred business capabilities. Business capabilities are the primitive; departments are an organizational projection that preserves observed structure first and groups missing capabilities only when necessary.
+
+Every discovery revision keeps provenance, confidence, parent lineage and a deterministic fingerprint. Owner answers resolve unknowns by creating a new revision instead of silently mutating the prior model. The operating-model planner consumes the latest discovery revision without changing legacy `xspa_company_plan` / `xspa_company_apply` inputs.
+
+The constitution projection turns the operating model into durable objectives, authority boundaries, reserved-action escalation, business signal sources and agent subscriptions. These surfaces are intentionally descriptive: discovery, constitution, signals and subscriptions never grant authority, budget, credentials or capabilities, and a wake/attention signal cannot execute Work. Material execution still goes through the governed Work and authority path.
+
 ## What XanxitoSpA is
 
 Most agent systems try to make one model do more work. **XanxitoSpA models the company itself.**

@@ -28,6 +28,9 @@ export async function verifyXspaAppMcp(): Promise<void> {
       if (workId === "99999999-9999-4999-8999-999999999999") throw new Error("token=super-secret-value Bearer hidden-bearer-value sk-hidden-openai-key");
       return { work: { id: workId, owner: "executive", objective: "Test objective", scope: "sandbox" }, state: "found", companyScoped: true };
     },
+    companyDiscoveryPlan: async (_input, context) => ({ revision: { revisionId: "22222222-2222-4222-8222-222222222222", fingerprint: "d".repeat(64), sequence: 1 }, principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyDiscoveryApply: async (input, context) => ({ discoveryId: input.discoveryId, assetId: input.discoveryId, revision: { revisionId: "22222222-2222-4222-8222-222222222222", fingerprint: "d".repeat(64), sequence: 1 }, status: "applied", principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
+    companyDiscoveryStatus: async (context) => ({ state: "found", revision: { revisionId: "22222222-2222-4222-8222-222222222222", fingerprint: "d".repeat(64), sequence: 1 }, principal: context.principal, grantsAuthority: false }),
     companyPlan: async (input, context) => ({ plan: { fingerprint: "a".repeat(64), mode: input.intake.mode, departments: [{ id: "executive" }], recommendedWork: { owner: "executive" } }, principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
     companyApply: async (input, context) => ({ formationId: input.formationId, assetId: input.formationId, fingerprint: "a".repeat(64), status: "applied", principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),
     companyStatus: async (context) => ({ state: "found", operatingModel: { companyId: "deployment-company", mode: "new" }, principal: context.principal }),
@@ -64,9 +67,17 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const metadata = { headers: { Authorization: `Bearer ${authToken}` } };
     const tools = await transport.listTools(metadata);
     const names = tools.map((tool) => tool.name).sort();
-    for (const required of ["xspa_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
+    for (const required of ["xspa_status", "xspa_company_discovery_plan", "xspa_company_discovery_apply", "xspa_company_discovery_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
       assert(names.includes(required), `missing app MCP tool ${required}`);
     }
+
+    const discoveryPlan = await transport.callTool("xspa_company_discovery_plan", { evidence: [], facts: [], unknowns: [], capabilities: [] }, metadata);
+    assert(discoveryPlan.ok && JSON.stringify(discoveryPlan.content).includes("grantsAuthority"), "company discovery plan failed through app MCP");
+    const discoveryId = "77777777-7777-4777-8777-777777777777";
+    const discoveryApply = await transport.callTool("xspa_company_discovery_apply", { discovery_id: discoveryId, evidence: [], facts: [], unknowns: [], capabilities: [] }, metadata);
+    assert(discoveryApply.ok && JSON.stringify(discoveryApply.content).includes(discoveryId), "company discovery apply failed through app MCP");
+    const discoveryStatus = await transport.callTool("xspa_company_discovery_status", {}, metadata);
+    assert(discoveryStatus.ok && JSON.stringify(discoveryStatus.content).includes("revisionId"), "company discovery status failed through app MCP");
 
     const status = await transport.callTool("xspa_status", {}, metadata);
     assert(status.ok, "xspa_status failed");

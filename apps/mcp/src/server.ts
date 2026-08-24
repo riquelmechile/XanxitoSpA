@@ -5,7 +5,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
+import type { BusinessCapability, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
 
 export interface XspaAppStatus {
@@ -96,6 +96,19 @@ export interface CompanyApplyInput extends CompanyPlanInput {
   expectedFingerprint?: string;
 }
 
+export interface CompanyDiscoveryPlanInput {
+  evidence: BusinessEvidence[];
+  facts: Omit<BusinessFact, "revisionId">[];
+  unknowns: BusinessUnknown[];
+  capabilities: BusinessCapability[];
+  parentRevisionId?: string;
+}
+
+export interface CompanyDiscoveryApplyInput extends CompanyDiscoveryPlanInput {
+  discoveryId: string;
+  expectedFingerprint?: string;
+}
+
 export interface AutoskillProposeInput {
   proposalId: string;
   skillId: string;
@@ -133,6 +146,9 @@ export interface XspaAppOperations {
   skillInstall(input: SkillInstallInput, context: XspaRequestContext): Promise<unknown>;
   skillsHealth(context: XspaRequestContext): Promise<unknown>;
   companySkillPlan(input: CompanySkillPlanInput, context: XspaRequestContext): Promise<unknown>;
+  companyDiscoveryPlan(input: CompanyDiscoveryPlanInput, context: XspaRequestContext): Promise<unknown>;
+  companyDiscoveryApply(input: CompanyDiscoveryApplyInput, context: XspaRequestContext): Promise<unknown>;
+  companyDiscoveryStatus(context: XspaRequestContext): Promise<unknown>;
   companyPlan(input: CompanyPlanInput, context: XspaRequestContext): Promise<unknown>;
   companyApply(input: CompanyApplyInput, context: XspaRequestContext): Promise<unknown>;
   companyStatus(context: XspaRequestContext): Promise<unknown>;
@@ -325,11 +341,55 @@ function parseKastReflect(args: unknown): KastReflectInput {
   };
 }
 
+
+function parseCompanyDiscovery(args: unknown): CompanyDiscoveryPlanInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const evidenceRaw = Array.isArray(obj.evidence) ? obj.evidence : [];
+  const factsRaw = Array.isArray(obj.facts) ? obj.facts : [];
+  const unknownsRaw = Array.isArray(obj.unknowns) ? obj.unknowns : [];
+  const capabilitiesRaw = Array.isArray(obj.capabilities) ? obj.capabilities : [];
+  if (evidenceRaw.length > 256 || factsRaw.length > 256 || unknownsRaw.length > 128 || capabilitiesRaw.length > 128) throw new Error("company discovery payload too large");
+  const evidence = evidenceRaw.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`evidence[${index}] invalid`);
+    const item = entry as Record<string, unknown>; const source = item.source as Record<string, unknown> | undefined;
+    if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error(`evidence[${index}].source invalid`);
+    const confidenceCeiling = Number(item.confidence_ceiling ?? item.confidenceCeiling);
+    if (!Number.isFinite(confidenceCeiling) || confidenceCeiling < 0 || confidenceCeiling > 1) throw new Error(`evidence[${index}].confidence_ceiling invalid`);
+    const sourceKind = assertText(source.kind, `evidence[${index}].source.kind`, 40); if (!new Set(["owner","system","document","interview","integration","observation"]).has(sourceKind)) throw new Error(`evidence[${index}].source.kind invalid`); const result: BusinessEvidence = { id: assertText(item.id, `evidence[${index}].id`, 160), source: { id: assertText(source.id, `evidence[${index}].source.id`, 160), kind: sourceKind as BusinessEvidence["source"]["kind"], label: assertText(source.label, `evidence[${index}].source.label`, 240) }, kind: assertText(item.kind, `evidence[${index}].kind`, 120), observedAt: assertText(item.observed_at ?? item.observedAt, `evidence[${index}].observed_at`, 80), statement: assertText(item.statement, `evidence[${index}].statement`, 4000), confidenceCeiling };
+    if (item.content_ref || item.contentRef) result.contentRef = assertText(item.content_ref ?? item.contentRef, `evidence[${index}].content_ref`, 500);
+    return result;
+  });
+  const facts = factsRaw.map((entry, index) => { if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`facts[${index}] invalid`); const item = entry as Record<string, unknown>; const confidence = Number(item.confidence); if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error(`facts[${index}].confidence invalid`); const status = assertText(item.status, `facts[${index}].status`, 40); if (!new Set(["observed","inferred","owner-confirmed"]).has(status)) throw new Error(`facts[${index}].status invalid`); return { id: assertText(item.id, `facts[${index}].id`, 160), statement: assertText(item.statement, `facts[${index}].statement`, 4000), status: status as Omit<BusinessFact, "revisionId">["status"], confidence, evidenceRefs: assertStringArray(item.evidence_refs ?? item.evidenceRefs, `facts[${index}].evidence_refs`, 64), provenance: assertText(item.provenance, `facts[${index}].provenance`, 240) }; });
+  const unknowns = unknownsRaw.map((entry, index) => { if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`unknowns[${index}] invalid`); const item = entry as Record<string, unknown>; const priority = assertText(item.priority, `unknowns[${index}].priority`, 20); const status = assertText(item.status ?? "open", `unknowns[${index}].status`, 20); if (!new Set(["low","normal","high","critical"]).has(priority) || !new Set(["open","resolved","dismissed"]).has(status)) throw new Error(`unknowns[${index}] enum invalid`); const result: BusinessUnknown = { id: assertText(item.id, `unknowns[${index}].id`, 160), question: assertText(item.question, `unknowns[${index}].question`, 2000), category: assertText(item.category, `unknowns[${index}].category`, 120), priority: priority as BusinessUnknown["priority"], status: status as BusinessUnknown["status"] }; if (item.resolution_ref || item.resolutionRef) result.resolutionRef = assertText(item.resolution_ref ?? item.resolutionRef, `unknowns[${index}].resolution_ref`, 500); return result; });
+  const capabilities = capabilitiesRaw.map((entry, index) => { if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`capabilities[${index}] invalid`); const item = entry as Record<string, unknown>; const confidence = Number(item.confidence); if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error(`capabilities[${index}].confidence invalid`); const criticality = assertText(item.criticality, `capabilities[${index}].criticality`, 20); if (!new Set(["supporting","important","critical"]).has(criticality)) throw new Error(`capabilities[${index}].criticality invalid`); const result: BusinessCapability = { id: assertText(item.id, `capabilities[${index}].id`, 160), name: assertText(item.name, `capabilities[${index}].name`, 160), description: assertText(item.description, `capabilities[${index}].description`, 2000), criticality: criticality as BusinessCapability["criticality"], confidence, factRefs: assertStringArray(item.fact_refs ?? item.factRefs, `capabilities[${index}].fact_refs`, 64), evidenceRefs: assertStringArray(item.evidence_refs ?? item.evidenceRefs, `capabilities[${index}].evidence_refs`, 64) }; if (item.preferred_department_hint || item.preferredDepartmentHint) result.preferredDepartmentHint = assertText(item.preferred_department_hint ?? item.preferredDepartmentHint, `capabilities[${index}].preferred_department_hint`, 160); return result; });
+  const result: CompanyDiscoveryPlanInput = { evidence, facts, unknowns, capabilities };
+  if (obj.parent_revision_id) result.parentRevisionId = assertId(obj.parent_revision_id, "parent_revision_id");
+  return result;
+}
+
+function parseCompanyDiscoveryApply(args: unknown): CompanyDiscoveryApplyInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const parsed = parseCompanyDiscovery(args);
+  const result: CompanyDiscoveryApplyInput = { ...parsed, discoveryId: assertId(obj.discovery_id, "discovery_id") };
+  if (obj.expected_fingerprint !== undefined) { const value = assertText(obj.expected_fingerprint, "expected_fingerprint", 64); if (!/^[a-fA-F0-9]{64}$/.test(value)) throw new Error("expected_fingerprint invalid"); result.expectedFingerprint = value; }
+  return result;
+}
+
 function challenge(oauth: XspaOAuthConfig | undefined, scope: string) {
   if (!oauth) return { isError: true, content: [{ type: "text" as const, text: "Authentication required." }] };
   return { isError: true, content: [{ type: "text" as const, text: "Authentication required." }], _meta: { "mcp/www_authenticate": [oauthChallenge(oauth, scope)] } };
 }
 function requestContext(auth: XspaAuthContext): XspaRequestContext { return { principal: auth.subject || "chatgpt-app-user", scopes: [...auth.scopes] }; }
+
+
+const COMPANY_DISCOVERY_SCHEMA_PROPERTIES = {
+  parent_revision_id: { type: "string", format: "uuid" },
+  evidence: { type: "array", maxItems: 256, items: { type: "object", properties: { id: { type: "string", maxLength: 160 }, source: { type: "object", properties: { id: { type: "string", maxLength: 160 }, kind: { type: "string", enum: ["owner","system","document","interview","integration","observation"] }, label: { type: "string", maxLength: 240 } }, required: ["id","kind","label"], additionalProperties: false }, kind: { type: "string", maxLength: 120 }, observed_at: { type: "string", maxLength: 80 }, statement: { type: "string", maxLength: 4000 }, confidence_ceiling: { type: "number", minimum: 0, maximum: 1 }, content_ref: { type: "string", maxLength: 500 } }, required: ["id","source","kind","observed_at","statement","confidence_ceiling"], additionalProperties: false } },
+  facts: { type: "array", maxItems: 256, items: { type: "object", properties: { id: { type: "string", maxLength: 160 }, statement: { type: "string", maxLength: 4000 }, status: { type: "string", enum: ["observed","inferred","owner-confirmed"] }, confidence: { type: "number", minimum: 0, maximum: 1 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 64 }, provenance: { type: "string", maxLength: 240 } }, required: ["id","statement","status","confidence","provenance"], additionalProperties: false } },
+  unknowns: { type: "array", maxItems: 128, items: { type: "object", properties: { id: { type: "string", maxLength: 160 }, question: { type: "string", maxLength: 2000 }, category: { type: "string", maxLength: 120 }, priority: { type: "string", enum: ["low","normal","high","critical"] }, status: { type: "string", enum: ["open","resolved","dismissed"] }, resolution_ref: { type: "string", maxLength: 500 } }, required: ["id","question","category","priority"], additionalProperties: false } },
+  capabilities: { type: "array", maxItems: 128, items: { type: "object", properties: { id: { type: "string", maxLength: 160 }, name: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 2000 }, criticality: { type: "string", enum: ["supporting","important","critical"] }, confidence: { type: "number", minimum: 0, maximum: 1 }, fact_refs: { type: "array", items: { type: "string" }, maxItems: 64 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 64 }, preferred_department_hint: { type: "string", maxLength: 160 } }, required: ["id","name","description","criticality","confidence"], additionalProperties: false } },
+};
+function companyDiscoverySchema(extraProperties: Record<string, unknown> = {}, extraRequired: string[] = []) { return { type: "object" as const, properties: { ...extraProperties, ...COMPANY_DISCOVERY_SCHEMA_PROPERTIES }, required: extraRequired, additionalProperties: false }; }
 
 const COMPANY_INTAKE_SCHEMA_PROPERTIES = {
   mode: { type: "string", enum: ["new", "existing"] },
@@ -359,6 +419,9 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_status", title: "XanxitoSpA status", description: "Use this when you need runtime and Model Law readiness. This is public metadata and never returns secrets.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: [{ type: "noauth" }], _meta: { securitySchemes: [{ type: "noauth" }] }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_create", title: "Create company Work", description: "Use this to create one Company-scoped Work item before material execution. The deployment owns company identity; creating Work does not grant authority or budget.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" }, owner: { type: "string", maxLength: 200 }, objective: { type: "string", maxLength: 4000 }, scope: { type: "string", maxLength: 4000 } }, required: ["work_id", "owner", "objective", "scope"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_get", title: "Get company Work", description: "Use this to read one Work item in the deployment Company scope. It cannot select another Company.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" } }, required: ["work_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_discovery_plan", title: "Plan Company discovery revision", description: "Build an evidence-based Company discovery revision. Read-only and descriptive: it grants no authority, budget, credentials or capabilities.", inputSchema: companyDiscoverySchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_discovery_apply", title: "Apply Company discovery revision", description: "Persist one evidence-based Company discovery revision with lineage and fingerprint. This cannot create Work or grant authority/budget/capabilities.", inputSchema: companyDiscoverySchema({ discovery_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["discovery_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_discovery_status", title: "Get Company discovery revision", description: "Read the latest deployment-scoped Company discovery revision. Discovery is descriptive and cannot authorize execution.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_plan", title: "Plan Company operating model", description: "Primary Generic Company OS intake. Plan a NEW Company or adopt an EXISTING Company into functions, departments, processes, skills and semantic capabilities. Existing departments/processes are preserved first. Read-only: grants no authority, budget or capabilities.", inputSchema: companyIntakeSchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_apply", title: "Apply Company operating model", description: "Persist one deployment-Company operating-model snapshot after planning. It does not create Work, execute providers, invoke KAST, or grant authority/budget/capabilities. Use expected_fingerprint to fail if the preview drifted.", inputSchema: companyIntakeSchema({ formation_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["formation_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_status", title: "Get Company operating model", description: "Read the latest deployment-scoped Company operating-model snapshot. This is the current Company OS model, not harness/KAST state.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -380,6 +443,18 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
+      if (request.params.name === "xspa_company_discovery_plan") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.companyDiscoveryPlan(parseCompanyDiscovery(request.params.arguments), requestContext(input.auth)), "Company discovery revision planned.");
+      }
+      if (request.params.name === "xspa_company_discovery_apply") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
+        return toolResult(await operations.companyDiscoveryApply(parseCompanyDiscoveryApply(request.params.arguments), requestContext(input.auth)), "Company discovery revision applied.");
+      }
+      if (request.params.name === "xspa_company_discovery_status") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.companyDiscoveryStatus(requestContext(input.auth)), "Company discovery revision loaded.");
+      }
       if (request.params.name === "xspa_company_plan") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyPlan(parseCompanyIntake(request.params.arguments), requestContext(input.auth)), "Company operating model planned.");

@@ -499,6 +499,120 @@ export interface BootstrapPlan {
   skillPlan?: import("./skill-registry.js").CompanySkillBootstrapPlan;
 }
 
+export type DiscoverySourceKind = "owner" | "system" | "document" | "interview" | "integration" | "observation";
+export type BusinessFactStatus = "observed" | "inferred" | "owner-confirmed";
+export type BusinessUnknownPriority = "low" | "normal" | "high" | "critical";
+export type BusinessUnknownStatus = "open" | "resolved" | "dismissed";
+export type BusinessCapabilityCriticality = "supporting" | "important" | "critical";
+
+export interface DiscoverySource {
+  id: string;
+  kind: DiscoverySourceKind;
+  label: string;
+}
+
+export interface BusinessEvidence {
+  id: string;
+  source: DiscoverySource;
+  kind: string;
+  observedAt: ISODateTime;
+  statement: string;
+  confidenceCeiling: number;
+  contentRef?: string;
+}
+
+export interface BusinessFact {
+  id: string;
+  statement: string;
+  status: BusinessFactStatus;
+  confidence: number;
+  evidenceRefs: string[];
+  provenance: string;
+  revisionId: UUID;
+}
+
+export interface BusinessUnknown {
+  id: string;
+  question: string;
+  category: string;
+  priority: BusinessUnknownPriority;
+  status: BusinessUnknownStatus;
+  resolutionRef?: string;
+}
+
+export interface BusinessCapability {
+  id: string;
+  name: string;
+  description: string;
+  criticality: BusinessCapabilityCriticality;
+  confidence: number;
+  factRefs: string[];
+  evidenceRefs: string[];
+  preferredDepartmentHint?: string;
+}
+
+export interface DiscoveryRevision {
+  schemaVersion: 1;
+  companyId: UUID;
+  revisionId: UUID;
+  parentRevisionId: UUID | null;
+  sequence: number;
+  createdAt: ISODateTime;
+  sourceRefs: string[];
+  evidence: BusinessEvidence[];
+  facts: BusinessFact[];
+  unknowns: BusinessUnknown[];
+  capabilities: BusinessCapability[];
+  fingerprint: string;
+}
+
+export interface DurableObjective {
+  id: string;
+  statement: string;
+  owner: "executive";
+  status: "active" | "paused" | "retired";
+}
+
+export interface BusinessSignalSource {
+  id: string;
+  kind: "business-capability" | "process" | "external" | "internal";
+  label: string;
+  capabilityScopes: string[];
+  topics: string[];
+  urgency: "normal" | "high" | "critical";
+  dedupeWindowSeconds: number;
+  debounceSeconds: number;
+  grantsAuthority: false;
+}
+
+export interface AgentSubscription {
+  id: string;
+  signalSourceId: string;
+  targetDepartment: string;
+  targetRole: string;
+  capabilityScopes: string[];
+  wakeIntentOnly: true;
+  grantsAuthority: false;
+}
+
+export interface CompanyConstitution {
+  schemaVersion: 1;
+  companyId: UUID;
+  operatingModelFingerprint: string;
+  discoveryRevisionId: UUID | null;
+  durableObjectives: DurableObjective[];
+  authorityBoundaries: Array<{ id: string; subject: string; rule: string; reserved: boolean }>;
+  reservedActions: string[];
+  escalationRules: Array<{ id: string; condition: string; target: string; required: boolean }>;
+  signalSources: BusinessSignalSource[];
+  subscriptions: AgentSubscription[];
+  grantsAuthority: false;
+  grantsBudget: false;
+  grantsCapabilities: false;
+  executesWork: false;
+  fingerprint: string;
+}
+
 export type CoreBusinessFunction = "executive-strategy" | "commercial-revenue" | "finance" | "operations" | "customer" | "administration-risk";
 export type DepartmentDisposition = "preserve" | "create" | "extend";
 export type ProcessDisposition = "preserve" | "create" | "map";
