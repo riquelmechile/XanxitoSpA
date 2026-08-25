@@ -224,7 +224,7 @@ The stated limitation remains that DIRECT was not specifically prompted for resi
 
 ## 10. Current verified repository state
 
-At commit `77b1fc4` the current attention/replay-hardening state passed:
+At commit `a4dfe8e` the current signal-attestation/keyring-hardening state passed:
 
 ```text
 TypeScript typecheck                 PASS
