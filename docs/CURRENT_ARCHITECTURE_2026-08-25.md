@@ -224,7 +224,7 @@ The stated limitation remains that DIRECT was not specifically prompted for resi
 
 ## 10. Current verified repository state
 
-At commit `d6a4453` the current kernel-hardening state passed:
+At commit `77b1fc4` the current attention/replay-hardening state passed:
 
 ```text
 TypeScript typecheck                 PASS
@@ -235,7 +235,7 @@ MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #388 approved
+4R review                            #395 approved
 Exact-head GitHub Actions CI          PASS
 ```
 

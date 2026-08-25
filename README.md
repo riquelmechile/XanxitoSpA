@@ -86,7 +86,7 @@ MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/author
 External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             kernel hardening shipped · 4R #388 approved · exact-head CI PASS
+Release state             attention/replay hardening shipped · 4R #395 approved · exact-head CI PASS
 ```
 
 ---
