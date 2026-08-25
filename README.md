@@ -52,7 +52,7 @@ Production root enrollment is intentionally outside ordinary MCP writes. Trusted
 
 The governed wake engine operationalizes that attention plane without creating a second model scheduler. `BusinessSystemConnector` is the single discovery + perception abstraction: `describe()` exposes system shape and `poll(cursor)` emits ongoing raw events. The deterministic `CsvSignalSource` implements that same connector contract. Company-wide heartbeat leases remain the fencing/timing boundary, while each connector has its own durable opaque `SignalCursor` keyed by Company + source. Subscriptions match attested events declaratively, and urgency combines opportunity cost of inaction with action-window pressure. Sub-threshold urgency accumulates durably and replayed event/subscription pairs are deduplicated. Crossing a threshold emits a `WakeWorkProposal` only: `workCreated=false`, `executesWork=false`, and all authority/budget/capability grants remain false until the normal Work + adjudication path accepts it.
 
-**Current attention-plane boundary:** `xspa_company_wake_evaluate` remains intentionally diagnostic-only, so MCP callers still cannot manufacture observed events. `BusinessSystemConnector.poll()` returns raw events that are type-forbidden from carrying trusted `signal` provenance; only `pollObservedBusinessSystem()` can mint `ObservedBusinessEvent` records with deterministic connector attestations. `GovernedObservedSignalScheduler` now claims the durable `observedSignalIdempotencyKey()` before wake evaluation and advances a fenced per-source cursor only after successful settlement. `BusinessSystemConnectorRegistry` + `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart on the durable cursor. No connector is auto-registered from ordinary MCP input: production wake becomes live only when the trusted host explicitly binds real connectors.
+**Current attention-plane boundary:** `xspa_company_wake_evaluate` remains intentionally diagnostic-only, so MCP callers still cannot manufacture observed events. `BusinessSystemConnector.poll()` returns raw events that are type-forbidden from carrying trusted `signal` provenance; only `pollObservedBusinessSystem()` can mint `ObservedBusinessEvent` records with deterministic connector attestations. `GovernedObservedSignalScheduler` claims the durable `observedSignalIdempotencyKey()` before wake evaluation and advances a fenced per-source cursor only after successful settlement. `BusinessSystemConnectorRegistry` + `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart on the durable cursor. Trusted runtime bootstrap can now bind provider-neutral read-only CSV connectors through `XSPA_BUSINESS_SYSTEM_CONNECTORS_JSON`, with every `relativePath` confined beneath `XSPA_SIGNAL_ROOT`; secret-bearing config, path traversal and unknown connector transports fail closed. No connector is auto-registered from ordinary MCP input, and no model-provider API is introduced.
 
 ## What XanxitoSpA is
 
@@ -81,12 +81,12 @@ Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
 Wake                     governed urgency/threshold accumulation · attested connector scheduler + per-source fenced cursors · MCP evaluate stays diagnostic/asserted-only
 Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
-Local test suite         108 PASS · PostgreSQL 18 smoke covers heartbeat/source cursor fencing, asset CAS + observed-signal replay ledger
+Local test suite         111 PASS · PostgreSQL 18 smoke covers heartbeat/source cursor fencing, asset CAS + observed-signal replay ledger
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
 External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             governed connector registry/daemon + source-cursor hardening · 4R #404 approved · exact-head CI PASS
+Release state             governed connector registry/daemon + generic CSV bootstrap · verification pending
 ```
 
 ---

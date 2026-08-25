@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import path from "node:path";
 import type { AuthorityMandate, BusinessEvent, CompanyAsset, CompanyPrincipalTrustAnchor, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, ManifestBusinessSystemConnector, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, CsvSignalSource, ManifestBusinessSystemConnector, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
 import type { AuthorityMandateInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
@@ -110,6 +111,51 @@ function delegatedKeyIdentities(mandates: AuthorityMandate[]): Set<string> {
     }
   }
   return result;
+}
+
+export interface ConfiguredObservedConnector {
+  connector: BusinessSystemConnector;
+  enabled: boolean;
+}
+
+const CONNECTOR_SECRET_KEYS = new Set(["privatekey", "private_key", "password", "secret", "token", "apikey", "api_key", "authorization"]);
+function connectorConfigContainsSecret(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(connectorConfigContainsSecret);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, child]) => CONNECTOR_SECRET_KEYS.has(key.toLowerCase()) || connectorConfigContainsSecret(child));
+}
+
+export function parseObservedConnectorConfig(raw: string | undefined, context: { companyId: string; signalRoot: string }): ConfiguredObservedConnector[] {
+  if (!context.companyId.trim()) throw new Error("OBSERVED_CONNECTOR_COMPANY_REQUIRED");
+  if (!context.signalRoot.trim()) throw new Error("OBSERVED_CONNECTOR_SIGNAL_ROOT_REQUIRED");
+  if (!raw?.trim()) return [];
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error("OBSERVED_CONNECTOR_CONFIG_INVALID_JSON"); }
+  if (!Array.isArray(parsed) || parsed.length > 32) throw new Error("OBSERVED_CONNECTOR_CONFIG_INVALID");
+  if (connectorConfigContainsSecret(parsed) || SECRET_LIKE.test(JSON.stringify(parsed))) throw new Error("OBSERVED_CONNECTOR_SECRET_MATERIAL_REJECTED");
+  const root = path.resolve(context.signalRoot);
+  const ids = new Set<string>();
+  return parsed.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`OBSERVED_CONNECTOR_CONFIG_INVALID:${index}`);
+    const obj = entry as Record<string, unknown>;
+    if (obj.type !== "csv") throw new Error(`OBSERVED_CONNECTOR_TYPE_UNSUPPORTED:${index}`);
+    const id = String(obj.id ?? "").trim();
+    if (!id) throw new Error(`OBSERVED_CONNECTOR_ID_REQUIRED:${index}`);
+    if (ids.has(id)) throw new Error(`OBSERVED_CONNECTOR_DUPLICATE:${id}`);
+    ids.add(id);
+    const capabilitiesRaw = obj.capabilities;
+    if (!Array.isArray(capabilitiesRaw) || capabilitiesRaw.length < 1 || capabilitiesRaw.length > 64 || capabilitiesRaw.some((value) => typeof value !== "string" || !value.trim())) throw new Error(`OBSERVED_CONNECTOR_CAPABILITIES_INVALID:${id}`);
+    const relativePath = String(obj.relativePath ?? obj.relative_path ?? "").trim();
+    if (!relativePath || path.isAbsolute(relativePath)) throw new Error(`OBSERVED_CONNECTOR_PATH_OUTSIDE_SIGNAL_ROOT:${id}`);
+    const resolved = path.resolve(root, relativePath);
+    if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) throw new Error(`OBSERVED_CONNECTOR_PATH_OUTSIDE_SIGNAL_ROOT:${id}`);
+    const enabled = obj.enabled === undefined ? true : obj.enabled;
+    if (typeof enabled !== "boolean") throw new Error(`OBSERVED_CONNECTOR_ENABLED_INVALID:${id}`);
+    return {
+      connector: new CsvSignalSource({ id, companyId: context.companyId, capabilities: [...new Set(capabilitiesRaw.map((value) => String(value).trim()))], path: resolved }),
+      enabled,
+    };
+  });
 }
 
 export class EnvironmentXspaAppOperations implements XspaAppOperations {
@@ -532,10 +578,13 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     return { ...result, companyScoped: true, readyForOrganizationSynthesis: organizationReady && governanceReady };
   }
 
-  createObservedSignalDaemon(connectors: BusinessSystemConnector[]): GovernedObservedSignalDaemon {
+  createObservedSignalDaemon(connectors: Array<BusinessSystemConnector | ConfiguredObservedConnector>): GovernedObservedSignalDaemon {
     const { store, companyId } = this.requireRuntime();
     const registry = new BusinessSystemConnectorRegistry();
-    for (const connector of connectors) registry.register(connector);
+    for (const entry of connectors) {
+      if ("connector" in entry) registry.register(entry.connector, { enabled: entry.enabled });
+      else registry.register(entry);
+    }
     const scheduler = new GovernedObservedSignalScheduler({
       store,
       loadConstitution: async () => {
@@ -1122,6 +1171,12 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
   }
   const skillRegistry = await createFileSystemSkillRegistry(process.env.XSPA_REPO_ROOT?.trim() || process.cwd());
   const authorityTrustAnchors = parseAuthorityTrustAnchors(process.env.XSPA_AUTHORITY_TRUST_ANCHORS_JSON, companyId);
+  const observedRaw = process.env.XSPA_BUSINESS_SYSTEM_CONNECTORS_JSON;
+  let observedConnectors: ConfiguredObservedConnector[] = [];
+  if (observedRaw?.trim()) {
+    if (!store || !companyId) throw new Error("OBSERVED_CONNECTOR_RUNTIME_REQUIRED");
+    observedConnectors = parseObservedConnectorConfig(observedRaw, { companyId, signalRoot: process.env.XSPA_SIGNAL_ROOT?.trim() ?? "" });
+  }
   const operations = new EnvironmentXspaAppOperations({
     ...(store ? { store } : {}),
     ...(workStore ? { workStore } : {}),
@@ -1133,5 +1188,19 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
     creativeSupervisorPrincipal: process.env.XSPA_CREATIVE_SUPERVISOR_PRINCIPAL?.trim() || "creative-supervisor",
     authorityTrustAnchors,
   });
-  return { operations, close: async () => { if (db) await db.close(); } };
+  let stopObservedDaemon: (() => void) | undefined;
+  if (observedConnectors.length > 0 && companyId) {
+    const intervalMs = Number(process.env.XSPA_OBSERVED_SIGNAL_INTERVAL_MS?.trim() || "30000");
+    if (!Number.isInteger(intervalMs) || intervalMs < 1_000 || intervalMs > 3_600_000) throw new Error("OBSERVED_SIGNAL_DAEMON_INTERVAL_INVALID");
+    const leaseMs = Number(process.env.XSPA_OBSERVED_SIGNAL_LEASE_MS?.trim() || String(Math.max(30_000, intervalMs * 2)));
+    if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 7_200_000) throw new Error("OBSERVED_SIGNAL_DAEMON_LEASE_INVALID");
+    const daemon = operations.createObservedSignalDaemon(observedConnectors);
+    stopObservedDaemon = daemon.start({
+      companyId,
+      workerId: process.env.XSPA_OBSERVED_SIGNAL_WORKER_ID?.trim() || `mcp-observed:${process.pid}`,
+      intervalMs,
+      leaseMs,
+    });
+  }
+  return { operations, close: async () => { stopObservedDaemon?.(); if (db) await db.close(); } };
 }

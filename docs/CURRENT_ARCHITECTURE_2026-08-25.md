@@ -228,7 +228,7 @@ At commit `a4dfe8e` the current signal-attestation/keyring-hardening state passe
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               108 PASS
+Unit/integration suite               111 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
@@ -254,7 +254,7 @@ The MCP remains the control boundary and defaults to loopback. Broader deploymen
 
 ## Attention-plane status
 
-`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. `BusinessSystemConnector.poll()` returns `RawBusinessEvent[]`, where trusted `signal` provenance is type-forbidden. `pollObservedBusinessSystem()` is the only attestation boundary that converts raw connector output into `ObservedBusinessEvent[]` with deterministic attestation references and declared-capability checks. `GovernedObservedSignalScheduler` now durably claims `observedSignalIdempotencyKey(event)` before wake evaluation and advances a dedicated Company+source `SignalCursor` only under the current heartbeat fencing token and only after successful settlement; unknown/reconciliation blocks cursor advancement. `BusinessSystemConnectorRegistry` and `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart from those durable cursors. Ordinary MCP input still cannot register a connector or mint observed provenance; trusted host binding is required before production autonomous wake is live.
+`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. `BusinessSystemConnector.poll()` returns `RawBusinessEvent[]`, where trusted `signal` provenance is type-forbidden. `pollObservedBusinessSystem()` is the only attestation boundary that converts raw connector output into `ObservedBusinessEvent[]` with deterministic attestation references and declared-capability checks. `GovernedObservedSignalScheduler` durably claims `observedSignalIdempotencyKey(event)` before wake evaluation and advances a dedicated Company+source `SignalCursor` only under the current heartbeat fencing token and only after successful settlement; unknown/reconciliation blocks cursor advancement. `BusinessSystemConnectorRegistry` and `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart from those durable cursors. Trusted runtime bootstrap may now register read-only CSV connectors from `XSPA_BUSINESS_SYSTEM_CONNECTORS_JSON`; each path is relative to and confined beneath `XSPA_SIGNAL_ROOT`, and secret-bearing config, traversal, unknown transports or missing runtime state fail closed. Ordinary MCP input still cannot register connectors or mint observed provenance, and this polling loop makes zero model-provider calls.
 
 Wake replay state now uses a time retention watermark (`replayRetentionSeconds`) plus per-key observation timestamps. Durable runtime idempotency remains the authoritative replay ledger; the JSONB wake state is compacted by age rather than by a fixed last-N slice.
 
