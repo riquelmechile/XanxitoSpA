@@ -359,6 +359,7 @@ export * from "./company-discovery.js";
 
 export * from "./company-constitution.js";
 
+export * from "./business-system-connector.js";
 export * from "./signal-source.js";
 export * from "./csv-signal-source.js";
 export * from "./governed-wake.js";
