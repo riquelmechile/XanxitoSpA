@@ -15,6 +15,7 @@ import type {
   MissionGraph,
   ProviderDescriptor,
   ScheduledJob,
+  SignalCursor,
   Work,
 } from "../../contracts/src/index.js";
 import { DomainError } from "../../domain/src/index.js";
@@ -389,6 +390,40 @@ export class PostgresRuntimeStore implements RuntimeStore {
         `UPDATE xspa.heartbeat_leases SET lease_until=clock_timestamp(),updated_at=clock_timestamp()
          WHERE company_id=$1 AND lease_owner=$2 AND fencing_token=$3`,
         [lease.companyId, lease.owner, lease.fencingToken],
+      );
+      return result.rowCount === 1;
+    });
+  }
+
+  async getSignalCursor(companyId: string, sourceId: string): Promise<SignalCursor> {
+    return this.db.withCompanyTransaction(companyId, async (client) => {
+      const result = await client.query<QueryResultRow>("SELECT source_id,position FROM xspa.signal_source_cursors WHERE company_id=$1 AND source_id=$2", [companyId, sourceId]);
+      const row = result.rows[0];
+      return row ? { sourceId: String(row.source_id), position: row.position === null ? null : String(row.position) } : { sourceId, position: null };
+    });
+  }
+
+  async saveSignalCursor(lease: FencedLease, cursor: SignalCursor, _now: Date): Promise<boolean> {
+    if (!cursor.sourceId.trim()) return false;
+    return this.db.withCompanyTransaction(lease.companyId, async (client) => {
+      const result = await client.query(
+        `INSERT INTO xspa.signal_source_cursors(company_id,source_id,position,fencing_token,updated_at)
+         SELECT $1,$4,$5,$3,clock_timestamp()
+         WHERE EXISTS (
+           SELECT 1 FROM xspa.heartbeat_leases
+           WHERE company_id=$1 AND lease_owner=$2 AND fencing_token=$3 AND lease_until > clock_timestamp()
+         )
+         ON CONFLICT (company_id,source_id) DO UPDATE SET
+           position=EXCLUDED.position,
+           fencing_token=EXCLUDED.fencing_token,
+           updated_at=clock_timestamp()
+         WHERE EXISTS (
+           SELECT 1 FROM xspa.heartbeat_leases
+           WHERE company_id=$1 AND lease_owner=$2 AND fencing_token=$3 AND lease_until > clock_timestamp()
+         )
+           AND EXCLUDED.fencing_token >= xspa.signal_source_cursors.fencing_token
+         RETURNING source_id`,
+        [lease.companyId, lease.owner, lease.fencingToken, cursor.sourceId, cursor.position],
       );
       return result.rowCount === 1;
     });

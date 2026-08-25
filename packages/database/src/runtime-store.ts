@@ -7,6 +7,7 @@ import type {
   IdempotencyState,
   ProviderDescriptor,
   ScheduledJob,
+  SignalCursor,
 } from "../../contracts/src/index.js";
 
 export interface RuntimeStore {
@@ -17,6 +18,8 @@ export interface RuntimeStore {
   claimHeartbeatLease(companyId: string, owner: string, now: Date, leaseMs: number): Promise<FencedLease | null>;
   isHeartbeatLeaseCurrent(lease: FencedLease, now: Date): Promise<boolean>;
   releaseHeartbeatLease(lease: FencedLease, now: Date): Promise<boolean>;
+  getSignalCursor(companyId: string, sourceId: string): Promise<SignalCursor>;
+  saveSignalCursor(lease: FencedLease, cursor: SignalCursor, now: Date): Promise<boolean>;
 
   enqueueJob(job: ScheduledJob): Promise<void>;
   getJob(companyId: string, jobId: string): Promise<ScheduledJob | null>;
@@ -50,6 +53,7 @@ export class InMemoryRuntimeStore implements RuntimeStore {
   readonly events = new Map<string, BusinessEvent>();
   readonly cursors = new Map<string, HeartbeatCursor>();
   readonly heartbeatLeases = new Map<string, FencedLease>();
+  readonly signalCursors = new Map<string, SignalCursor & { fencingToken: number }>();
   readonly jobs = new Map<string, ScheduledJob>();
   readonly idempotency = new Map<string, IdempotencyRecord>();
   readonly assets = new Map<string, CompanyAsset>();
@@ -120,6 +124,21 @@ export class InMemoryRuntimeStore implements RuntimeStore {
     const current = this.heartbeatLeases.get(lease.companyId);
     if (!current || current.owner !== lease.owner || current.fencingToken !== lease.fencingToken) return false;
     this.heartbeatLeases.set(lease.companyId, { ...current, leaseUntil: now.toISOString() });
+    return true;
+  }
+
+  async getSignalCursor(companyId: string, sourceId: string): Promise<SignalCursor> {
+    const current = this.signalCursors.get(`${companyId}:${sourceId}`);
+    return current ? { sourceId: current.sourceId, position: current.position } : { sourceId, position: null };
+  }
+
+  async saveSignalCursor(lease: FencedLease, cursor: SignalCursor, now: Date): Promise<boolean> {
+    if (cursor.sourceId.trim().length === 0) return false;
+    if (!(await this.isHeartbeatLeaseCurrent(lease, now))) return false;
+    const key = `${lease.companyId}:${cursor.sourceId}`;
+    const current = this.signalCursors.get(key);
+    if (current && lease.fencingToken < current.fencingToken) return false;
+    this.signalCursors.set(key, { ...clone(cursor), fencingToken: lease.fencingToken });
     return true;
   }
 

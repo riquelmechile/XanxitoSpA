@@ -150,7 +150,7 @@ wake ≠ Work
 wake ≠ authority
 ```
 
-Replay protection uses durable event/subscription accounting plus bounded defensive caching. Heartbeat cursor/fencing remains the timing boundary rather than introducing a second scheduler.
+Replay protection uses durable event/subscription accounting plus bounded defensive caching. The Company heartbeat lease remains the fencing/timing boundary, while each connector persists an independent opaque source cursor so one integration cannot advance or corrupt another integration's position.
 
 ## 7. Execution boundary
 
@@ -228,14 +228,14 @@ At commit `a4dfe8e` the current signal-attestation/keyring-hardening state passe
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               105 PASS
+Unit/integration suite               108 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            pending for observed scheduler/freeze
+4R review                            #404 approved
 Exact-head GitHub Actions CI          PASS
 ```
 
@@ -253,7 +253,7 @@ The MCP remains the control boundary and defaults to loopback. Broader deploymen
 
 ## Attention-plane status
 
-`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. `BusinessSystemConnector.poll()` returns `RawBusinessEvent[]`, where trusted `signal` provenance is type-forbidden. The kernel exposes `pollObservedBusinessSystem()` as the only attestation boundary that converts raw connector output into `ObservedBusinessEvent[]` with deterministic attestation references and declared-capability checks. A future scheduler must durably claim `observedSignalIdempotencyKey(event)` before evaluating the event, so the JSON watermark remains secondary replay defense rather than the authoritative ledger. Production connector registration/scheduling is still pending; autonomous wake is therefore fail-closed rather than silently spoofable.
+`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. `BusinessSystemConnector.poll()` returns `RawBusinessEvent[]`, where trusted `signal` provenance is type-forbidden. `pollObservedBusinessSystem()` is the only attestation boundary that converts raw connector output into `ObservedBusinessEvent[]` with deterministic attestation references and declared-capability checks. `GovernedObservedSignalScheduler` now durably claims `observedSignalIdempotencyKey(event)` before wake evaluation and advances a dedicated Company+source `SignalCursor` only under the current heartbeat fencing token and only after successful settlement; unknown/reconciliation blocks cursor advancement. `BusinessSystemConnectorRegistry` and `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart from those durable cursors. Ordinary MCP input still cannot register a connector or mint observed provenance; trusted host binding is required before production autonomous wake is live.
 
 Wake replay state now uses a time retention watermark (`replayRetentionSeconds`) plus per-key observation timestamps. Durable runtime idempotency remains the authoritative replay ledger; the JSONB wake state is compacted by age rather than by a fixed last-N slice.
 

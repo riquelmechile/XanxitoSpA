@@ -368,3 +368,4 @@ export * from "./governed-wake.js";
 
 export * from "./governed-heartbeat.js";
 export * from "./observed-signal-scheduler.js";
+export * from "./business-system-registry.js";

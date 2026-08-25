@@ -62,8 +62,8 @@ describe("GovernedObservedSignalScheduler", () => {
     expect(first.status).toBe("processed");
     expect(first.newEventCount).toBe(1);
     expect(evaluated).toHaveLength(1);
-    const cursor = await store.getHeartbeatCursor(companyId, new Date());
-    expect(cursor.lastEventId).toBe("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    const cursor = await store.getSignalCursor(companyId, "system:test");
+    expect(cursor.position).toBe("1");
     const replay = await scheduler.pollOnce({ companyId, connector: connector(), workerId: "worker-b", now: new Date("2026-08-25T20:02:00.000Z"), leaseMs: 86_400_000 });
     expect(replay.newEventCount).toBe(0);
     expect(evaluated).toHaveLength(1);
@@ -100,7 +100,7 @@ describe("GovernedObservedSignalScheduler", () => {
       persistWakeResult: async () => undefined,
     });
     await expect(scheduler.pollOnce({ companyId, connector: firstConnector, workerId: "worker-a", now: new Date("2026-08-25T20:03:00.000Z"), leaseMs: 86_400_000 })).rejects.toThrow(/OBSERVED_SIGNAL_RECONCILIATION_REQUIRED/);
-    const cursor = await store.getHeartbeatCursor(companyId, new Date());
-    expect(cursor.lastEventId).toBeUndefined();
+    const cursor = await store.getSignalCursor(companyId, "system:test");
+    expect(cursor.position).toBeNull();
   });
 });

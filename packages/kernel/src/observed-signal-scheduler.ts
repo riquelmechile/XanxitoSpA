@@ -30,16 +30,17 @@ export class GovernedObservedSignalScheduler {
 
   async pollOnce(input: { companyId: string; connector: BusinessSystemConnector; workerId: string; now?: Date; leaseMs?: number }): Promise<ObservedSignalPollCycleResult> {
     const now = input.now ?? new Date();
+    const clock = input.now ? () => input.now! : () => new Date();
     const { store } = this.persistence;
     const lease = await store.claimHeartbeatLease(input.companyId, input.workerId, now, input.leaseMs ?? 30_000);
     if (!lease) return { status: "contended", polledEventCount: 0, newEventCount: 0, duplicateEventCount: 0, proposalCount: 0 };
 
     try {
-      const cursor = await store.getHeartbeatCursor(input.companyId, now);
+      const cursor = await store.getSignalCursor(input.companyId, input.connector.id);
       const polled = await pollObservedBusinessSystem({
         connector: input.connector,
         companyId: input.companyId,
-        cursor: { sourceId: input.connector.id, position: cursor.lastEventId ?? null },
+        cursor,
       });
       const fresh: Array<{ event: ObservedBusinessEvent; key: string; owner: string; fencingToken: number }> = [];
       let duplicateEventCount = 0;
@@ -59,8 +60,7 @@ export class GovernedObservedSignalScheduler {
       }
 
       if (fresh.length === 0) {
-        const lastEvent = polled.events.at(-1);
-        const persisted = await store.saveHeartbeatCursor(lease, lastEvent, new Date());
+        const persisted = await store.saveSignalCursor(lease, polled.cursor, clock());
         if (!persisted) throw new Error("OBSERVED_SIGNAL_STALE_LEASE_CURSOR");
         return { status: "processed", polledEventCount: polled.events.length, newEventCount: 0, duplicateEventCount, proposalCount: 0 };
       }
@@ -73,27 +73,26 @@ export class GovernedObservedSignalScheduler {
         ]);
         const events = fresh.map((item) => item.event);
         const wake = this.engine.evaluate({ companyId: input.companyId, constitution, events, priorState: priorWake.state, now });
-        if (!(await store.isHeartbeatLeaseCurrent(lease, new Date()))) throw new Error("OBSERVED_SIGNAL_STALE_LEASE_BEFORE_WAKE_PERSIST");
+        if (!(await store.isHeartbeatLeaseCurrent(lease, clock()))) throw new Error("OBSERVED_SIGNAL_STALE_LEASE_BEFORE_WAKE_PERSIST");
         await this.persistence.persistWakeResult(wake, events, priorWake.version, now);
         wakePersisted = true;
         for (const item of fresh) {
-          const settled = await store.markIdempotency(input.companyId, item.key, item.owner, item.fencingToken, "applied", new Date(), { eventId: item.event.id, attestationRef: item.event.signal.attestationRef });
+          const settled = await store.markIdempotency(input.companyId, item.key, item.owner, item.fencingToken, "applied", clock(), { eventId: item.event.id, attestationRef: item.event.signal.attestationRef });
           if (!settled) throw new Error(`OBSERVED_SIGNAL_IDEMPOTENCY_FENCING_LOST:${item.event.id}`);
         }
-        const lastEvent = polled.events.at(-1);
-        const cursorSaved = await store.saveHeartbeatCursor(lease, lastEvent, new Date());
+        const cursorSaved = await store.saveSignalCursor(lease, polled.cursor, clock());
         if (!cursorSaved) throw new Error("OBSERVED_SIGNAL_STALE_LEASE_CURSOR");
         return { status: "processed", polledEventCount: polled.events.length, newEventCount: fresh.length, duplicateEventCount, proposalCount: wake.proposals.length };
       } catch (error) {
         for (const item of fresh) {
           const current = await store.getIdempotency(input.companyId, item.key);
           if (current?.state !== "intent") continue;
-          await store.markIdempotency(input.companyId, item.key, item.owner, item.fencingToken, wakePersisted ? "unknown" : "failed", new Date(), undefined, error instanceof Error ? error.message.slice(0, 240) : "Observed signal scheduler failed");
+          await store.markIdempotency(input.companyId, item.key, item.owner, item.fencingToken, wakePersisted ? "unknown" : "failed", clock(), undefined, error instanceof Error ? error.message.slice(0, 240) : "Observed signal scheduler failed");
         }
         throw error;
       }
     } finally {
-      await store.releaseHeartbeatLease(lease, new Date());
+      await store.releaseHeartbeatLease(lease, clock());
     }
   }
 }

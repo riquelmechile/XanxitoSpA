@@ -50,9 +50,9 @@ Authority-bearing owner answers are not represented by `xspa.write` or by a muta
 
 Production root enrollment is intentionally outside ordinary MCP writes. Trusted founder/owner/board public keys are supplied through `XSPA_AUTHORITY_TRUST_ANCHORS_JSON`; if no root is configured, mandate verification reports `AUTHORITY_TRUST_NOT_CONFIGURED` and mandate application fails closed.
 
-The governed wake engine operationalizes that attention plane without creating a second scheduler. `BusinessSystemConnector` is the single discovery + perception abstraction: `describe()` exposes system shape and `poll(cursor)` emits ongoing `BusinessEvent`s. The deterministic `CsvSignalSource` implements that same connector contract. Existing fenced heartbeat cursors remain the timing boundary; subscriptions match events declaratively, and urgency combines opportunity cost of inaction with action-window pressure. Sub-threshold urgency accumulates durably and replayed event/subscription pairs are deduplicated. Crossing a threshold emits a `WakeWorkProposal` only: `workCreated=false`, `executesWork=false`, and all authority/budget/capability grants remain false until the normal Work + adjudication path accepts it.
+The governed wake engine operationalizes that attention plane without creating a second model scheduler. `BusinessSystemConnector` is the single discovery + perception abstraction: `describe()` exposes system shape and `poll(cursor)` emits ongoing raw events. The deterministic `CsvSignalSource` implements that same connector contract. Company-wide heartbeat leases remain the fencing/timing boundary, while each connector has its own durable opaque `SignalCursor` keyed by Company + source. Subscriptions match attested events declaratively, and urgency combines opportunity cost of inaction with action-window pressure. Sub-threshold urgency accumulates durably and replayed event/subscription pairs are deduplicated. Crossing a threshold emits a `WakeWorkProposal` only: `workCreated=false`, `executesWork=false`, and all authority/budget/capability grants remain false until the normal Work + adjudication path accepts it.
 
-**Current attention-plane boundary:** `xspa_company_wake_evaluate` is intentionally diagnostic-only. MCP callers cannot create observed events. `BusinessSystemConnector.poll()` now returns raw events that are type-forbidden from carrying trusted `signal` provenance; only `pollObservedBusinessSystem()` can mint `ObservedBusinessEvent` records with deterministic connector attestations. A future scheduler must claim the exported durable `observedSignalIdempotencyKey()` for each observed event before wake evaluation. Production scheduling/registration of live connectors is not yet wired, so autonomous wake is not claimed as live today.
+**Current attention-plane boundary:** `xspa_company_wake_evaluate` remains intentionally diagnostic-only, so MCP callers still cannot manufacture observed events. `BusinessSystemConnector.poll()` returns raw events that are type-forbidden from carrying trusted `signal` provenance; only `pollObservedBusinessSystem()` can mint `ObservedBusinessEvent` records with deterministic connector attestations. `GovernedObservedSignalScheduler` now claims the durable `observedSignalIdempotencyKey()` before wake evaluation and advances a fenced per-source cursor only after successful settlement. `BusinessSystemConnectorRegistry` + `GovernedObservedSignalDaemon` provide deterministic enabled-connector polling and safe restart on the durable cursor. No connector is auto-registered from ordinary MCP input: production wake becomes live only when the trusted host explicitly binds real connectors.
 
 ## What XanxitoSpA is
 
@@ -78,15 +78,15 @@ Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
 Discovery                revisioned evidence/facts/unknowns/capabilities + scoped readiness
 Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
-Wake                     governed urgency/threshold accumulation · MCP evaluate is diagnostic/asserted-only until trusted connector polling is wired
+Wake                     governed urgency/threshold accumulation · attested connector scheduler + per-source fenced cursors · MCP evaluate stays diagnostic/asserted-only
 Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
-Local test suite         105 PASS · PostgreSQL 18 smoke covers fencing, asset CAS + observed-signal replay ledger
+Local test suite         108 PASS · PostgreSQL 18 smoke covers heartbeat/source cursor fencing, asset CAS + observed-signal replay ledger
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
 External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             observed scheduler + keyring hardening ready for review · exact-head pending
+Release state             governed connector registry/daemon + source-cursor hardening · 4R #404 approved · exact-head CI pending
 ```
 
 ---

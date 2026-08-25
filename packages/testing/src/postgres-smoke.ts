@@ -142,6 +142,12 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(await runtimeStore.saveHeartbeatCursor(lease2, newerEvent, new Date()), "current lease failed monotonic cursor advance");
     assert(!(await runtimeStore.saveHeartbeatCursor(lease2, event, new Date())), "cursor regressed to older event");
     assert((await runtimeStore.getHeartbeatCursor(companyA, new Date())).lastEventId === newerEvent.id, "cursor monotonic guard lost newest event");
+    assert(!(await runtimeStore.saveSignalCursor(lease1, { sourceId: "system:a", position: "stale" }, new Date())), "stale heartbeat lease advanced signal cursor");
+    assert(await runtimeStore.saveSignalCursor(lease2, { sourceId: "system:a", position: "cursor-a-1" }, new Date()), "current lease failed signal cursor advance");
+    assert(await runtimeStore.saveSignalCursor(lease2, { sourceId: "system:b", position: "cursor-b-9" }, new Date()), "current lease failed second source cursor advance");
+    assert((await runtimeStore.getSignalCursor(companyA, "system:a")).position === "cursor-a-1", "signal cursor A not durable");
+    assert((await runtimeStore.getSignalCursor(companyA, "system:b")).position === "cursor-b-9", "signal cursor B not isolated");
+    assert((await runtimeStore.getSignalCursor(companyA, "system:missing")).position === null, "missing signal cursor did not start null");
     assert(!(await runtimeStore.releaseHeartbeatLease(lease1, new Date())), "stale heartbeat lease released current holder");
     assert(await runtimeStore.releaseHeartbeatLease(lease2, new Date()), "current heartbeat lease failed release");
 
@@ -180,7 +186,7 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(!(await runtimeStore.markIdempotency(companyA, orphanKey, "worker-crashed", orphan.record.fencingToken, "applied", new Date(), { unsafe: true })), "stale idempotency owner settled after reconciliation takeover");
     assert(await runtimeStore.markIdempotency(companyA, orphanKey, "reconciler", recovery.fencingToken, "reconciled", new Date(), { observed: "not-applied" }), "reconciler could not settle durable orphan");
 
-    console.log("PASS PostgreSQL migrations/checksum lock + RLS + CompanyAsset CAS + CorporateGene + KAST/session close + event idempotency + fenced monotonic heartbeat cursor + orphan reconciliation");
+    console.log("PASS PostgreSQL migrations/checksum lock + RLS + CompanyAsset CAS + CorporateGene + KAST/session close + event idempotency + fenced monotonic heartbeat/source cursors + orphan reconciliation");
   } finally {
     await app?.close();
     await admin.close();

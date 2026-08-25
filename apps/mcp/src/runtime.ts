@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { AuthorityMandate, BusinessEvent, CompanyAsset, CompanyPrincipalTrustAnchor, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, ManifestBusinessSystemConnector, verifyAuthorityMandate, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, ManifestBusinessSystemConnector, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
 import type { AuthorityMandateInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
@@ -530,6 +530,31 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const organizationReady = result.readiness.find((item) => item.scope === "organization")?.sufficient === true;
     const governanceReady = result.readiness.find((item) => item.scope === "governance")?.sufficient === true;
     return { ...result, companyScoped: true, readyForOrganizationSynthesis: organizationReady && governanceReady };
+  }
+
+  createObservedSignalDaemon(connectors: BusinessSystemConnector[]): GovernedObservedSignalDaemon {
+    const { store, companyId } = this.requireRuntime();
+    const registry = new BusinessSystemConnectorRegistry();
+    for (const connector of connectors) registry.register(connector);
+    const scheduler = new GovernedObservedSignalScheduler({
+      store,
+      loadConstitution: async () => {
+        const operatingModel = await this.latestOperatingModelSnapshot();
+        if (!operatingModel) throw new Error("COMPANY_OPERATING_MODEL_NOT_FOUND");
+        return projectCompanyConstitution({ companyId, operatingModel, discovery: await this.latestDiscovery() });
+      },
+      loadWakeState: async () => this.latestWakeState(),
+      persistWakeResult: async (result, _events, expectedVersion, now) => {
+        const evaluationId = randomUUID();
+        const stateSaved = await store.saveAsset(createWakeStateAsset({ companyId, evaluationId, state: result.state }, now), expectedVersion);
+        if (!stateSaved) throw new Error("OBSERVED_SIGNAL_WAKE_STATE_VERSION_CONFLICT");
+        for (const proposal of result.proposals) {
+          const proposalSaved = await store.saveAsset(createWakeProposalAsset(proposal, evaluationId, now), 0);
+          if (!proposalSaved) throw new Error(`OBSERVED_SIGNAL_WAKE_PROPOSAL_CONFLICT:${proposal.id}`);
+        }
+      },
+    });
+    return new GovernedObservedSignalDaemon(registry, scheduler);
   }
 
   async companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown> {
