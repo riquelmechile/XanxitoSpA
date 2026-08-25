@@ -7,6 +7,28 @@ import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInp
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
 
+function discoveryRequirement(unknown: { category: string; resolutionRequirement?: string }): string {
+  if (unknown.resolutionRequirement) return unknown.resolutionRequirement;
+  if (unknown.category === "governance") return "constitutional-mandate";
+  if (unknown.category === "finance" || unknown.category === "organization") return "owner-confirmation";
+  return "operator-confirmation";
+}
+
+function assertUntrustedDiscoveryWriteSafe(input: CompanyDiscoveryApplyInput, parent: DiscoveryRevision | null): void {
+  for (const fact of input.facts) {
+    if (fact.status !== "owner-confirmed") continue;
+    const inherited = parent?.facts.some((prior) => prior.id === fact.id && prior.status === "owner-confirmed" && prior.statement === fact.statement && prior.provenance === fact.provenance);
+    if (!inherited) throw new Error("OWNER_IDENTITY_REQUIRED:owner_confirmed_fact");
+  }
+  for (const unknown of input.unknowns) {
+    const requirement = discoveryRequirement(unknown);
+    if (requirement !== "owner-confirmation" && requirement !== "constitutional-mandate") continue;
+    const prior = parent?.unknowns.find((item) => item.id === unknown.id);
+    const changedToNonOpen = unknown.status !== "open" && (!prior || prior.status !== unknown.status || prior.resolutionRef !== unknown.resolutionRef);
+    if (changedToNonOpen) throw new Error(`OWNER_IDENTITY_REQUIRED:${requirement}:${unknown.id}`);
+  }
+}
+
 function materiality(severity: KastReflectInput["severity"]): ScheduledJob["materiality"] {
   if (severity === "critical" || severity === "high") return "high";
   if (severity === "medium") return "medium";
@@ -199,6 +221,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     try {
       const parent = input.parentRevisionId ? await this.discoveryByRevisionId(input.parentRevisionId) : null;
       if (input.parentRevisionId && !parent) throw new Error("DISCOVERY_PARENT_NOT_FOUND");
+      assertUntrustedDiscoveryWriteSafe(input, parent);
       const revision = buildDiscoveryRevision({ companyId, evidence: input.evidence, facts: input.facts, unknowns: input.unknowns, capabilities: input.capabilities, parent }, now);
       if (input.expectedFingerprint && input.expectedFingerprint !== revision.fingerprint) throw new Error("PLAN_FINGERPRINT_MISMATCH:company_discovery");
       const asset = createDiscoveryAsset({ companyId, revision }, now);
@@ -229,7 +252,9 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       id: system.id, label: system.label, kind: system.kind, confidence: system.confidence, signalCapabilities: system.signalCapabilities,
     }));
     const result = await new GenericDiscoveryOrchestrator().run({ companyId, connectors, prior });
-    return { ...result, companyScoped: true, readyForOrganizationSynthesis: result.discoveryComplete };
+    const organizationReady = result.readiness.find((item) => item.scope === "organization")?.sufficient === true;
+    const governanceReady = result.readiness.find((item) => item.scope === "governance")?.sufficient === true;
+    return { ...result, companyScoped: true, readyForOrganizationSynthesis: organizationReady && governanceReady };
   }
 
   async companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown> {

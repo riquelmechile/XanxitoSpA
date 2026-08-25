@@ -503,6 +503,7 @@ export type DiscoverySourceKind = "owner" | "system" | "document" | "interview" 
 export type BusinessFactStatus = "observed" | "inferred" | "owner-confirmed";
 export type BusinessUnknownPriority = "low" | "normal" | "high" | "critical";
 export type BusinessUnknownStatus = "open" | "resolved" | "dismissed";
+export type DiscoveryResolutionRequirement = "evidence" | "operator-confirmation" | "owner-confirmation" | "constitutional-mandate";
 export type BusinessCapabilityCriticality = "supporting" | "important" | "critical";
 
 export interface DiscoverySource {
@@ -537,6 +538,7 @@ export interface BusinessUnknown {
   category: string;
   priority: BusinessUnknownPriority;
   status: BusinessUnknownStatus;
+  resolutionRequirement?: DiscoveryResolutionRequirement;
   resolutionRef?: string;
 }
 

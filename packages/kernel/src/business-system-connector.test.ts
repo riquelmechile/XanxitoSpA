@@ -13,7 +13,7 @@ describe("generic business system connectors", () => {
       id: "system:ledger", label: "Accounting ledger", kind: "finance-system", confidence: 0.8,
       signalCapabilities: [{ name: "finance.ledger", description: "Ledger changes", criticality: "important", confidence: 0.8 }],
     });
-    const discoveries = await Promise.all([crm.discover(), ledger.discover()]);
+    const discoveries = await Promise.all([crm.describe(), ledger.describe()]);
     expect(discoveries.every((item) => item.grantsAuthority === false && item.grantsCapabilities === false)).toBe(true);
     const first = projectBusinessSystemDiscoveries({ companyId, discoveries }, new Date("2026-08-24T20:00:00.000Z"));
     expect(first.capabilities.map((item) => item.name).sort()).toEqual(["finance.ledger", "sales.pipeline"]);
@@ -31,8 +31,23 @@ describe("generic business system connectors", () => {
         { name: "operations.orders", description: "Orders duplicate", criticality: "critical", confidence: 0.7 },
       ],
     });
-    const discovery = await connector.discover();
+    const discovery = await connector.describe();
     expect(discovery.signalCapabilities).toHaveLength(1);
     expect(discovery.signalCapabilities[0]?.confidence).toBe(0.9);
   });
+  it("uses one connector identity for describe and poll", async () => {
+    const connector = new ManifestBusinessSystemConnector({
+      id: "system:dual", label: "Dual-mode system", kind: "generic-system", confidence: 1,
+      signalCapabilities: [{ name: "operations.events", description: "Operational events", criticality: "important", confidence: 1 }],
+    }, {
+      poll: async (cursor) => ({ events: [], cursor: { sourceId: cursor.sourceId, position: "next" } }),
+    });
+    const descriptor = await connector.describe();
+    const polled = await connector.poll({ sourceId: connector.id, position: null });
+    expect(descriptor.id).toBe(connector.id);
+    expect(descriptor.signalPolling).toBe("live");
+    expect(connector.capabilities).toEqual(["operations.events"]);
+    expect(polled.cursor).toEqual({ sourceId: connector.id, position: "next" });
+  });
+
 });

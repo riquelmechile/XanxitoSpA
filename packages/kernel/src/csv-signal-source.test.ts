@@ -16,6 +16,10 @@ describe("CsvSignalSource", () => {
       `33333333-3333-4333-8333-333333333333,${companyId},lead.created,2026-08-24T19:01:00.000Z,signal:crm,crm.read,0.7,30,evidence:2`,
     ].join("\n"));
     const source = new CsvSignalSource({ id: "signal:crm", companyId, capabilities: ["crm.read"], path });
+    const descriptor = await source.describe();
+    expect(descriptor.id).toBe(source.id);
+    expect(descriptor.signalPolling).toBe("live");
+    expect(descriptor.signalCapabilities.map((item) => item.name)).toEqual(["crm.read"]);
     const first = await source.poll({ sourceId: "signal:crm", position: null });
     expect(first.events).toHaveLength(2);
     expect(first.cursor).toEqual({ sourceId: "signal:crm", position: "2" });

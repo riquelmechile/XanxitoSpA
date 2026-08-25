@@ -1,5 +1,4 @@
-import type { BusinessCapabilityCriticality, DiscoveryRevision } from "../../contracts/src/index.js";
-import type { BusinessSignalAdapter } from "./signal-source.js";
+import type { BusinessCapabilityCriticality, DiscoveryRevision, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
 import { buildDiscoveryRevision } from "./company-discovery.js";
 
 export interface DiscoveredSignalCapability {
@@ -15,16 +14,19 @@ export interface DiscoveredBusinessSystem {
   kind: string;
   confidence: number;
   signalCapabilities: DiscoveredSignalCapability[];
+  signalPolling: "live" | "unavailable";
   grantsAuthority: false;
   grantsBudget: false;
   grantsCapabilities: false;
   executesWork: false;
 }
 
+/** Canonical business-system boundary: describe its shape once, poll its events continuously. */
 export interface BusinessSystemConnector {
   readonly id: string;
-  discover(): Promise<DiscoveredBusinessSystem>;
-  signalAdapter(): BusinessSignalAdapter | null;
+  readonly capabilities: readonly string[];
+  describe(): Promise<DiscoveredBusinessSystem>;
+  poll(cursor: SignalCursor): Promise<SignalPollResult>;
 }
 
 export interface BusinessSystemManifest {
@@ -33,6 +35,10 @@ export interface BusinessSystemManifest {
   kind: string;
   confidence: number;
   signalCapabilities: DiscoveredSignalCapability[];
+}
+
+export interface BusinessSystemPoller {
+  poll(cursor: SignalCursor): Promise<SignalPollResult>;
 }
 
 function confidence(value: number): number {
@@ -46,12 +52,14 @@ function clean(value: string, label: string): string {
   return result;
 }
 
+/** Neutral manifest connector. It can describe any system; polling is available only when a poller is injected. */
 export class ManifestBusinessSystemConnector implements BusinessSystemConnector {
   readonly id: string;
+  readonly capabilities: readonly string[];
   private readonly manifest: BusinessSystemManifest;
-  private readonly adapter: BusinessSignalAdapter | null;
+  private readonly poller: BusinessSystemPoller | null;
 
-  constructor(manifest: BusinessSystemManifest, adapter: BusinessSignalAdapter | null = null) {
+  constructor(manifest: BusinessSystemManifest, poller: BusinessSystemPoller | null = null) {
     this.id = clean(manifest.id, "connector id");
     const byName = new Map<string, DiscoveredSignalCapability>();
     for (const raw of manifest.signalCapabilities) {
@@ -66,14 +74,19 @@ export class ManifestBusinessSystemConnector implements BusinessSystemConnector 
       confidence: confidence(manifest.confidence),
       signalCapabilities: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
     };
-    this.adapter = adapter;
+    this.capabilities = this.manifest.signalCapabilities.map((item) => item.name);
+    this.poller = poller;
   }
 
-  async discover(): Promise<DiscoveredBusinessSystem> {
-    return { ...structuredClone(this.manifest), grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false };
+  async describe(): Promise<DiscoveredBusinessSystem> {
+    return { ...structuredClone(this.manifest), signalPolling: this.poller ? "live" : "unavailable", grantsAuthority: false, grantsBudget: false, grantsCapabilities: false, executesWork: false };
   }
 
-  signalAdapter(): BusinessSignalAdapter | null { return this.adapter; }
+  async poll(cursor: SignalCursor): Promise<SignalPollResult> {
+    if (cursor.sourceId !== this.id) throw new Error("business system cursor source mismatch");
+    if (!this.poller) throw new Error(`SIGNAL_POLL_UNAVAILABLE:${this.id}`);
+    return this.poller.poll(cursor);
+  }
 }
 
 function stableId(value: string): string { return value.toLowerCase().replace(/[^a-z0-9._:-]+/g, "-").replace(/^-+|-+$/g, ""); }

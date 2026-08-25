@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { BusinessEvent, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
-import type { BusinessSignalAdapter } from "./signal-source.js";
+import type { BusinessSystemConnector, DiscoveredBusinessSystem } from "./business-system-connector.js";
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -27,7 +27,7 @@ function numberField(value: string | undefined, name: string, min: number, max: 
   return parsed;
 }
 
-export class CsvSignalSource implements BusinessSignalAdapter {
+export class CsvSignalSource implements BusinessSystemConnector {
   readonly id: string;
   readonly capabilities: readonly string[];
   private readonly companyId: string;
@@ -39,6 +39,21 @@ export class CsvSignalSource implements BusinessSignalAdapter {
     this.companyId = input.companyId;
     this.capabilities = [...new Set(input.capabilities.map((capability) => capability.trim()).filter(Boolean))];
     this.path = input.path;
+  }
+
+  async describe(): Promise<DiscoveredBusinessSystem> {
+    return {
+      id: this.id,
+      label: `CSV signal source ${this.id}`,
+      kind: "file-system",
+      confidence: 1,
+      signalCapabilities: this.capabilities.map((name) => ({ name, description: `Signals observed from ${name}`, criticality: "important" as const, confidence: 1 })),
+      signalPolling: "live",
+      grantsAuthority: false,
+      grantsBudget: false,
+      grantsCapabilities: false,
+      executesWork: false,
+    };
   }
 
   async poll(cursor: SignalCursor): Promise<SignalPollResult> {

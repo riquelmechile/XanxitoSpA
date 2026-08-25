@@ -1,7 +1,2 @@
-import type { SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
-
-export interface BusinessSignalAdapter {
-  readonly id: string;
-  readonly capabilities: readonly string[];
-  poll(cursor: SignalCursor): Promise<SignalPollResult>;
-}
+// Compatibility surface: BusinessSystemConnector is the single canonical discovery + signal abstraction.
+export type { BusinessSystemConnector as BusinessSignalAdapter } from "./business-system-connector.js";
