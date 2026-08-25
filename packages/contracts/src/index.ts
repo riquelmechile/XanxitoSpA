@@ -506,6 +506,89 @@ export type BusinessUnknownStatus = "open" | "resolved" | "dismissed";
 export type DiscoveryResolutionRequirement = "evidence" | "operator-confirmation" | "owner-confirmation" | "constitutional-mandate";
 export type BusinessCapabilityCriticality = "supporting" | "important" | "critical";
 
+export type PrincipalRole = "founder" | "owner" | "board" | "delegate";
+export type AuthorityMandateEffect = "assert" | "delegate" | "revoke";
+
+export interface CompanyPrincipalTrustAnchor {
+  principalId: string;
+  companyId: UUID;
+  role: PrincipalRole;
+  keyId: string;
+  algorithm: "Ed25519";
+  publicKeyPem: string;
+  allowedScopes: string[];
+  delegatedByMandateId?: UUID;
+  validFrom?: ISODateTime;
+  validUntil?: ISODateTime;
+}
+
+export interface VerifiedPrincipal {
+  principalId: string;
+  companyId: UUID;
+  role: PrincipalRole;
+  keyId: string;
+  verificationSource: string;
+  verifiedAt: ISODateTime;
+}
+
+export interface DelegatedPrincipalDescriptor {
+  principalId: string;
+  role: "delegate";
+  keyId: string;
+  algorithm: "Ed25519";
+  publicKeyPem: string;
+  allowedScopes: string[];
+}
+
+export interface AuthorityMandateClaim {
+  type: "discovery-resolution" | "authority-policy" | "delegation";
+  unknownId?: string;
+  assertion?: string;
+  scope?: string;
+  value?: unknown;
+}
+
+export interface AuthorityMandateConstraint {
+  type: string;
+  value: unknown;
+}
+
+export interface AuthorityMandateUnsigned {
+  vct: "authority.mandate.1";
+  id: UUID;
+  companyId: UUID;
+  issuerPrincipalId: string;
+  subject: string;
+  effect: AuthorityMandateEffect;
+  scopes: string[];
+  claims: AuthorityMandateClaim[];
+  constraints: AuthorityMandateConstraint[];
+  issuedAt: ISODateTime;
+  notBefore?: ISODateTime;
+  expiresAt?: ISODateTime;
+  supersedesMandateIds: UUID[];
+  revokesMandateIds: UUID[];
+}
+
+export interface AuthorityMandate extends AuthorityMandateUnsigned {
+  payloadHash: string;
+  signature: { algorithm: "Ed25519"; keyId: string; value: string };
+}
+
+export interface AuthorityMandateVerification {
+  valid: boolean;
+  mandateId: UUID;
+  principal?: VerifiedPrincipal;
+  payloadHashValid: boolean;
+  signatureValid: boolean;
+  companyBound: boolean;
+  timeValid: boolean;
+  scopeValid: boolean;
+  active: boolean;
+  reasons: string[];
+}
+
+
 export interface DiscoverySource {
   id: string;
   kind: DiscoverySourceKind;

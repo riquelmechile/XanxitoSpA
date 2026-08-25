@@ -1,11 +1,22 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { BusinessEvent, CompanyAsset, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
+import type { AuthorityMandate, BusinessEvent, CompanyAsset, CompanyPrincipalTrustAnchor, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, GenericDiscoveryOrchestrator, GovernedWakeEngine, ManifestBusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, ManifestBusinessSystemConnector, verifyAuthorityMandate, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AuthorityMandateInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
+
+const FORBIDDEN_MANDATE_SECRET_KEYS = new Set(["privatekey", "private_key", "password", "secret", "token", "apikey", "api_key"]);
+function mandateContainsSecretField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(mandateContainsSecretField);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, child]) => FORBIDDEN_MANDATE_SECRET_KEYS.has(key.toLowerCase()) || mandateContainsSecretField(child));
+}
+function assertMandatePublicSafe(mandate: AuthorityMandate): void {
+  const serialized = JSON.stringify(mandate);
+  if (SECRET_LIKE.test(serialized) || mandateContainsSecretField(mandate)) throw new Error("AUTHORITY_MANDATE_SECRET_MATERIAL_REJECTED");
+}
 
 function discoveryRequirement(unknown: { category: string; resolutionRequirement?: string }): string {
   if (unknown.resolutionRequirement) return unknown.resolutionRequirement;
@@ -59,6 +70,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       kastConfigured: boolean;
       skillRegistry?: SkillRegistry;
       creativeSupervisorPrincipal?: string;
+      authorityTrustAnchors?: CompanyPrincipalTrustAnchor[];
     },
   ) {}
 
@@ -193,6 +205,113 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     if (assets.length === 0) return [];
     assets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
     return wakeStateFromAsset(assets[0]!);
+  }
+
+  private authorityTrustAnchors(): CompanyPrincipalTrustAnchor[] {
+    return structuredClone(this.input.authorityTrustAnchors ?? []);
+  }
+
+  private async authorityMandates(): Promise<AuthorityMandate[]> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-authority-mandate" && asset.status === "active");
+    return assets.flatMap((asset) => {
+      const raw = asset.metadata.mandate;
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+      return [structuredClone(raw) as AuthorityMandate];
+    });
+  }
+
+  async authorityMandateVerify(input: AuthorityMandateInput, _context: XspaRequestContext): Promise<unknown> {
+    assertMandatePublicSafe(input.mandate);
+    const { companyId } = this.requireRuntime();
+    const trustAnchors = this.authorityTrustAnchors();
+    if (trustAnchors.length === 0) return { verification: { valid: false, mandateId: input.mandate.id, active: false, reasons: ["AUTHORITY_TRUST_NOT_CONFIGURED"] }, trustConfigured: false, companyScoped: true, grantsAuthority: false };
+    const ledger = await this.authorityMandates();
+    const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger });
+    return { verification, trustConfigured: true, companyScoped: true, grantsAuthority: false };
+  }
+
+  async authorityMandateApply(input: AuthorityMandateInput, context: XspaRequestContext): Promise<unknown> {
+    assertMandatePublicSafe(input.mandate);
+    const { store, companyId } = this.requireRuntime();
+    const trustAnchors = this.authorityTrustAnchors();
+    if (trustAnchors.length === 0) throw new Error("AUTHORITY_TRUST_NOT_CONFIGURED");
+    const now = new Date();
+    const fingerprint = createHash("sha256").update(JSON.stringify(input.mandate)).digest("hex");
+    const reconcileDiscovery = async (mandate: AuthorityMandate, verification: ReturnType<typeof verifyAuthorityMandate>): Promise<DiscoveryRevision | null> => {
+      if (!verification.valid || !mandate.claims.some((claim) => claim.type === "discovery-resolution" && claim.unknownId)) return null;
+      const prior = await this.latestDiscovery();
+      const claimIds = new Set(mandate.claims.filter((claim) => claim.type === "discovery-resolution").map((claim) => claim.unknownId).filter(Boolean));
+      if (!prior?.unknowns.some((unknown) => unknown.status === "open" && claimIds.has(unknown.id))) return null;
+      const revision = applyVerifiedMandateToDiscovery(prior, mandate, verification, now);
+      const discoveryAsset = createDiscoveryAsset({ companyId, revision }, now);
+      discoveryAsset.metadata.authorityMandateId = mandate.id;
+      await store.saveAsset(discoveryAsset);
+      return revision;
+    };
+
+    const existing = await this.authorityMandates();
+    const sameId = existing.find((item) => item.id === input.mandate.id);
+    if (sameId) {
+      const existingFingerprint = createHash("sha256").update(JSON.stringify(sameId)).digest("hex");
+      if (existingFingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:authority_mandate_changed:${input.mandate.id}`);
+      const verification = verifyAuthorityMandate({ mandate: sameId, companyId, trustAnchors, ledger: existing, now });
+      const discoveryRevision = await reconcileDiscovery(sameId, verification);
+      return { mandateId: sameId.id, status: "already-applied", verification, discoveryRevision, companyScoped: true, grantsAuthority: false, executesWork: false };
+    }
+
+    const idemKey = `company:authority-mandate:${input.mandate.id}`;
+    const idemOwner = `mcp:authority-mandate:${input.mandate.id}`;
+    const claim = await store.claimIdempotency(companyId, idemKey, { requestFingerprint: fingerprint }, idemOwner, now);
+    if (!claim.claimed) {
+      const priorIntent = claim.record.intent as { requestFingerprint?: unknown };
+      if (priorIntent.requestFingerprint !== fingerprint) throw new Error(`IDEMPOTENCY_CONFLICT:authority_mandate_changed:${input.mandate.id}`);
+      if (claim.record.state === "applied" && claim.record.result) return structuredClone(claim.record.result);
+      if (claim.record.state === "intent") return { mandateId: input.mandate.id, status: "contended", companyScoped: true, grantsAuthority: false, executesWork: false };
+      throw new Error(`Authority mandate requires reconciliation:${input.mandate.id}`);
+    }
+
+    let assetPersisted = false;
+    try {
+      const ledger = await this.authorityMandates();
+      const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger, now });
+      if (!verification.valid) throw new Error(`AUTHORITY_MANDATE_INVALID:${verification.reasons.join(",")}`);
+      const asset: CompanyAsset = {
+        id: input.mandate.id,
+        companyId,
+        kind: "company-authority-mandate",
+        capability: "company.authority.mandate",
+        department: "executive",
+        cost: 0,
+        currency: "USD",
+        status: "active",
+        grantRefs: [],
+        restrictions: ["append-only", "signed", "no-private-key"],
+        metadata: { mandate: structuredClone(input.mandate), payloadHash: input.mandate.payloadHash, issuerPrincipalId: input.mandate.issuerPrincipalId },
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+      await store.saveAsset(asset);
+      assetPersisted = true;
+      await store.appendEvent({ id: randomUUID(), companyId, type: "company.authority-mandate.applied", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.mandate.id, idempotencyKey: `company:authority-mandate:event:${input.mandate.id}:${input.mandate.payloadHash}`, payload: { mandateId: input.mandate.id, issuerPrincipalId: input.mandate.issuerPrincipalId, effect: input.mandate.effect, payloadHash: input.mandate.payloadHash }, sensitivity: "restricted", evidenceRefs: [`mandate:${input.mandate.id}`] });
+      const discoveryRevision = await reconcileDiscovery(input.mandate, verification);
+      const result = { mandateId: input.mandate.id, status: "applied", verification, discoveryRevision, companyScoped: true, grantsAuthority: false, executesWork: false };
+      const settled = await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, "applied", now, result);
+      if (!settled) throw new Error("Authority mandate idempotency fencing lost");
+      return result;
+    } catch (error) {
+      await store.markIdempotency(companyId, idemKey, idemOwner, claim.record.fencingToken, assetPersisted ? "unknown" : "failed", now, undefined, error instanceof Error ? error.message.slice(0, 240) : "Authority mandate apply failed");
+      throw error;
+    }
+  }
+
+  async authorityMandateStatus(_context: XspaRequestContext): Promise<unknown> {
+    const { companyId } = this.requireRuntime();
+    const trustAnchors = this.authorityTrustAnchors();
+    const ledger = await this.authorityMandates();
+    if (trustAnchors.length === 0) return { trustConfigured: false, mandates: [], companyScoped: true };
+    const state = deriveActiveMandates(ledger, companyId, trustAnchors);
+    return { trustConfigured: true, mandates: ledger.map((mandate) => ({ id: mandate.id, issuerPrincipalId: mandate.issuerPrincipalId, subject: mandate.subject, effect: mandate.effect, scopes: mandate.scopes, issuedAt: mandate.issuedAt, expiresAt: mandate.expiresAt ?? null, payloadHash: mandate.payloadHash, verification: state.get(mandate.id) ?? null })), companyScoped: true };
   }
 
   async companyDiscoveryPlan(input: CompanyDiscoveryPlanInput, _context: XspaRequestContext): Promise<unknown> {
@@ -762,6 +881,30 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   }
 }
 
+function parseAuthorityTrustAnchors(raw: string | undefined, companyId: string | undefined): CompanyPrincipalTrustAnchor[] {
+  if (!raw?.trim()) return [];
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error("XSPA_AUTHORITY_TRUST_ANCHORS_JSON invalid JSON"); }
+  if (!Array.isArray(parsed) || parsed.length > 32) throw new Error("XSPA_AUTHORITY_TRUST_ANCHORS_JSON invalid");
+  return parsed.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`authority trust anchor[${index}] invalid`);
+    const obj = entry as Record<string, unknown>;
+    const role = String(obj.role ?? "");
+    if (!["founder", "owner", "board"].includes(role)) throw new Error(`authority trust anchor[${index}].role invalid`);
+    if (obj.algorithm !== "Ed25519") throw new Error(`authority trust anchor[${index}].algorithm invalid`);
+    const anchorCompanyId = String(obj.companyId ?? obj.company_id ?? "");
+    if (!anchorCompanyId || (companyId && anchorCompanyId !== companyId)) throw new Error(`authority trust anchor[${index}].companyId mismatch`);
+    const publicKeyPem = String(obj.publicKeyPem ?? obj.public_key_pem ?? "");
+    if (!publicKeyPem.includes("BEGIN PUBLIC KEY")) throw new Error(`authority trust anchor[${index}].publicKeyPem invalid`);
+    const allowedScopesRaw = obj.allowedScopes ?? obj.allowed_scopes;
+    if (!Array.isArray(allowedScopesRaw) || allowedScopesRaw.some((value) => typeof value !== "string")) throw new Error(`authority trust anchor[${index}].allowedScopes invalid`);
+    const principalId = String(obj.principalId ?? obj.principal_id ?? "").trim();
+    const keyId = String(obj.keyId ?? obj.key_id ?? "").trim();
+    if (!principalId || !keyId) throw new Error(`authority trust anchor[${index}] identity invalid`);
+    return { principalId, companyId: anchorCompanyId, role: role as CompanyPrincipalTrustAnchor["role"], keyId, algorithm: "Ed25519", publicKeyPem, allowedScopes: [...new Set(allowedScopesRaw.map((value) => value.trim()).filter(Boolean))] };
+  });
+}
+
 export async function createEnvironmentXspaAppOperations(): Promise<{ operations: EnvironmentXspaAppOperations; close(): Promise<void> }> {
   const databaseUrl = process.env.XSPA_DATABASE_URL?.trim();
   const companyId = process.env.XSPA_COMPANY_ID?.trim() ?? process.env.XSPA_CREATIVE_COMPANY_ID?.trim();
@@ -777,6 +920,7 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
     workStore = new PostgresCompanyStore(db);
   }
   const skillRegistry = await createFileSystemSkillRegistry(process.env.XSPA_REPO_ROOT?.trim() || process.cwd());
+  const authorityTrustAnchors = parseAuthorityTrustAnchors(process.env.XSPA_AUTHORITY_TRUST_ANCHORS_JSON, companyId);
   const operations = new EnvironmentXspaAppOperations({
     ...(store ? { store } : {}),
     ...(workStore ? { workStore } : {}),
@@ -786,6 +930,7 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
     kastConfigured: Boolean(store),
     skillRegistry,
     creativeSupervisorPrincipal: process.env.XSPA_CREATIVE_SUPERVISOR_PRINCIPAL?.trim() || "creative-supervisor",
+    authorityTrustAnchors,
   });
   return { operations, close: async () => { if (db) await db.close(); } };
 }

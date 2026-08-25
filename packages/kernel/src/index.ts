@@ -359,6 +359,7 @@ export * from "./company-discovery.js";
 
 export * from "./company-constitution.js";
 
+export * from "./authority-mandate.js";
 export * from "./business-system-connector.js";
 export * from "./discovery-orchestrator.js";
 export * from "./signal-source.js";

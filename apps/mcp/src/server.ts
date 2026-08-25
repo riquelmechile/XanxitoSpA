@@ -5,7 +5,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
+import type { AuthorityMandate, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
 
 export interface XspaAppStatus {
@@ -121,6 +121,10 @@ export interface CompanyDiscoveryOrchestrateInput {
   }>;
 }
 
+export interface AuthorityMandateInput {
+  mandate: AuthorityMandate;
+}
+
 export interface CompanyWakeEvaluateInput {
   evaluationId: string;
   events: BusinessEvent[];
@@ -167,6 +171,9 @@ export interface XspaAppOperations {
   companyDiscoveryApply(input: CompanyDiscoveryApplyInput, context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryStatus(context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryOrchestrate(input: CompanyDiscoveryOrchestrateInput, context: XspaRequestContext): Promise<unknown>;
+  authorityMandateVerify(input: AuthorityMandateInput, context: XspaRequestContext): Promise<unknown>;
+  authorityMandateApply(input: AuthorityMandateInput, context: XspaRequestContext): Promise<unknown>;
+  authorityMandateStatus(context: XspaRequestContext): Promise<unknown>;
   companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown>;
   companyWakeStatus(context: XspaRequestContext): Promise<unknown>;
   companyPlan(input: CompanyPlanInput, context: XspaRequestContext): Promise<unknown>;
@@ -420,6 +427,62 @@ function parseCompanyDiscoveryOrchestrate(args: unknown): CompanyDiscoveryOrches
   return result;
 }
 
+function parseAuthorityMandate(args: unknown): AuthorityMandateInput {
+  const outer = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const raw = outer.mandate;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("mandate invalid");
+  const obj = raw as Record<string, unknown>;
+  if (obj.vct !== "authority.mandate.1") throw new Error("mandate.vct invalid");
+  const effect = assertText(obj.effect, "mandate.effect", 20);
+  if (!["assert", "delegate", "revoke"].includes(effect)) throw new Error("mandate.effect invalid");
+  const scopes = assertStringArray(obj.scopes, "mandate.scopes", 64);
+  const supersedesMandateIds = assertStringArray(obj.supersedes_mandate_ids ?? obj.supersedesMandateIds, "mandate.supersedes_mandate_ids", 64).map((value, index) => assertId(value, `mandate.supersedes_mandate_ids[${index}]`));
+  const revokesMandateIds = assertStringArray(obj.revokes_mandate_ids ?? obj.revokesMandateIds, "mandate.revokes_mandate_ids", 64).map((value, index) => assertId(value, `mandate.revokes_mandate_ids[${index}]`));
+  if (!Array.isArray(obj.claims) || obj.claims.length > 64) throw new Error("mandate.claims invalid");
+  const claims = obj.claims.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`mandate.claims[${index}] invalid`);
+    const item = entry as Record<string, unknown>;
+    const type = assertText(item.type, `mandate.claims[${index}].type`, 40);
+    if (!["discovery-resolution", "authority-policy", "delegation"].includes(type)) throw new Error(`mandate.claims[${index}].type invalid`);
+    const result: AuthorityMandate["claims"][number] = { type: type as AuthorityMandate["claims"][number]["type"] };
+    if (item.unknown_id ?? item.unknownId) result.unknownId = assertText(item.unknown_id ?? item.unknownId, `mandate.claims[${index}].unknown_id`, 160);
+    if (item.assertion !== undefined) result.assertion = assertText(item.assertion, `mandate.claims[${index}].assertion`, 4000);
+    if (item.scope !== undefined) result.scope = assertText(item.scope, `mandate.claims[${index}].scope`, 240);
+    if (item.value !== undefined) result.value = structuredClone(item.value);
+    return result;
+  });
+  if (!Array.isArray(obj.constraints) || obj.constraints.length > 64) throw new Error("mandate.constraints invalid");
+  const constraints = obj.constraints.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`mandate.constraints[${index}] invalid`);
+    const item = entry as Record<string, unknown>;
+    return { type: assertText(item.type, `mandate.constraints[${index}].type`, 160), value: structuredClone(item.value) };
+  });
+  const signatureRaw = obj.signature;
+  if (!signatureRaw || typeof signatureRaw !== "object" || Array.isArray(signatureRaw)) throw new Error("mandate.signature invalid");
+  const signature = signatureRaw as Record<string, unknown>;
+  if (signature.algorithm !== "Ed25519") throw new Error("mandate.signature.algorithm invalid");
+  const mandate: AuthorityMandate = {
+    vct: "authority.mandate.1",
+    id: assertId(obj.id, "mandate.id"),
+    companyId: assertId(obj.company_id ?? obj.companyId, "mandate.company_id"),
+    issuerPrincipalId: assertText(obj.issuer_principal_id ?? obj.issuerPrincipalId, "mandate.issuer_principal_id", 240),
+    subject: assertText(obj.subject, "mandate.subject", 240),
+    effect: effect as AuthorityMandate["effect"],
+    scopes,
+    claims,
+    constraints,
+    issuedAt: assertText(obj.issued_at ?? obj.issuedAt, "mandate.issued_at", 80),
+    supersedesMandateIds,
+    revokesMandateIds,
+    payloadHash: assertText(obj.payload_hash ?? obj.payloadHash, "mandate.payload_hash", 64),
+    signature: { algorithm: "Ed25519", keyId: assertText(signature.key_id ?? signature.keyId, "mandate.signature.key_id", 240), value: assertText(signature.value, "mandate.signature.value", 2048) },
+  };
+  if (!/^[a-fA-F0-9]{64}$/.test(mandate.payloadHash)) throw new Error("mandate.payload_hash invalid");
+  if (obj.not_before ?? obj.notBefore) mandate.notBefore = assertText(obj.not_before ?? obj.notBefore, "mandate.not_before", 80);
+  if (obj.expires_at ?? obj.expiresAt) mandate.expiresAt = assertText(obj.expires_at ?? obj.expiresAt, "mandate.expires_at", 80);
+  return { mandate };
+}
+
 function parseCompanyWakeEvaluate(args: unknown): CompanyWakeEvaluateInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
   const eventsRaw = obj.events;
@@ -482,6 +545,17 @@ const COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA = {
   }, required: ["systems"], additionalProperties: false,
 };
 
+const AUTHORITY_MANDATE_SCHEMA = {
+  type: "object" as const,
+  properties: { mandate: { type: "object", properties: {
+    vct: { type: "string", const: "authority.mandate.1" }, id: { type: "string", format: "uuid" }, company_id: { type: "string", format: "uuid" }, issuer_principal_id: { type: "string", maxLength: 240 }, subject: { type: "string", maxLength: 240 },
+    effect: { type: "string", enum: ["assert", "delegate", "revoke"] }, scopes: { type: "array", maxItems: 64, items: { type: "string" } }, claims: { type: "array", maxItems: 64, items: { type: "object" } }, constraints: { type: "array", maxItems: 64, items: { type: "object" } },
+    issued_at: { type: "string", maxLength: 80 }, not_before: { type: "string", maxLength: 80 }, expires_at: { type: "string", maxLength: 80 }, supersedes_mandate_ids: { type: "array", maxItems: 64, items: { type: "string", format: "uuid" } }, revokes_mandate_ids: { type: "array", maxItems: 64, items: { type: "string", format: "uuid" } },
+    payload_hash: { type: "string", pattern: "^[a-fA-F0-9]{64}$" }, signature: { type: "object", properties: { algorithm: { type: "string", const: "Ed25519" }, key_id: { type: "string", maxLength: 240 }, value: { type: "string", maxLength: 2048 } }, required: ["algorithm", "key_id", "value"], additionalProperties: false },
+  }, required: ["vct", "id", "company_id", "issuer_principal_id", "subject", "effect", "scopes", "claims", "constraints", "issued_at", "supersedes_mandate_ids", "revokes_mandate_ids", "payload_hash", "signature"], additionalProperties: false } },
+  required: ["mandate"], additionalProperties: false,
+};
+
 const COMPANY_WAKE_SCHEMA = {
   type: "object" as const,
   properties: {
@@ -533,6 +607,9 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_company_discovery_apply", title: "Apply Company discovery revision", description: "Persist one evidence-based Company discovery revision with lineage and fingerprint. This cannot create Work or grant authority/budget/capabilities.", inputSchema: companyDiscoverySchema({ discovery_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["discovery_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_status", title: "Get Company discovery revision", description: "Read the latest deployment-scoped Company discovery revision. Discovery is descriptive and cannot authorize execution.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_orchestrate", title: "Orchestrate Company discovery", description: "Discover a generic existing company from neutral business-system manifests and return prioritized owner questions. Read-only; performs no network calls and grants no authority.", inputSchema: COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_authority_mandate_verify", title: "Verify authority mandate", description: "Deterministically verify a signed Company authority mandate against server-configured trust anchors. Caller write access is not treated as owner identity.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_authority_mandate_apply", title: "Apply authority mandate", description: "Persist a cryptographically verified immutable authority mandate and resolve only discovery unknowns explicitly covered by the signed mandate. Trust anchors cannot be supplied by the caller.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_authority_mandate_status", title: "Authority mandate status", description: "Read sanitized active/revoked/superseded mandate status for the deployment Company. Public keys and trust-anchor material are not returned.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_wake_evaluate", title: "Evaluate Company wake signals", description: "Evaluate company-scoped business signals against durable subscriptions and urgency thresholds. May emit Work proposals only; never creates Work or grants authority, budget or capabilities.", inputSchema: COMPANY_WAKE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_wake_status", title: "Get Company wake state", description: "Read the latest company-scoped wake accumulator state and pending proposal metadata. No authority is granted.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_plan", title: "Plan Company operating model", description: "Primary Generic Company OS intake. Plan a NEW Company or adopt an EXISTING Company into functions, departments, processes, skills and semantic capabilities. Existing departments/processes are preserved first. Read-only: grants no authority, budget or capabilities.", inputSchema: companyIntakeSchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -571,6 +648,18 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
       if (request.params.name === "xspa_company_discovery_orchestrate") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyDiscoveryOrchestrate(parseCompanyDiscoveryOrchestrate(request.params.arguments), requestContext(input.auth)), "Company discovery orchestrated.");
+      }
+      if (request.params.name === "xspa_authority_mandate_verify") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.authorityMandateVerify(parseAuthorityMandate(request.params.arguments), requestContext(input.auth)), "Authority mandate verified.");
+      }
+      if (request.params.name === "xspa_authority_mandate_apply") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
+        return toolResult(await operations.authorityMandateApply(parseAuthorityMandate(request.params.arguments), requestContext(input.auth)), "Authority mandate applied.");
+      }
+      if (request.params.name === "xspa_authority_mandate_status") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.authorityMandateStatus(requestContext(input.auth)), "Authority mandate status loaded.");
       }
       if (request.params.name === "xspa_company_wake_evaluate") {
         if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
