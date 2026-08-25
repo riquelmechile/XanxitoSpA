@@ -235,7 +235,7 @@ MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #404 approved
+4R review                            #408 approved
 Exact-head CI                         PASS (`f6477c78b25f275e3fc510326bfdac37ed377fad`)
 Exact-head GitHub Actions CI          PASS
 ```
@@ -259,3 +259,8 @@ The MCP remains the control boundary and defaults to loopback. Broader deploymen
 Wake replay state now uses a time retention watermark (`replayRetentionSeconds`) plus per-key observation timestamps. Durable runtime idempotency remains the authoritative replay ledger; the JSONB wake state is compacted by age rather than by a fixed last-N slice.
 
 Authority trust-anchor configuration supports a historical keyring: multiple key IDs for the same principal may coexist with `validFrom`/`validUntil` issuance windows. Retired public keys must remain in the configured keyring for historical verification; issuance after `validUntil` fails closed. New mandate application also persists a `company-authority-keyring-head` containing a deterministic count/hash and public-key fingerprints. Runtime verification rejects a missing or modified historical root with `AUTHORITY_KEYRING_INCOMPLETE`, including a migration backstop that derives required non-delegated signer identities from the mandate ledger.
+
+
+## External benchmark V7
+
+The corrected post-audit V7 benchmark froze a complete executable three-scenario campaign before outcomes against XanxitoSpA `92ac8a12babb8245c4cfd621ecaac487e904409d`. It then executed once unchanged. DIRECT passed 0/3 shared mechanism oracles; XANXITOSPA passed 3/3 on ABA stale idempotency settlement, ABA stale heartbeat cursor regression, and write-permission-without-owner-credential. This is deterministic mechanism evidence only: no sampling p-value and no claim that the full Company OS is causally necessary for all three outcomes.

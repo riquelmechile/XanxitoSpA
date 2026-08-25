@@ -83,10 +83,10 @@ Owner authority          signed authority.mandate.1 · Ed25519 · delegation/rev
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
 Local test suite         111 PASS · PostgreSQL 18 smoke covers heartbeat/source cursor fencing, asset CAS + observed-signal replay ledger
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
-External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
+External benchmark       v7 frozen mechanism campaign: DIRECT 0/3 · XANXITOSPA 3/3 · deterministic/no sampling p-value
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             governed connector registry/daemon + generic CSV bootstrap · verification pending
+Release state             governed connector registry/daemon + generic CSV bootstrap · 4R #408 approved · exact-head CI PASS
 ```
 
 ---
