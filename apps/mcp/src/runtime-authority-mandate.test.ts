@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AuthorityMandateUnsigned, CompanyPrincipalTrustAnchor } from "../../../packages/contracts/src/index.js";
 import { canonicalMandatePayload } from "../../../packages/kernel/src/index.js";
 import { InMemoryCompanyStore, InMemoryRuntimeStore } from "../../../packages/database/src/index.js";
-import { EnvironmentXspaAppOperations } from "./runtime.js";
+import { EnvironmentXspaAppOperations, parseAuthorityTrustAnchors } from "./runtime.js";
 
 const companyId = "11111111-1111-4111-8111-111111111111";
 const context = { principal: "operator:has-xspa-write", scopes: ["xspa.read", "xspa.write"] };
@@ -21,6 +21,20 @@ function signedFixture() {
 
 
 describe("runtime authority mandate boundary", () => {
+
+  it("preserves retired owner keys as historical trust anchors with issuance windows", () => {
+    const first = signedFixture().anchor;
+    const raw = JSON.stringify([
+      { ...first, validFrom: "2026-01-01T00:00:00.000Z", validUntil: "2026-08-25T12:00:00.000Z" },
+      { ...first, keyId: "key:founder:2", validFrom: "2026-08-25T12:00:00.000Z" },
+    ]);
+    const anchors = parseAuthorityTrustAnchors(raw, companyId);
+    expect(anchors).toHaveLength(2);
+    expect(anchors[0]?.validUntil).toBe("2026-08-25T12:00:00.000Z");
+    expect(anchors[1]?.keyId).toBe("key:founder:2");
+  });
+
+
   it("does not let xspa.write become owner identity when no trust anchor exists", async () => {
     const store = new InMemoryRuntimeStore();
     const operations = new EnvironmentXspaAppOperations({ store, workStore: new InMemoryCompanyStore(), companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false });

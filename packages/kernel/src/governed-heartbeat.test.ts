@@ -20,6 +20,7 @@ function constitution(): CompanyConstitution {
     urgencyPolicy: { opportunityCostWeight: 0.7, actionWindowWeight: 0.3, defaultOpportunityCost: 1, defaultActionWindowMinutes: 60 },
     threshold: 0.6,
     accumulationWindowSeconds: 3600,
+    replayRetentionSeconds: 86_400,
     accumulationCap: 1,
     wakeIntentOnly: true,
     grantsAuthority: false,

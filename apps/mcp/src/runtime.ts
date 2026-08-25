@@ -468,7 +468,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
         if (!operatingModel) throw new Error("COMPANY_OPERATING_MODEL_NOT_FOUND");
         const discovery = await this.latestDiscovery();
         const constitution = projectCompanyConstitution({ companyId, operatingModel, discovery });
-        const events = input.events.map((event) => ({ ...event, companyId }));
+        const events = input.events.map((event) => ({ ...event, companyId, signal: { provenance: "asserted" as const, sourceId: event.signal?.sourceId ?? event.actorPrincipal, topic: event.signal?.topic ?? event.type, ...(event.signal?.capability ? { capability: event.signal.capability } : {}) } }));
         const signalClaims: Array<{ key: string; owner: string; fencingToken: number; eventId: string }> = [];
         const settledSignalKeys = new Set<string>();
         const freshEvents: BusinessEvent[] = [];
@@ -947,12 +947,12 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   }
 }
 
-function parseAuthorityTrustAnchors(raw: string | undefined, companyId: string | undefined): CompanyPrincipalTrustAnchor[] {
+export function parseAuthorityTrustAnchors(raw: string | undefined, companyId: string | undefined): CompanyPrincipalTrustAnchor[] {
   if (!raw?.trim()) return [];
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { throw new Error("XSPA_AUTHORITY_TRUST_ANCHORS_JSON invalid JSON"); }
   if (!Array.isArray(parsed) || parsed.length > 32) throw new Error("XSPA_AUTHORITY_TRUST_ANCHORS_JSON invalid");
-  return parsed.map((entry, index) => {
+  const anchors = parsed.map((entry, index) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`authority trust anchor[${index}] invalid`);
     const obj = entry as Record<string, unknown>;
     const role = String(obj.role ?? "");
@@ -967,8 +967,22 @@ function parseAuthorityTrustAnchors(raw: string | undefined, companyId: string |
     const principalId = String(obj.principalId ?? obj.principal_id ?? "").trim();
     const keyId = String(obj.keyId ?? obj.key_id ?? "").trim();
     if (!principalId || !keyId) throw new Error(`authority trust anchor[${index}] identity invalid`);
-    return { principalId, companyId: anchorCompanyId, role: role as CompanyPrincipalTrustAnchor["role"], keyId, algorithm: "Ed25519", publicKeyPem, allowedScopes: [...new Set(allowedScopesRaw.map((value) => value.trim()).filter(Boolean))] };
+    const validFromRaw = obj.validFrom ?? obj.valid_from;
+    const validUntilRaw = obj.validUntil ?? obj.valid_until;
+    const validFrom = validFromRaw === undefined ? undefined : String(validFromRaw);
+    const validUntil = validUntilRaw === undefined ? undefined : String(validUntilRaw);
+    if (validFrom && !Number.isFinite(Date.parse(validFrom))) throw new Error(`authority trust anchor[${index}].validFrom invalid`);
+    if (validUntil && !Number.isFinite(Date.parse(validUntil))) throw new Error(`authority trust anchor[${index}].validUntil invalid`);
+    if (validFrom && validUntil && Date.parse(validFrom) >= Date.parse(validUntil)) throw new Error(`authority trust anchor[${index}] validity window invalid`);
+    return { principalId, companyId: anchorCompanyId, role: role as CompanyPrincipalTrustAnchor["role"], keyId, algorithm: "Ed25519" as const, publicKeyPem, allowedScopes: [...new Set(allowedScopesRaw.map((value) => value.trim()).filter(Boolean))], ...(validFrom ? { validFrom: new Date(validFrom).toISOString() } : {}), ...(validUntil ? { validUntil: new Date(validUntil).toISOString() } : {}) };
   });
+  const identities = new Set<string>();
+  for (const anchor of anchors) {
+    const identity = `${anchor.principalId}:${anchor.keyId}`;
+    if (identities.has(identity)) throw new Error(`authority trust anchor duplicate key identity:${identity}`);
+    identities.add(identity);
+  }
+  return anchors;
 }
 
 export async function createEnvironmentXspaAppOperations(): Promise<{ operations: EnvironmentXspaAppOperations; close(): Promise<void> }> {

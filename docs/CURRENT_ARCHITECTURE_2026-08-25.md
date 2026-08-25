@@ -228,7 +228,7 @@ At commit `d6a4453` the current kernel-hardening state passed:
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               97 PASS
+Unit/integration suite               100 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
@@ -249,3 +249,12 @@ The heartbeat cursor is now persisted with the active lease owner/fencing token 
 Signed discovery-resolution mandates bind to an exact discovery revision ID + fingerprint. Runtime mandate history is protected by a durable count/hash ledger head and fails closed on mismatch. Historical public keys remain available for verification within their issuance validity window; key rotation does not authorize post-retirement issuance.
 
 The MCP remains the control boundary and defaults to loopback. Broader deployment binding requires explicit configuration and DNS host allowlisting. No model-provider API was introduced by this hardening work; the host model law remains GPT-5.6 Sol under Xanxito control.
+
+
+## Attention-plane status
+
+`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. The kernel now exposes `pollObservedBusinessSystem()` as the trusted attestation boundary that converts events returned by a configured `BusinessSystemConnector.poll()` into observed events with deterministic attestation references. Production connector registration/scheduling is still pending; autonomous wake is therefore fail-closed rather than silently spoofable.
+
+Wake replay state now uses a time retention watermark (`replayRetentionSeconds`) plus per-key observation timestamps. Durable runtime idempotency remains the authoritative replay ledger; the JSONB wake state is compacted by age rather than by a fixed last-N slice.
+
+Authority trust-anchor configuration supports a historical keyring: multiple key IDs for the same principal may coexist with `validFrom`/`validUntil` issuance windows. Retired public keys must remain in the configured keyring for historical verification; issuance after `validUntil` fails closed.

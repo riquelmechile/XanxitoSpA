@@ -699,6 +699,7 @@ export interface AgentSubscription {
   };
   threshold: number;
   accumulationWindowSeconds: number;
+  replayRetentionSeconds: number;
   accumulationCap: number;
   wakeIntentOnly: true;
   grantsAuthority: false;
@@ -720,6 +721,7 @@ export interface WakeAccumulatorState {
   lastUpdatedAt: ISODateTime;
   score: number;
   processedEventKeys: string[];
+  processedEventObservedAt: Record<string, ISODateTime>;
   pendingEventIds: UUID[];
   pendingEvidenceRefs: string[];
 }

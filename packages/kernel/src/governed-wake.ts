@@ -31,6 +31,7 @@ function validateSubscription(subscription: AgentSubscription): void {
   if (!Number.isFinite(subscription.threshold) || subscription.threshold <= 0 || subscription.threshold > 1) throw new Error(`wake subscription threshold invalid:${subscription.id}`);
   if (!Number.isFinite(subscription.accumulationCap) || subscription.accumulationCap <= 0 || subscription.accumulationCap > 1 || subscription.accumulationCap < subscription.threshold) throw new Error(`wake subscription accumulation cap invalid:${subscription.id}`);
   if (!Number.isFinite(subscription.accumulationWindowSeconds) || subscription.accumulationWindowSeconds <= 0) throw new Error(`wake subscription accumulation window invalid:${subscription.id}`);
+  if (!Number.isFinite(subscription.replayRetentionSeconds) || subscription.replayRetentionSeconds <= 0) throw new Error(`wake subscription replay retention invalid:${subscription.id}`);
   if (!Number.isFinite(policy.opportunityCostWeight) || policy.opportunityCostWeight < 0 || !Number.isFinite(policy.actionWindowWeight) || policy.actionWindowWeight < 0 || policy.opportunityCostWeight + policy.actionWindowWeight <= 0) throw new Error(`wake subscription urgency weights invalid:${subscription.id}`);
   if (!Number.isFinite(policy.defaultOpportunityCost) || policy.defaultOpportunityCost < 0 || policy.defaultOpportunityCost > 1) throw new Error(`wake subscription default opportunity cost invalid:${subscription.id}`);
   if (!Number.isFinite(policy.defaultActionWindowMinutes) || policy.defaultActionWindowMinutes <= 0) throw new Error(`wake subscription action window invalid:${subscription.id}`);
@@ -69,13 +70,33 @@ function decayState(state: WakeAccumulatorState, subscription: AgentSubscription
 }
 
 function initialState(subscription: AgentSubscription, now: Date): WakeAccumulatorState {
-  return { subscriptionId: subscription.id, windowStartedAt: now.toISOString(), lastUpdatedAt: now.toISOString(), score: 0, processedEventKeys: [], pendingEventIds: [], pendingEvidenceRefs: [] };
+  return { subscriptionId: subscription.id, windowStartedAt: now.toISOString(), lastUpdatedAt: now.toISOString(), score: 0, processedEventKeys: [], processedEventObservedAt: {}, pendingEventIds: [], pendingEvidenceRefs: [] };
 }
 
-function rememberEventKey(keys: string[], key: string): string[] {
-  // Durable runtime idempotency is the primary replay ledger. Keeping the full key set here makes
-  // the pure kernel evaluator replay-safe too; compaction must be an explicit future migration.
-  return keys.includes(key) ? keys : [...keys, key];
+function compactReplayState(state: WakeAccumulatorState, subscription: AgentSubscription, now: Date): WakeAccumulatorState {
+  const legacyObservedAt = state.lastUpdatedAt || state.windowStartedAt || now.toISOString();
+  const observedAt = { ...(state.processedEventObservedAt ?? {}) };
+  for (const key of state.processedEventKeys) if (!observedAt[key]) observedAt[key] = legacyObservedAt;
+  const cutoff = now.getTime() - subscription.replayRetentionSeconds * 1000;
+  const retained = state.processedEventKeys.filter((key) => {
+    const seenAt = Date.parse(observedAt[key] ?? legacyObservedAt);
+    return !Number.isFinite(seenAt) || seenAt >= cutoff;
+  });
+  const retainedSet = new Set(retained);
+  return {
+    ...state,
+    processedEventKeys: retained,
+    processedEventObservedAt: Object.fromEntries(Object.entries(observedAt).filter(([key]) => retainedSet.has(key))),
+  };
+}
+
+function rememberEventKey(state: WakeAccumulatorState, key: string, now: Date): WakeAccumulatorState {
+  if (state.processedEventKeys.includes(key)) return state;
+  return {
+    ...state,
+    processedEventKeys: [...state.processedEventKeys, key],
+    processedEventObservedAt: { ...(state.processedEventObservedAt ?? {}), [key]: now.toISOString() },
+  };
 }
 
 function proposalFor(input: { companyId: string; subscription: AgentSubscription; eventIds: string[]; evidenceRefs: string[]; urgency: number; now: Date }): WakeWorkProposal {
@@ -118,7 +139,7 @@ export class GovernedWakeEngine {
 
     for (const subscription of input.constitution.subscriptions) {
       validateSubscription(subscription);
-      let state = decayState(stateBySubscription.get(subscription.id) ?? initialState(subscription, now), subscription, now);
+      let state = compactReplayState(decayState(stateBySubscription.get(subscription.id) ?? initialState(subscription, now), subscription, now), subscription, now);
       const matched = input.events.filter((event) => matches(subscription, event));
       if (matched.length === 0) {
         decisions.push({ subscriptionId: subscription.id, state: "sleep", urgency: 0, accumulatedUrgency: state.score, reason: "no matching event" });
@@ -136,7 +157,7 @@ export class GovernedWakeEngine {
         const nextScore = Math.min(subscription.accumulationCap, state.score + urgency);
         const pendingEventIds = [...state.pendingEventIds, event.id];
         const pendingEvidenceRefs = [...new Set([...state.pendingEvidenceRefs, ...event.evidenceRefs])];
-        state = { ...state, lastUpdatedAt: now.toISOString(), score: nextScore, processedEventKeys: rememberEventKey(state.processedEventKeys, eventKey), pendingEventIds, pendingEvidenceRefs };
+        state = rememberEventKey({ ...state, lastUpdatedAt: now.toISOString(), score: nextScore, pendingEventIds, pendingEvidenceRefs }, eventKey, now);
         if (nextScore >= subscription.threshold) {
           const proposal = proposalFor({ companyId: input.companyId, subscription, eventIds: pendingEventIds, evidenceRefs: pendingEvidenceRefs, urgency: nextScore, now });
           proposals.push(proposal);
@@ -184,7 +205,7 @@ export function wakeStateFromAsset(asset: CompanyAsset): WakeAccumulatorState[] 
   if (asset.kind !== "company-wake-state") throw new Error("not a company wake state asset");
   const state = asset.metadata.state;
   if (!Array.isArray(state)) throw new Error("company wake state asset missing state");
-  return structuredClone(state as WakeAccumulatorState[]);
+  return structuredClone((state as WakeAccumulatorState[]).map((item) => ({ ...item, processedEventObservedAt: item.processedEventObservedAt ?? {} })));
 }
 
 export function createWakeProposalAsset(proposal: WakeWorkProposal, evaluationId: string, now = new Date()): CompanyAsset {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ManifestBusinessSystemConnector, projectBusinessSystemDiscoveries } from "./business-system-connector.js";
+import { ManifestBusinessSystemConnector, pollObservedBusinessSystem, projectBusinessSystemDiscoveries } from "./business-system-connector.js";
 
 const companyId = "11111111-1111-4111-8111-111111111111";
 
@@ -49,5 +49,23 @@ describe("generic business system connectors", () => {
     expect(connector.capabilities).toEqual(["operations.events"]);
     expect(polled.cursor).toEqual({ sourceId: connector.id, position: "next" });
   });
+
+  it("attests observed events only after polling a registered connector boundary", async () => {
+    const connector = new ManifestBusinessSystemConnector({
+      id: "system:attested", label: "Attested", kind: "generic-system", confidence: 1,
+      signalCapabilities: [{ name: "operations.events", description: "Operational events", criticality: "important", confidence: 1 }],
+    }, {
+      poll: async () => ({
+        events: [{ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", companyId, type: "operations.events", occurredAt: "2026-08-25T12:00:00.000Z", actorPrincipal: "connector", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", idempotencyKey: "evt:a", payload: {}, sensitivity: "internal", evidenceRefs: [], signal: { provenance: "asserted", sourceId: "spoofed", topic: "operations.events", capability: "operations.events" } }],
+        cursor: { sourceId: "system:attested", position: "1" },
+      }),
+    });
+    const result = await pollObservedBusinessSystem({ connector, companyId, cursor: { sourceId: connector.id, position: null } });
+    expect(result.events[0]?.signal?.provenance).toBe("observed");
+    expect(result.events[0]?.signal?.sourceId).toBe(connector.id);
+    expect(result.events[0]?.signal?.attestationRef).toMatch(/^connector-attestation:[a-f0-9]{64}$/);
+    expect(result.events[0]?.evidenceRefs).toContain(result.events[0]?.signal?.attestationRef);
+  });
+
 
 });

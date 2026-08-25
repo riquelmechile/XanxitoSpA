@@ -52,6 +52,8 @@ Production root enrollment is intentionally outside ordinary MCP writes. Trusted
 
 The governed wake engine operationalizes that attention plane without creating a second scheduler. `BusinessSystemConnector` is the single discovery + perception abstraction: `describe()` exposes system shape and `poll(cursor)` emits ongoing `BusinessEvent`s. The deterministic `CsvSignalSource` implements that same connector contract. Existing fenced heartbeat cursors remain the timing boundary; subscriptions match events declaratively, and urgency combines opportunity cost of inaction with action-window pressure. Sub-threshold urgency accumulates durably and replayed event/subscription pairs are deduplicated. Crossing a threshold emits a `WakeWorkProposal` only: `workCreated=false`, `executesWork=false`, and all authority/budget/capability grants remain false until the normal Work + adjudication path accepts it.
 
+**Current attention-plane boundary:** `xspa_company_wake_evaluate` is intentionally diagnostic-only. MCP callers cannot create observed events. The kernel exposes `pollObservedBusinessSystem()` as the trusted attestation boundary for future registered connector polling; production scheduling/registration of live connectors is not yet wired, so autonomous wake is not claimed as live today.
+
 ## What XanxitoSpA is
 
 Most agent systems try to make one model do more work. **XanxitoSpA models the company itself.**
@@ -76,10 +78,10 @@ Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
 Discovery                revisioned evidence/facts/unknowns/capabilities + scoped readiness
 Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
-Wake                     governed urgency/threshold accumulation · wake never grants authority
+Wake                     governed urgency/threshold accumulation · MCP evaluate is diagnostic/asserted-only until trusted connector polling is wired
 Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
-Local test suite         97 PASS · PostgreSQL 18 smoke covers fenced cursor + asset CAS
+Local test suite         100 PASS · PostgreSQL 18 smoke covers fenced cursor + asset CAS
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
 External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback

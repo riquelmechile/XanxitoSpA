@@ -7,7 +7,7 @@ const companyId = "11111111-1111-4111-8111-111111111111";
 const context = { principal: "test-user", scopes: ["xspa.read", "xspa.write"] };
 
 describe("EnvironmentXspaAppOperations governed wake", () => {
-  it("persists replay-safe wake state/proposal without creating Work or authority", async () => {
+  it("keeps MCP wake evaluation diagnostic-only and replay-safe without creating Work or authority", async () => {
     const store = new InMemoryRuntimeStore();
     const workStore = new InMemoryCompanyStore();
     const operatingModel = planCompanyOperatingModel({
@@ -62,7 +62,7 @@ describe("EnvironmentXspaAppOperations governed wake", () => {
     await store.releaseHeartbeatLease(blockingLease!, new Date());
 
     const first = await operations.companyWakeEvaluate({ evaluationId: "44444444-4444-4444-8444-444444444444", events: [signalEvent] }, context) as { proposals: unknown[]; workCreated: boolean; grantsAuthority: boolean };
-    expect(first.proposals).toHaveLength(1);
+    expect(first.proposals).toHaveLength(0);
     expect(first.workCreated).toBe(false);
     expect(first.grantsAuthority).toBe(false);
     expect(workStore.works.size).toBe(0);
@@ -71,7 +71,7 @@ describe("EnvironmentXspaAppOperations governed wake", () => {
     expect(replayBlockingLease).not.toBeNull();
     const appliedReplay = await operations.companyWakeEvaluate({ evaluationId: "44444444-4444-4444-8444-444444444444", events: [signalEvent] }, context) as { status: string; proposals: unknown[] };
     expect(appliedReplay.status).toBe("evaluated");
-    expect(appliedReplay.proposals).toHaveLength(1);
+    expect(appliedReplay.proposals).toHaveLength(0);
     await store.releaseHeartbeatLease(replayBlockingLease!, new Date());
 
     const replay = await operations.companyWakeEvaluate({ evaluationId: "55555555-5555-4555-8555-555555555555", events: [signalEvent] }, context) as { proposals: unknown[]; duplicateEventCount: number };
@@ -99,13 +99,13 @@ describe("EnvironmentXspaAppOperations governed wake", () => {
       expect(Array.isArray(result.proposals)).toBe(true);
     }
     const boundedStatus = await operations.companyWakeStatus(context) as { accumulatorState: Array<{ processedEventKeys: string[] }> };
-    expect(boundedStatus.accumulatorState[0]?.processedEventKeys).toHaveLength(301);
+    expect(boundedStatus.accumulatorState[0]?.processedEventKeys ?? []).toHaveLength(0);
     const oldReplay = await operations.companyWakeEvaluate({ evaluationId: "77777777-7777-4777-8777-777777777777", events: [bulkEvents[0]!] }, context) as { proposals: unknown[]; duplicateEventCount: number };
     expect(oldReplay.proposals).toHaveLength(0);
     expect(oldReplay.duplicateEventCount).toBe(1);
 
     const status = await operations.companyWakeStatus(context) as { proposals: unknown[]; grantsAuthority: boolean };
-    expect(status.proposals.length).toBeGreaterThanOrEqual(1);
+    expect(status.proposals).toHaveLength(0);
     expect(status.grantsAuthority).toBe(false);
   });
 });

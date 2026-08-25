@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { BusinessCapabilityCriticality, DiscoveryRevision, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
 import { buildDiscoveryRevision } from "./company-discovery.js";
 
@@ -87,6 +88,27 @@ export class ManifestBusinessSystemConnector implements BusinessSystemConnector 
     if (!this.poller) throw new Error(`SIGNAL_POLL_UNAVAILABLE:${this.id}`);
     return this.poller.poll(cursor);
   }
+}
+
+
+export async function pollObservedBusinessSystem(input: { connector: BusinessSystemConnector; companyId: string; cursor: SignalCursor }): Promise<SignalPollResult> {
+  const { connector, companyId, cursor } = input;
+  if (cursor.sourceId !== connector.id) throw new Error("business system cursor source mismatch");
+  const result = await connector.poll(cursor);
+  if (result.cursor.sourceId !== connector.id) throw new Error("business system poll returned foreign cursor");
+  const events = result.events.map((event) => {
+    if (event.companyId !== companyId) throw new Error(`business system event company mismatch:${event.id}`);
+    const topic = event.signal?.topic?.trim() || event.type;
+    const capability = event.signal?.capability?.trim();
+    if (capability && !connector.capabilities.includes(capability)) throw new Error(`business system event capability not declared:${capability}`);
+    const attestationRef = `connector-attestation:${createHash("sha256").update(JSON.stringify({ sourceId: connector.id, eventId: event.id, occurredAt: event.occurredAt, cursorBefore: cursor.position, cursorAfter: result.cursor.position })).digest("hex")}`;
+    return {
+      ...structuredClone(event),
+      signal: { provenance: "observed" as const, sourceId: connector.id, topic, ...(capability ? { capability } : {}), attestationRef },
+      evidenceRefs: [...new Set([...event.evidenceRefs, attestationRef])],
+    };
+  });
+  return { events, cursor: structuredClone(result.cursor) };
 }
 
 function stableId(value: string): string { return value.toLowerCase().replace(/[^a-z0-9._:-]+/g, "-").replace(/^-+|-+$/g, ""); }

@@ -16,23 +16,26 @@ function fingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(canonicalize(value))).digest("hex");
 }
 
-function subscriptionDefaults(criticality: string): Pick<AgentSubscription, "urgencyPolicy" | "threshold" | "accumulationWindowSeconds" | "accumulationCap"> {
+function subscriptionDefaults(criticality: string): Pick<AgentSubscription, "urgencyPolicy" | "threshold" | "accumulationWindowSeconds" | "replayRetentionSeconds" | "accumulationCap"> {
   if (criticality === "critical") return {
     urgencyPolicy: { opportunityCostWeight: 0.7, actionWindowWeight: 0.3, defaultOpportunityCost: 0.8, defaultActionWindowMinutes: 30 },
     threshold: 0.65,
     accumulationWindowSeconds: 900,
+    replayRetentionSeconds: 604800,
     accumulationCap: 1,
   };
   if (criticality === "important") return {
     urgencyPolicy: { opportunityCostWeight: 0.65, actionWindowWeight: 0.35, defaultOpportunityCost: 0.5, defaultActionWindowMinutes: 120 },
     threshold: 0.75,
     accumulationWindowSeconds: 3600,
+    replayRetentionSeconds: 1209600,
     accumulationCap: 1,
   };
   return {
     urgencyPolicy: { opportunityCostWeight: 0.6, actionWindowWeight: 0.4, defaultOpportunityCost: 0.25, defaultActionWindowMinutes: 480 },
     threshold: 0.85,
     accumulationWindowSeconds: 14_400,
+    replayRetentionSeconds: 2592000,
     accumulationCap: 1,
   };
 }

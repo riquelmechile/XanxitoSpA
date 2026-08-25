@@ -23,6 +23,7 @@ function subscription(overrides: Partial<AgentSubscription> = {}): AgentSubscrip
     },
     threshold: 0.75,
     accumulationWindowSeconds: 3600,
+    replayRetentionSeconds: 86_400,
     accumulationCap: 1,
     wakeIntentOnly: true,
     grantsAuthority: false,
@@ -101,6 +102,19 @@ describe("GovernedWakeEngine", () => {
     const first = engine.evaluate({ companyId, constitution: constitution(sub), events: many, priorState: [], now });
     expect(first.state[0]?.processedEventKeys).toHaveLength(300);
     expect(first.state[0]?.processedEventKeys.at(-1)).toContain(many.at(-1)!.id);
+  });
+
+  it("compacts replay keys by retention watermark instead of by fixed count", () => {
+    const sub = subscription({ threshold: 0.95, replayRetentionSeconds: 60 });
+    const engine = new GovernedWakeEngine();
+    const firstEvent = event("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", 0);
+    const first = engine.evaluate({ companyId, constitution: constitution(sub), events: [firstEvent], priorState: [], now });
+    expect(first.state[0]?.processedEventKeys).toHaveLength(1);
+    const later = new Date(now.getTime() + 61_000);
+    const secondEvent = { ...event("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", 0), occurredAt: later.toISOString() };
+    const second = engine.evaluate({ companyId, constitution: constitution(sub), events: [secondEvent], priorState: first.state, now: later });
+    expect(second.state[0]?.processedEventKeys).toEqual([`${sub.id}:${secondEvent.id}`]);
+    expect(Object.keys(second.state[0]?.processedEventObservedAt ?? {})).toEqual([`${sub.id}:${secondEvent.id}`]);
   });
 
   it("fails closed on company mismatch", () => {
