@@ -81,12 +81,12 @@ Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
 Wake                     governed urgency/threshold accumulation · MCP evaluate is diagnostic/asserted-only until trusted connector polling is wired
 Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
-Local test suite         102 PASS · PostgreSQL 18 smoke covers fenced cursor + asset CAS
+Local test suite         105 PASS · PostgreSQL 18 smoke covers fencing, asset CAS + observed-signal replay ledger
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
 External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             attention/replay hardening shipped · 4R #399 approved · exact-head CI PASS
+Release state             observed scheduler + keyring hardening ready for review · exact-head pending
 ```
 
 ---

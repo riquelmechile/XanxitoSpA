@@ -228,14 +228,14 @@ At commit `a4dfe8e` the current signal-attestation/keyring-hardening state passe
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               102 PASS
+Unit/integration suite               105 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #399 approved
+4R review                            pending for observed scheduler/freeze
 Exact-head GitHub Actions CI          PASS
 ```
 

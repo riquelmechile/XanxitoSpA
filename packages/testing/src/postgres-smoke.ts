@@ -164,6 +164,13 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(await runtimeStore.markIdempotency(companyA, key, "worker-a", firstClaim.record.fencingToken, "applied", now, { ok: true }), "idempotency owner failed settlement");
     assert((await runtimeStore.getIdempotency(companyA, key))?.state === "applied", "idempotency applied state not durable");
 
+    const observedKey = `company:observed-signal:system:test:${randomUUID()}`;
+    const observedClaim = await runtimeStore.claimIdempotency(companyA, observedKey, { eventFingerprint: "f".repeat(64), attestationRef: "connector-attestation:test" }, "scheduler-a", new Date());
+    const observedReplay = await runtimeStore.claimIdempotency(companyA, observedKey, { eventFingerprint: "f".repeat(64), attestationRef: "connector-attestation:test" }, "scheduler-b", new Date());
+    assert(observedClaim.claimed && !observedReplay.claimed, "observed-event scheduler durable claim was duplicated");
+    assert(await runtimeStore.markIdempotency(companyA, observedKey, "scheduler-a", observedClaim.record.fencingToken, "applied", new Date(), { observed: true }), "observed-event scheduler claim failed settlement");
+    assert((await runtimeStore.getIdempotency(companyA, observedKey))?.state === "applied", "observed-event scheduler replay ledger not durable");
+
     const orphanKey = `effect:${randomUUID()}`;
     const orphan = await runtimeStore.claimIdempotency(companyA, orphanKey, { action: "maybe-applied" }, "worker-crashed", new Date());
     assert(orphan.claimed, "orphan test could not claim intent");
