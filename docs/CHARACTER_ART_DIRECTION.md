@@ -77,7 +77,7 @@ desktop/mobile roster
 GitHub public render review
 ```
 
-V1 rendering is intentionally single-provider at the model layer: GPT-5.6 Sol owns the brief and the built-in Responses `image_generation` tool renders the image. The current specialized backend is GPT Image 2, but it is a renderer rather than another principal. Secondary model providers are not part of the V1 art pipeline.
+V1 rendering is intentionally single-model at the cognitive layer: GPT-5.6 Sol owns the brief in the ChatGPT host, and any image generation is invoked through host-native tooling. XanxitoSpA itself does not call Responses or any model-provider API and holds no model API key. Secondary cognitive model providers are not part of the V1 art pipeline.
 
 ## Current repository state
 

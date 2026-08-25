@@ -224,22 +224,22 @@ The stated limitation remains that DIRECT was not specifically prompted for resi
 
 ## 10. Current verified repository state
 
-At commit `cce3fce` the owner-authority block passed:
+At commit `d6a4453` the current kernel-hardening state passed:
 
 ```text
 TypeScript typecheck                 PASS
 Unit/integration suite               97 PASS
 Local PostgreSQL integration         1 skipped by local environment
-Company Gym                          PASS
+Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #381 approved
+4R review                            #388 approved
 Exact-head GitHub Actions CI          PASS
 ```
 
-The next architectural block is the secure first-root enrollment ceremony: establish a real Founder/Owner public-key trust anchor without allowing ordinary `xspa.write` callers to create or replace the authority root.
+The next architectural block remains the secure first-root enrollment ceremony: establish a real Founder/Owner public-key trust anchor without allowing ordinary `xspa.write` callers to create or replace the authority root. Kernel hardening from the external audit is shipped and exact-head CI is green.
 
 
 ### Kernel hardening — 2026-08-25
