@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { BusinessEvent, CompanyAsset, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, GovernedWakeEngine, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, GenericDiscoveryOrchestrator, GovernedWakeEngine, ManifestBusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
@@ -219,6 +219,17 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   async companyDiscoveryStatus(_context: XspaRequestContext): Promise<unknown> {
     const revision = await this.latestDiscovery();
     return revision ? { state: "found", revision, companyScoped: true, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false } : { state: "not-found", companyScoped: true };
+  }
+
+  async companyDiscoveryOrchestrate(input: CompanyDiscoveryOrchestrateInput, _context: XspaRequestContext): Promise<unknown> {
+    const { companyId } = this.requireRuntime();
+    const prior = input.parentRevisionId ? await this.discoveryByRevisionId(input.parentRevisionId) : await this.latestDiscovery();
+    if (input.parentRevisionId && !prior) throw new Error("DISCOVERY_PARENT_NOT_FOUND");
+    const connectors = input.systems.map((system) => new ManifestBusinessSystemConnector({
+      id: system.id, label: system.label, kind: system.kind, confidence: system.confidence, signalCapabilities: system.signalCapabilities,
+    }));
+    const result = await new GenericDiscoveryOrchestrator().run({ companyId, connectors, prior });
+    return { ...result, companyScoped: true, readyForOrganizationSynthesis: result.discoveryComplete };
   }
 
   async companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown> {

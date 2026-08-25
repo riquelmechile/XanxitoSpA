@@ -109,6 +109,18 @@ export interface CompanyDiscoveryApplyInput extends CompanyDiscoveryPlanInput {
   expectedFingerprint?: string;
 }
 
+
+export interface CompanyDiscoveryOrchestrateInput {
+  parentRevisionId?: string;
+  systems: Array<{
+    id: string;
+    label: string;
+    kind: string;
+    confidence: number;
+    signalCapabilities: Array<{ name: string; description: string; criticality: "supporting" | "important" | "critical"; confidence: number }>;
+  }>;
+}
+
 export interface CompanyWakeEvaluateInput {
   evaluationId: string;
   events: BusinessEvent[];
@@ -154,6 +166,7 @@ export interface XspaAppOperations {
   companyDiscoveryPlan(input: CompanyDiscoveryPlanInput, context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryApply(input: CompanyDiscoveryApplyInput, context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryStatus(context: XspaRequestContext): Promise<unknown>;
+  companyDiscoveryOrchestrate(input: CompanyDiscoveryOrchestrateInput, context: XspaRequestContext): Promise<unknown>;
   companyWakeEvaluate(input: CompanyWakeEvaluateInput, context: XspaRequestContext): Promise<unknown>;
   companyWakeStatus(context: XspaRequestContext): Promise<unknown>;
   companyPlan(input: CompanyPlanInput, context: XspaRequestContext): Promise<unknown>;
@@ -382,6 +395,31 @@ function parseCompanyDiscoveryApply(args: unknown): CompanyDiscoveryApplyInput {
   return result;
 }
 
+function parseCompanyDiscoveryOrchestrate(args: unknown): CompanyDiscoveryOrchestrateInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  if (!Array.isArray(obj.systems) || obj.systems.length > 64) throw new Error("systems invalid");
+  const systems = obj.systems.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`systems[${index}] invalid`);
+    const item = entry as Record<string, unknown>;
+    const confidence = Number(item.confidence);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error(`systems[${index}].confidence invalid`);
+    if (!Array.isArray(item.signal_capabilities) || item.signal_capabilities.length > 64) throw new Error(`systems[${index}].signal_capabilities invalid`);
+    const signalCapabilities = item.signal_capabilities.map((raw, signalIndex) => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(`systems[${index}].signal_capabilities[${signalIndex}] invalid`);
+      const signal = raw as Record<string, unknown>;
+      const signalConfidence = Number(signal.confidence);
+      if (!Number.isFinite(signalConfidence) || signalConfidence < 0 || signalConfidence > 1) throw new Error(`systems[${index}].signal_capabilities[${signalIndex}].confidence invalid`);
+      const criticality = assertText(signal.criticality, `systems[${index}].signal_capabilities[${signalIndex}].criticality`, 20);
+      if (!["supporting", "important", "critical"].includes(criticality)) throw new Error(`systems[${index}].signal_capabilities[${signalIndex}].criticality invalid`);
+      return { name: assertText(signal.name, `systems[${index}].signal_capabilities[${signalIndex}].name`, 160), description: assertText(signal.description, `systems[${index}].signal_capabilities[${signalIndex}].description`, 2000), criticality: criticality as "supporting" | "important" | "critical", confidence: signalConfidence };
+    });
+    return { id: assertText(item.id, `systems[${index}].id`, 160), label: assertText(item.label, `systems[${index}].label`, 240), kind: assertText(item.kind, `systems[${index}].kind`, 160), confidence, signalCapabilities };
+  });
+  const result: CompanyDiscoveryOrchestrateInput = { systems };
+  if (obj.parent_revision_id !== undefined) result.parentRevisionId = assertId(obj.parent_revision_id, "parent_revision_id");
+  return result;
+}
+
 function parseCompanyWakeEvaluate(args: unknown): CompanyWakeEvaluateInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
   const eventsRaw = obj.events;
@@ -433,6 +471,17 @@ const COMPANY_DISCOVERY_SCHEMA_PROPERTIES = {
 };
 function companyDiscoverySchema(extraProperties: Record<string, unknown> = {}, extraRequired: string[] = []) { return { type: "object" as const, properties: { ...extraProperties, ...COMPANY_DISCOVERY_SCHEMA_PROPERTIES }, required: extraRequired, additionalProperties: false }; }
 
+const COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    parent_revision_id: { type: "string", format: "uuid" },
+    systems: { type: "array", maxItems: 64, items: { type: "object", properties: {
+      id: { type: "string", maxLength: 160 }, label: { type: "string", maxLength: 240 }, kind: { type: "string", maxLength: 160 }, confidence: { type: "number", minimum: 0, maximum: 1 },
+      signal_capabilities: { type: "array", maxItems: 64, items: { type: "object", properties: { name: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 2000 }, criticality: { type: "string", enum: ["supporting","important","critical"] }, confidence: { type: "number", minimum: 0, maximum: 1 } }, required: ["name","description","criticality","confidence"], additionalProperties: false } },
+    }, required: ["id","label","kind","confidence","signal_capabilities"], additionalProperties: false } },
+  }, required: ["systems"], additionalProperties: false,
+};
+
 const COMPANY_WAKE_SCHEMA = {
   type: "object" as const,
   properties: {
@@ -483,6 +532,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_company_discovery_plan", title: "Plan Company discovery revision", description: "Build an evidence-based Company discovery revision. Read-only and descriptive: it grants no authority, budget, credentials or capabilities.", inputSchema: companyDiscoverySchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_apply", title: "Apply Company discovery revision", description: "Persist one evidence-based Company discovery revision with lineage and fingerprint. This cannot create Work or grant authority/budget/capabilities.", inputSchema: companyDiscoverySchema({ discovery_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["discovery_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_status", title: "Get Company discovery revision", description: "Read the latest deployment-scoped Company discovery revision. Discovery is descriptive and cannot authorize execution.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_discovery_orchestrate", title: "Orchestrate Company discovery", description: "Discover a generic existing company from neutral business-system manifests and return prioritized owner questions. Read-only; performs no network calls and grants no authority.", inputSchema: COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_wake_evaluate", title: "Evaluate Company wake signals", description: "Evaluate company-scoped business signals against durable subscriptions and urgency thresholds. May emit Work proposals only; never creates Work or grants authority, budget or capabilities.", inputSchema: COMPANY_WAKE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_wake_status", title: "Get Company wake state", description: "Read the latest company-scoped wake accumulator state and pending proposal metadata. No authority is granted.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_plan", title: "Plan Company operating model", description: "Primary Generic Company OS intake. Plan a NEW Company or adopt an EXISTING Company into functions, departments, processes, skills and semantic capabilities. Existing departments/processes are preserved first. Read-only: grants no authority, budget or capabilities.", inputSchema: companyIntakeSchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -517,6 +567,10 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
       if (request.params.name === "xspa_company_discovery_status") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyDiscoveryStatus(requestContext(input.auth)), "Company discovery revision loaded.");
+      }
+      if (request.params.name === "xspa_company_discovery_orchestrate") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.companyDiscoveryOrchestrate(parseCompanyDiscoveryOrchestrate(request.params.arguments), requestContext(input.auth)), "Company discovery orchestrated.");
       }
       if (request.params.name === "xspa_company_wake_evaluate") {
         if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
