@@ -59,6 +59,21 @@ function extractReceipt(value: unknown): CreativeDecisionReceipt | null {
   return null;
 }
 
+function deterministicCompanyAssetId(companyId: string, namespace: string): string {
+  const hex = createHash("sha256").update(`${namespace}:${companyId}`).digest("hex").slice(0, 32).split("");
+  hex[12] = "4";
+  hex[16] = ((Number.parseInt(hex[16] ?? "0", 16) & 0x3) | 0x8).toString(16);
+  const value = hex.join("");
+  return `${value.slice(0,8)}-${value.slice(8,12)}-${value.slice(12,16)}-${value.slice(16,20)}-${value.slice(20)}`;
+}
+
+function authorityLedgerHead(mandates: AuthorityMandate[]): { count: number; headHash: string } {
+  const entries = [...mandates]
+    .sort((a, b) => a.issuedAt.localeCompare(b.issuedAt) || a.id.localeCompare(b.id))
+    .map((mandate) => ({ id: mandate.id, payloadHash: mandate.payloadHash }));
+  return { count: entries.length, headHash: createHash("sha256").update(JSON.stringify(entries)).digest("hex") };
+}
+
 export class EnvironmentXspaAppOperations implements XspaAppOperations {
   constructor(
     private readonly input: {
@@ -84,8 +99,8 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       companyOs: { ready: Boolean(this.input.store && this.input.companyId), intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
       creative: {
         configured: this.input.creativeConfigured,
-        renderer: "responses-image-generation",
-        chatMode: "decision-only",
+        renderer: "chatgpt-host-native-tooling",
+        chatMode: "mcp-host-only",
         video: "staged",
       },
       kast: {
@@ -199,12 +214,12 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     return snapshots[0]!.snapshot;
   }
 
-  private async latestWakeState(): Promise<WakeAccumulatorState[]> {
+  private async latestWakeState(): Promise<{ state: WakeAccumulatorState[]; version: number }> {
     const { store, companyId } = this.requireRuntime();
     const assets = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-wake-state" && asset.status === "active");
-    if (assets.length === 0) return [];
+    if (assets.length === 0) return { state: [], version: 0 };
     assets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-    return wakeStateFromAsset(assets[0]!);
+    return { state: wakeStateFromAsset(assets[0]!), version: assets[0]!.version ?? 0 };
   }
 
   private authorityTrustAnchors(): CompanyPrincipalTrustAnchor[] {
@@ -221,13 +236,46 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     });
   }
 
+  private async verifiedAuthorityLedger(): Promise<{ mandates: AuthorityMandate[]; headAsset: CompanyAsset | null; count: number; headHash: string }> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = await store.listAssets(companyId);
+    const mandates = assets.filter((asset) => asset.kind === "company-authority-mandate" && asset.status === "active").flatMap((asset) => {
+      const raw = asset.metadata.mandate;
+      return raw && typeof raw === "object" && !Array.isArray(raw) ? [structuredClone(raw) as AuthorityMandate] : [];
+    });
+    const headAssets = assets.filter((asset) => asset.kind === "company-authority-ledger-head" && asset.status === "active");
+    if (headAssets.length > 1) throw new Error("AUTHORITY_LEDGER_MULTIPLE_HEADS");
+    const headAsset = headAssets[0] ?? null;
+    const computed = authorityLedgerHead(mandates);
+    if (mandates.length === 0 && !headAsset) return { mandates, headAsset: null, ...computed };
+    if (!headAsset) throw new Error("AUTHORITY_LEDGER_HEAD_MISSING");
+    const count = Number(headAsset.metadata.count);
+    const headHash = typeof headAsset.metadata.headHash === "string" ? headAsset.metadata.headHash : "";
+    if (!Number.isInteger(count) || count < 0 || !/^[a-f0-9]{64}$/.test(headHash) || count !== computed.count || headHash !== computed.headHash) {
+      throw new Error("AUTHORITY_LEDGER_INCOMPLETE");
+    }
+    return { mandates, headAsset, count, headHash };
+  }
+
+  private authorityLedgerHeadAsset(mandates: AuthorityMandate[], priorHead: CompanyAsset | null, now: Date): CompanyAsset {
+    const { companyId } = this.requireRuntime();
+    const computed = authorityLedgerHead(mandates);
+    return {
+      id: deterministicCompanyAssetId(companyId, "authority-ledger-head"),
+      companyId, kind: "company-authority-ledger-head", capability: "company.authority.ledger", department: "executive",
+      cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: ["append-only-head", "fail-closed"],
+      metadata: { schemaVersion: 1, count: computed.count, headHash: computed.headHash },
+      createdAt: priorHead?.createdAt ?? now.toISOString(), updatedAt: now.toISOString(),
+    };
+  }
+
   async authorityMandateVerify(input: AuthorityMandateInput, _context: XspaRequestContext): Promise<unknown> {
     assertMandatePublicSafe(input.mandate);
     const { companyId } = this.requireRuntime();
     const trustAnchors = this.authorityTrustAnchors();
     if (trustAnchors.length === 0) return { verification: { valid: false, mandateId: input.mandate.id, active: false, reasons: ["AUTHORITY_TRUST_NOT_CONFIGURED"] }, trustConfigured: false, companyScoped: true, grantsAuthority: false };
-    const ledger = await this.authorityMandates();
-    const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger });
+    const ledgerSnapshot = await this.verifiedAuthorityLedger();
+    const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger: ledgerSnapshot.mandates });
     return { verification, trustConfigured: true, companyScoped: true, grantsAuthority: false };
   }
 
@@ -250,7 +298,8 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       return revision;
     };
 
-    const existing = await this.authorityMandates();
+    const existingSnapshot = await this.verifiedAuthorityLedger();
+    const existing = existingSnapshot.mandates;
     const sameId = existing.find((item) => item.id === input.mandate.id);
     if (sameId) {
       const existingFingerprint = createHash("sha256").update(JSON.stringify(sameId)).digest("hex");
@@ -273,9 +322,6 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
 
     let assetPersisted = false;
     try {
-      const ledger = await this.authorityMandates();
-      const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger, now });
-      if (!verification.valid) throw new Error(`AUTHORITY_MANDATE_INVALID:${verification.reasons.join(",")}`);
       const asset: CompanyAsset = {
         id: input.mandate.id,
         companyId,
@@ -291,7 +337,20 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
       };
-      await store.saveAsset(asset);
+      let verification: ReturnType<typeof verifyAuthorityMandate> | undefined;
+      let persisted = false;
+      for (let attempt = 0; attempt < 3 && !persisted; attempt += 1) {
+        const ledgerSnapshot = await this.verifiedAuthorityLedger();
+        const ledger = ledgerSnapshot.mandates;
+        verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger, now });
+        if (!verification.valid) throw new Error(`AUTHORITY_MANDATE_INVALID:${verification.reasons.join(",")}`);
+        const headAsset = this.authorityLedgerHeadAsset([...ledger, input.mandate], ledgerSnapshot.headAsset, now);
+        persisted = await store.saveAssetsAtomically([
+          { asset, expectedVersion: 0 },
+          { asset: headAsset, expectedVersion: ledgerSnapshot.headAsset?.version ?? 0 },
+        ]);
+      }
+      if (!persisted || !verification) throw new Error(`AUTHORITY_LEDGER_ATOMIC_CONFLICT:${input.mandate.id}`);
       assetPersisted = true;
       await store.appendEvent({ id: randomUUID(), companyId, type: "company.authority-mandate.applied", occurredAt: now.toISOString(), actorPrincipal: context.principal, correlationId: input.mandate.id, idempotencyKey: `company:authority-mandate:event:${input.mandate.id}:${input.mandate.payloadHash}`, payload: { mandateId: input.mandate.id, issuerPrincipalId: input.mandate.issuerPrincipalId, effect: input.mandate.effect, payloadHash: input.mandate.payloadHash }, sensitivity: "restricted", evidenceRefs: [`mandate:${input.mandate.id}`] });
       const discoveryRevision = await reconcileDiscovery(input.mandate, verification);
@@ -308,7 +367,8 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   async authorityMandateStatus(_context: XspaRequestContext): Promise<unknown> {
     const { companyId } = this.requireRuntime();
     const trustAnchors = this.authorityTrustAnchors();
-    const ledger = await this.authorityMandates();
+    const ledgerSnapshot = await this.verifiedAuthorityLedger();
+    const ledger = ledgerSnapshot.mandates;
     if (trustAnchors.length === 0) return { trustConfigured: false, mandates: [], companyScoped: true };
     const state = deriveActiveMandates(ledger, companyId, trustAnchors);
     return { trustConfigured: true, mandates: ledger.map((mandate) => ({ id: mandate.id, issuerPrincipalId: mandate.issuerPrincipalId, subject: mandate.subject, effect: mandate.effect, scopes: mandate.scopes, issuedAt: mandate.issuedAt, expiresAt: mandate.expiresAt ?? null, payloadHash: mandate.payloadHash, verification: state.get(mandate.id) ?? null })), companyScoped: true };
@@ -427,16 +487,22 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
           freshEvents.push(event);
         }
         try {
-          const priorState = await this.latestWakeState();
-          const wake = new GovernedWakeEngine().evaluate({ companyId, constitution, events: freshEvents, priorState, now: startedAt });
-          await store.saveAsset(createWakeStateAsset({ companyId, evaluationId: input.evaluationId, state: wake.state }, startedAt));
+          const priorWake = await this.latestWakeState();
+          const wake = new GovernedWakeEngine().evaluate({ companyId, constitution, events: freshEvents, priorState: priorWake.state, now: startedAt });
+          const beforePersist = new Date();
+          if (!(await store.isHeartbeatLeaseCurrent(lease, beforePersist))) throw new Error("Company wake stale heartbeat lease before state persistence");
+          const stateSaved = await store.saveAsset(createWakeStateAsset({ companyId, evaluationId: input.evaluationId, state: wake.state }, startedAt), priorWake.version);
+          if (!stateSaved) throw new Error("Company wake state version conflict");
           persisted = true;
-          for (const proposal of wake.proposals) await store.saveAsset(createWakeProposalAsset(proposal, input.evaluationId, startedAt));
+          for (const proposal of wake.proposals) {
+            const proposalSaved = await store.saveAsset(createWakeProposalAsset(proposal, input.evaluationId, startedAt), 0);
+            if (!proposalSaved) throw new Error(`Company wake proposal already exists:${proposal.id}`);
+          }
           await store.appendEvent({
             id: randomUUID(), companyId, type: "company.wake.evaluated", occurredAt: startedAt.toISOString(), actorPrincipal: context.principal, correlationId: input.evaluationId,
             idempotencyKey: `company:wake:event:${input.evaluationId}:${requestFingerprint}`,
-            payload: { evaluationId: input.evaluationId, eventCount: events.length, newEventCount: freshEvents.length, duplicateEventCount: events.length - freshEvents.length, decisionCount: wake.decisions.length, proposalIds: wake.proposals.map((proposal) => proposal.id) },
-            sensitivity: "internal", evidenceRefs: [...new Set(freshEvents.flatMap((event) => event.evidenceRefs))],
+            payload: { evaluationId: input.evaluationId, eventCount: events.length, observedEventCount: freshEvents.filter((event) => event.signal?.provenance === "observed").length, assertedEventCount: freshEvents.filter((event) => event.signal?.provenance === "asserted").length, newEventCount: freshEvents.length, duplicateEventCount: events.length - freshEvents.length, decisionCount: wake.decisions.length, proposalIds: wake.proposals.map((proposal) => proposal.id) },
+            sensitivity: "internal", evidenceRefs: [...new Set(freshEvents.filter((event) => event.signal?.provenance === "observed").flatMap((event) => event.evidenceRefs))],
           });
           for (const signalClaim of signalClaims) {
             const signalSettled = await store.markIdempotency(companyId, signalClaim.key, signalClaim.owner, signalClaim.fencingToken, "applied", startedAt, { eventId: signalClaim.eventId, evaluationId: input.evaluationId });
@@ -926,7 +992,7 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
     ...(workStore ? { workStore } : {}),
     ...(companyId ? { companyId } : {}),
     databaseConfigured: Boolean(store),
-    creativeConfigured: Boolean(store && process.env.OPENAI_API_KEY?.trim()),
+    creativeConfigured: Boolean(store),
     kastConfigured: Boolean(store),
     skillRegistry,
     creativeSupervisorPrincipal: process.env.XSPA_CREATIVE_SUPERVISOR_PRINCIPAL?.trim() || "creative-supervisor",

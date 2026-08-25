@@ -13,7 +13,7 @@ export interface RuntimeStore {
   appendEvent(event: BusinessEvent): Promise<boolean>;
   listEventsAfter(companyId: string, cursor: HeartbeatCursor, limit: number): Promise<BusinessEvent[]>;
   getHeartbeatCursor(companyId: string, now: Date): Promise<HeartbeatCursor>;
-  saveHeartbeatCursor(companyId: string, event: BusinessEvent | undefined, now: Date): Promise<void>;
+  saveHeartbeatCursor(lease: FencedLease, event: BusinessEvent | undefined, now: Date): Promise<boolean>;
   claimHeartbeatLease(companyId: string, owner: string, now: Date, leaseMs: number): Promise<FencedLease | null>;
   isHeartbeatLeaseCurrent(lease: FencedLease, now: Date): Promise<boolean>;
   releaseHeartbeatLease(lease: FencedLease, now: Date): Promise<boolean>;
@@ -29,7 +29,8 @@ export interface RuntimeStore {
   markIdempotency(companyId: string, key: string, owner: string, fencingToken: number, state: Exclude<IdempotencyState, "intent">, now: Date, result?: unknown, error?: string): Promise<boolean>;
   getIdempotency(companyId: string, key: string): Promise<IdempotencyRecord | null>;
 
-  saveAsset(asset: CompanyAsset): Promise<void>;
+  saveAsset(asset: CompanyAsset, expectedVersion?: number): Promise<boolean>;
+  saveAssetsAtomically(changes: Array<{ asset: CompanyAsset; expectedVersion: number }>): Promise<boolean>;
   listAssets(companyId: string): Promise<CompanyAsset[]>;
   saveProvider(provider: ProviderDescriptor): Promise<void>;
   listProviders(companyId: string): Promise<ProviderDescriptor[]>;
@@ -73,8 +74,15 @@ export class InMemoryRuntimeStore implements RuntimeStore {
     return clone(this.cursors.get(companyId) ?? { companyId, updatedAt: now.toISOString() });
   }
 
-  async saveHeartbeatCursor(companyId: string, event: BusinessEvent | undefined, now: Date): Promise<void> {
+  async saveHeartbeatCursor(lease: FencedLease, event: BusinessEvent | undefined, now: Date): Promise<boolean> {
+    if (!(await this.isHeartbeatLeaseCurrent(lease, now))) return false;
+    const companyId = lease.companyId;
     const previous = this.cursors.get(companyId);
+    if (event && previous?.lastEventOccurredAt && previous.lastEventId) {
+      const before = `${previous.lastEventOccurredAt}\u0000${previous.lastEventId}`;
+      const candidate = `${event.occurredAt}\u0000${event.id}`;
+      if (candidate < before) return false;
+    }
     const next: HeartbeatCursor = { companyId, updatedAt: now.toISOString() };
     if (event) {
       next.lastEventOccurredAt = event.occurredAt;
@@ -84,6 +92,7 @@ export class InMemoryRuntimeStore implements RuntimeStore {
       if (previous.lastEventId) next.lastEventId = previous.lastEventId;
     }
     this.cursors.set(companyId, next);
+    return true;
   }
 
   async claimHeartbeatLease(companyId: string, owner: string, now: Date, leaseMs: number): Promise<FencedLease | null> {
@@ -223,8 +232,32 @@ export class InMemoryRuntimeStore implements RuntimeStore {
     return record ? clone(record) : null;
   }
 
-  async saveAsset(asset: CompanyAsset): Promise<void> {
-    this.assets.set(`${asset.companyId}:${asset.id}`, clone(asset));
+  async saveAsset(asset: CompanyAsset, expectedVersion?: number): Promise<boolean> {
+    const key = `${asset.companyId}:${asset.id}`;
+    const current = this.assets.get(key);
+    if (expectedVersion === 0 && current) return false;
+    if (expectedVersion !== undefined && expectedVersion > 0 && (!current || (current.version ?? 0) !== expectedVersion)) return false;
+    const nextVersion = current ? (current.version ?? 0) + 1 : 1;
+    this.assets.set(key, clone({ ...asset, version: nextVersion }));
+    return true;
+  }
+
+  async saveAssetsAtomically(changes: Array<{ asset: CompanyAsset; expectedVersion: number }>): Promise<boolean> {
+    if (changes.length === 0) return true;
+    const companyId = changes[0]!.asset.companyId;
+    if (changes.some(({ asset }) => asset.companyId !== companyId)) return false;
+    if (new Set(changes.map(({ asset }) => asset.id)).size !== changes.length) return false;
+    for (const { asset, expectedVersion } of changes) {
+      const current = this.assets.get(`${asset.companyId}:${asset.id}`);
+      if (expectedVersion === 0 && current) return false;
+      if (expectedVersion > 0 && (!current || (current.version ?? 0) !== expectedVersion)) return false;
+    }
+    for (const { asset } of changes) {
+      const key = `${asset.companyId}:${asset.id}`;
+      const current = this.assets.get(key);
+      this.assets.set(key, clone({ ...asset, version: current ? (current.version ?? 0) + 1 : 1 }));
+    }
+    return true;
   }
 
   async listAssets(companyId: string): Promise<CompanyAsset[]> {

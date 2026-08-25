@@ -10,8 +10,8 @@ export type AutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
 export type PrincipalMode = "pinned" | "portable";
 export type PrincipalReasoningEffort = "max" | "xhigh";
 export type ReasoningRole = "executive" | "supervisor" | "worker" | "critic" | "verifier";
-export type CreativeProviderFamily = "openai-only";
-export type CreativeImageGenerationMode = "responses-image-generation";
+export type CreativeProviderFamily = "chatgpt-host-only";
+export type CreativeImageGenerationMode = "host-native-image-tool";
 export type CreativeVideoGenerationMode = "staged-unavailable";
 
 export interface CreativePolicy {
@@ -92,6 +92,14 @@ export interface BudgetEnvelope {
   approvedBeneficiaries: string[];
 }
 
+export interface BusinessEventSignal {
+  provenance: "observed" | "asserted";
+  sourceId: string;
+  topic: string;
+  capability?: string;
+  attestationRef?: string;
+}
+
 export interface BusinessEvent<T = unknown> {
   id: UUID;
   companyId: UUID;
@@ -104,6 +112,7 @@ export interface BusinessEvent<T = unknown> {
   payload: T;
   sensitivity: "public" | "internal" | "restricted";
   evidenceRefs: string[];
+  signal?: BusinessEventSignal;
 }
 
 export interface PreflightInput {
@@ -464,6 +473,7 @@ export interface CompanyAsset {
   metadata: Record<string, unknown>;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+  version?: number;
 }
 
 export interface BootstrapRequirement {
@@ -546,6 +556,8 @@ export interface AuthorityMandateClaim {
   assertion?: string;
   scope?: string;
   value?: unknown;
+  revisionId?: UUID;
+  revisionFingerprint?: string;
 }
 
 export interface AuthorityMandateConstraint {
@@ -705,6 +717,7 @@ export interface SignalPollResult {
 export interface WakeAccumulatorState {
   subscriptionId: string;
   windowStartedAt: ISODateTime;
+  lastUpdatedAt: ISODateTime;
   score: number;
   processedEventKeys: string[];
   pendingEventIds: UUID[];

@@ -36,6 +36,39 @@ function jsonArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
+
+async function saveAssetWithClient(client: PoolClient, asset: CompanyAsset, expectedVersion?: number): Promise<boolean> {
+  const values = [asset.id, asset.companyId, asset.kind, asset.providerId ?? null, asset.capability, asset.department, asset.cost, asset.currency, asset.status, asset.credentialsRef ?? null, JSON.stringify(asset.grantRefs), JSON.stringify(asset.restrictions), JSON.stringify(asset.metadata), asset.createdAt, asset.updatedAt];
+  if (expectedVersion === 0) {
+    const result = await client.query(
+      `INSERT INTO xspa.company_assets(id,company_id,kind,provider_id,capability,department,cost,currency,status,credentials_ref,grant_refs,restrictions,metadata,created_at,updated_at,version)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15,1)
+       ON CONFLICT (id) DO NOTHING
+       RETURNING version`,
+      values,
+    );
+    return result.rowCount === 1;
+  }
+  if (expectedVersion !== undefined) {
+    if (expectedVersion < 1) return false;
+    const result = await client.query(
+      `UPDATE xspa.company_assets SET kind=$3,provider_id=$4,capability=$5,department=$6,cost=$7,currency=$8,status=$9,credentials_ref=$10,grant_refs=$11::jsonb,restrictions=$12::jsonb,metadata=$13::jsonb,created_at=$14,updated_at=$15,version=version+1
+       WHERE id=$1 AND company_id=$2 AND version=$16
+       RETURNING version`,
+      [...values, expectedVersion],
+    );
+    return result.rowCount === 1;
+  }
+  const result = await client.query(
+    `INSERT INTO xspa.company_assets(id,company_id,kind,provider_id,capability,department,cost,currency,status,credentials_ref,grant_refs,restrictions,metadata,created_at,updated_at,version)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15,1)
+     ON CONFLICT (id) DO UPDATE SET provider_id=EXCLUDED.provider_id,capability=EXCLUDED.capability,department=EXCLUDED.department,cost=EXCLUDED.cost,currency=EXCLUDED.currency,status=EXCLUDED.status,credentials_ref=EXCLUDED.credentials_ref,grant_refs=EXCLUDED.grant_refs,restrictions=EXCLUDED.restrictions,metadata=EXCLUDED.metadata,updated_at=EXCLUDED.updated_at,version=xspa.company_assets.version+1
+     RETURNING version`,
+    values,
+  );
+  return result.rowCount === 1;
+}
+
 export class PostgresDatabase {
   readonly pool: Pool;
 
@@ -287,17 +320,34 @@ export class PostgresRuntimeStore implements RuntimeStore {
     });
   }
 
-  async saveHeartbeatCursor(companyId: string, event: BusinessEvent | undefined, now: Date): Promise<void> {
-    await this.db.withCompanyTransaction(companyId, async (client) => {
-      await client.query(
-        `INSERT INTO xspa.heartbeat_cursors(company_id,last_event_occurred_at,last_event_id,updated_at)
-         VALUES ($1,$2,$3,$4)
+  async saveHeartbeatCursor(lease: FencedLease, event: BusinessEvent | undefined, _now: Date): Promise<boolean> {
+    return this.db.withCompanyTransaction(lease.companyId, async (client) => {
+      const result = await client.query(
+        `INSERT INTO xspa.heartbeat_cursors(company_id,last_event_occurred_at,last_event_id,fencing_token,updated_at)
+         SELECT $1,$4,$5,$3,clock_timestamp()
+         WHERE EXISTS (
+           SELECT 1 FROM xspa.heartbeat_leases
+           WHERE company_id=$1 AND lease_owner=$2 AND fencing_token=$3 AND lease_until > clock_timestamp()
+         )
          ON CONFLICT (company_id) DO UPDATE SET
            last_event_occurred_at=COALESCE(EXCLUDED.last_event_occurred_at,xspa.heartbeat_cursors.last_event_occurred_at),
            last_event_id=COALESCE(EXCLUDED.last_event_id,xspa.heartbeat_cursors.last_event_id),
-           updated_at=EXCLUDED.updated_at`,
-        [companyId, event?.occurredAt ?? null, event?.id ?? null, now.toISOString()],
+           fencing_token=EXCLUDED.fencing_token,
+           updated_at=clock_timestamp()
+         WHERE EXISTS (
+           SELECT 1 FROM xspa.heartbeat_leases
+           WHERE company_id=$1 AND lease_owner=$2 AND fencing_token=$3 AND lease_until > clock_timestamp()
+         )
+           AND EXCLUDED.fencing_token >= xspa.heartbeat_cursors.fencing_token
+           AND (
+             EXCLUDED.last_event_occurred_at IS NULL
+             OR xspa.heartbeat_cursors.last_event_occurred_at IS NULL
+             OR (xspa.heartbeat_cursors.last_event_occurred_at, xspa.heartbeat_cursors.last_event_id) <= (EXCLUDED.last_event_occurred_at, EXCLUDED.last_event_id)
+           )
+         RETURNING company_id`,
+        [lease.companyId, lease.owner, lease.fencingToken, event?.occurredAt ?? null, event?.id ?? null],
       );
+      return result.rowCount === 1;
     });
   }
 
@@ -455,14 +505,25 @@ export class PostgresRuntimeStore implements RuntimeStore {
     });
   }
 
-  async saveAsset(asset: CompanyAsset): Promise<void> {
-    await this.db.withCompanyTransaction(asset.companyId, async (client) => {
-      await client.query(
-        `INSERT INTO xspa.company_assets(id,company_id,kind,provider_id,capability,department,cost,currency,status,credentials_ref,grant_refs,restrictions,metadata,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15)
-         ON CONFLICT (id) DO UPDATE SET provider_id=EXCLUDED.provider_id,capability=EXCLUDED.capability,department=EXCLUDED.department,cost=EXCLUDED.cost,currency=EXCLUDED.currency,status=EXCLUDED.status,credentials_ref=EXCLUDED.credentials_ref,grant_refs=EXCLUDED.grant_refs,restrictions=EXCLUDED.restrictions,metadata=EXCLUDED.metadata,updated_at=EXCLUDED.updated_at`,
-        [asset.id, asset.companyId, asset.kind, asset.providerId ?? null, asset.capability, asset.department, asset.cost, asset.currency, asset.status, asset.credentialsRef ?? null, JSON.stringify(asset.grantRefs), JSON.stringify(asset.restrictions), JSON.stringify(asset.metadata), asset.createdAt, asset.updatedAt],
-      );
+  async saveAsset(asset: CompanyAsset, expectedVersion?: number): Promise<boolean> {
+    return this.db.withCompanyTransaction(asset.companyId, async (client) => saveAssetWithClient(client, asset, expectedVersion));
+  }
+
+  async saveAssetsAtomically(changes: Array<{ asset: CompanyAsset; expectedVersion: number }>): Promise<boolean> {
+    if (changes.length === 0) return true;
+    const companyId = changes[0]!.asset.companyId;
+    if (changes.some(({ asset }) => asset.companyId !== companyId)) return false;
+    if (new Set(changes.map(({ asset }) => asset.id)).size !== changes.length) return false;
+    return this.db.withCompanyTransaction(companyId, async (client) => {
+      for (const change of changes) {
+        if (!(await saveAssetWithClient(client, change.asset, change.expectedVersion))) {
+          throw new DomainError("company asset atomic CAS conflict");
+        }
+      }
+      return true;
+    }).catch((error) => {
+      if (error instanceof DomainError && error.message === "company asset atomic CAS conflict") return false;
+      throw error;
     });
   }
 
@@ -521,6 +582,7 @@ function assetFromRow(row: QueryResultRow): CompanyAsset {
     id: String(row.id), companyId: String(row.company_id), kind: String(row.kind), capability: String(row.capability), department: String(row.department),
     cost: Number(row.cost), currency: String(row.currency), status: row.status as CompanyAsset["status"], grantRefs: jsonArray(row.grant_refs),
     restrictions: jsonArray(row.restrictions), metadata: (row.metadata ?? {}) as Record<string, unknown>, createdAt: iso(row.created_at) ?? new Date(0).toISOString(), updatedAt: iso(row.updated_at) ?? new Date(0).toISOString(),
+    version: Number(row.version ?? 0),
   };
   if (row.provider_id) asset.providerId = String(row.provider_id);
   if (row.credentials_ref) asset.credentialsRef = String(row.credentials_ref);

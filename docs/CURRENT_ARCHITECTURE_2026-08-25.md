@@ -213,11 +213,12 @@ One deployment remains scoped to one Company. Callers cannot supply `company_id`
 The external paired benchmark is maintained separately so its preregistration/history are independently inspectable:
 
 - Public repository: <https://github.com/riquelmechile/xspa-theagentcompany-benchmark>
-- v3: capability-neutral comparison;
+- v3: no directional capability difference detected in a small paired sample; this is not an equivalence result;
 - v4: execution-integrity discovery campaign;
-- v5: prospectively preregistered replication.
+- v4/v5: historical deterministic integrity regression; preregistration chronology preserved, statistical-confirmation interpretation withdrawn after runner audit;
+- v6: corrected competent-DIRECT design with common plan/oracle/fault, PostgreSQL durability and SUT commit pinning.
 
-The primary v5 prospective analysis (rep2 + rep3, scenario-blocked) is 8 XSPA wins, 0 DIRECT wins and 12 ties, exact two-sided sign-test `p = 0.0078125`. The pooled 60-pair result is descriptive rather than the primary inferential result.
+The historical v5 scripted output remains 8 XSPA wins, 0 DIRECT wins and 12 ties. Its preregistered sign-test calculation is preserved in the evidence repo, but it is no longer interpreted as inferential evidence because the audited suite is deterministic and some arms are asymmetric. V6 replaces that causal claim rather than rewriting the historical artifacts.
 
 The stated limitation remains that DIRECT was not specifically prompted for resilience. The benchmark therefore supports the narrower claim that the XanxitoSpA kernel preserves execution integrity under the tested faults where direct execution did not, not that DIRECT represents the strongest possible resilience prompt.
 
@@ -227,7 +228,7 @@ At commit `cce3fce` the owner-authority block passed:
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               88 PASS
+Unit/integration suite               97 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          PASS
 MCP Streamable HTTP smoke            PASS
@@ -239,3 +240,12 @@ Exact-head GitHub Actions CI          PASS
 ```
 
 The next architectural block is the secure first-root enrollment ceremony: establish a real Founder/Owner public-key trust anchor without allowing ordinary `xspa.write` callers to create or replace the authority root.
+
+
+### Kernel hardening — 2026-08-25
+
+The heartbeat cursor is now persisted with the active lease owner/fencing token in the same database statement and cannot regress `(occurred_at, event_id)`. `company_assets` carry optimistic versions; governed wake state uses compare-and-swap and rechecks the heartbeat lease immediately before persistence. Manual MCP wake input is `asserted` and cannot impersonate an observed connector event; routing uses attested event metadata and urgency policy is kernel-owned rather than payload-owned. Accumulation uses exponential decay instead of a hard reset, while replay protection is not erased by the accumulation window.
+
+Signed discovery-resolution mandates bind to an exact discovery revision ID + fingerprint. Runtime mandate history is protected by a durable count/hash ledger head and fails closed on mismatch. Historical public keys remain available for verification within their issuance validity window; key rotation does not authorize post-retirement issuance.
+
+The MCP remains the control boundary and defaults to loopback. Broader deployment binding requires explicit configuration and DNS host allowlisting. No model-provider API was introduced by this hardening work; the host model law remains GPT-5.6 Sol under Xanxito control.

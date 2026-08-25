@@ -14,7 +14,7 @@ export interface XspaAppStatus {
   mcp: { ready: boolean; mode: "streamable-http" };
   database: { configured: boolean };
   companyOs: { ready: boolean; intakeModes: ["new", "existing"]; lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] };
-  creative: { configured: boolean; renderer: "responses-image-generation"; chatMode: "decision-only"; video: "staged" };
+  creative: { configured: boolean; renderer: "chatgpt-host-native-tooling"; chatMode: "mcp-host-only"; video: "staged" };
   kast: { configured: boolean; execution: "queued" | "available" | "staged" };
   skills: { configured: boolean; healthy: boolean; indexed: number; activeCompanyCatalog: number };
 }
@@ -446,6 +446,12 @@ function parseAuthorityMandate(args: unknown): AuthorityMandateInput {
     if (!["discovery-resolution", "authority-policy", "delegation"].includes(type)) throw new Error(`mandate.claims[${index}].type invalid`);
     const result: AuthorityMandate["claims"][number] = { type: type as AuthorityMandate["claims"][number]["type"] };
     if (item.unknown_id ?? item.unknownId) result.unknownId = assertText(item.unknown_id ?? item.unknownId, `mandate.claims[${index}].unknown_id`, 160);
+    if (item.revision_id ?? item.revisionId) result.revisionId = assertId(item.revision_id ?? item.revisionId, `mandate.claims[${index}].revision_id`);
+    if (item.revision_fingerprint ?? item.revisionFingerprint) {
+      const fingerprint = assertText(item.revision_fingerprint ?? item.revisionFingerprint, `mandate.claims[${index}].revision_fingerprint`, 64);
+      if (!/^[a-fA-F0-9]{64}$/.test(fingerprint)) throw new Error(`mandate.claims[${index}].revision_fingerprint invalid`);
+      result.revisionFingerprint = fingerprint.toLowerCase();
+    }
     if (item.assertion !== undefined) result.assertion = assertText(item.assertion, `mandate.claims[${index}].assertion`, 4000);
     if (item.scope !== undefined) result.scope = assertText(item.scope, `mandate.claims[${index}].scope`, 240);
     if (item.value !== undefined) result.value = structuredClone(item.value);
@@ -494,10 +500,6 @@ function parseCompanyWakeEvaluate(args: unknown): CompanyWakeEvaluateInput {
     const occurredAtRaw = assertText(item.occurred_at, `wake events[${index}].occurred_at`, 80);
     const occurredAt = new Date(occurredAtRaw);
     if (Number.isNaN(occurredAt.getTime())) throw new Error(`wake events[${index}].occurred_at invalid`);
-    const opportunityCost = Number(item.opportunity_cost);
-    const actionWindowMinutes = Number(item.action_window_minutes);
-    if (!Number.isFinite(opportunityCost) || opportunityCost < 0 || opportunityCost > 1) throw new Error(`wake events[${index}].opportunity_cost invalid`);
-    if (!Number.isFinite(actionWindowMinutes) || actionWindowMinutes <= 0) throw new Error(`wake events[${index}].action_window_minutes invalid`);
     const sourceId = assertText(item.source_id, `wake events[${index}].source_id`, 160);
     const capability = assertText(item.capability, `wake events[${index}].capability`, 160);
     const type = assertText(item.type, `wake events[${index}].type`, 240);
@@ -510,9 +512,10 @@ function parseCompanyWakeEvaluate(args: unknown): CompanyWakeEvaluateInput {
       actorPrincipal: sourceId,
       correlationId: id,
       idempotencyKey: `wake:${sourceId}:${id}`,
-      payload: { sourceId, capability, opportunityCost, actionWindowMinutes },
+      payload: { assertedSourceId: sourceId, assertedCapability: capability },
       sensitivity: "internal",
       evidenceRefs,
+      signal: { provenance: "asserted", sourceId, topic: type, capability },
     };
   });
   return { evaluationId: assertId(obj.evaluation_id, "evaluation_id"), events };
@@ -566,10 +569,8 @@ const COMPANY_WAKE_SCHEMA = {
       occurred_at: { type: "string", maxLength: 80 },
       source_id: { type: "string", maxLength: 160 },
       capability: { type: "string", maxLength: 160 },
-      opportunity_cost: { type: "number", minimum: 0, maximum: 1 },
-      action_window_minutes: { type: "number", exclusiveMinimum: 0 },
       evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 },
-    }, required: ["id","type","occurred_at","source_id","capability","opportunity_cost","action_window_minutes"], additionalProperties: false } },
+    }, required: ["id","type","occurred_at","source_id","capability"], additionalProperties: false } },
   },
   required: ["evaluation_id","events"],
   additionalProperties: false,
@@ -610,14 +611,14 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_authority_mandate_verify", title: "Verify authority mandate", description: "Deterministically verify a signed Company authority mandate against server-configured trust anchors. Caller write access is not treated as owner identity.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_authority_mandate_apply", title: "Apply authority mandate", description: "Persist a cryptographically verified immutable authority mandate and resolve only discovery unknowns explicitly covered by the signed mandate. Trust anchors cannot be supplied by the caller.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_authority_mandate_status", title: "Authority mandate status", description: "Read sanitized active/revoked/superseded mandate status for the deployment Company. Public keys and trust-anchor material are not returned.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-    { name: "xspa_company_wake_evaluate", title: "Evaluate Company wake signals", description: "Evaluate company-scoped business signals against durable subscriptions and urgency thresholds. May emit Work proposals only; never creates Work or grants authority, budget or capabilities.", inputSchema: COMPANY_WAKE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_company_wake_evaluate", title: "Evaluate Company wake signals", description: "Accept caller-asserted company signal candidates for governed evaluation. Caller assertions cannot impersonate observed connector events or set urgency; only connector-attested observed events may match durable subscriptions. May emit Work proposals only; never creates Work or grants authority, budget or capabilities.", inputSchema: COMPANY_WAKE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_wake_status", title: "Get Company wake state", description: "Read the latest company-scoped wake accumulator state and pending proposal metadata. No authority is granted.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_plan", title: "Plan Company operating model", description: "Primary Generic Company OS intake. Plan a NEW Company or adopt an EXISTING Company into functions, departments, processes, skills and semantic capabilities. Existing departments/processes are preserved first. Read-only: grants no authority, budget or capabilities.", inputSchema: companyIntakeSchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_apply", title: "Apply Company operating model", description: "Persist one deployment-Company operating-model snapshot after planning. It does not create Work, execute providers, invoke KAST, or grant authority/budget/capabilities. Use expected_fingerprint to fail if the preview drifted.", inputSchema: companyIntakeSchema({ formation_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["formation_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_status", title: "Get Company operating model", description: "Read the latest deployment-scoped Company operating-model snapshot. This is the current Company OS model, not harness/KAST state.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_kast_status", title: "KAST reflection status", description: "Use this to inspect one Company-scoped KAST reflection/job state. It returns only sanitized status metadata.", inputSchema: { type: "object", properties: { reflection_id: { type: "string", format: "uuid" } }, required: ["reflection_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_asset_get", title: "Get selected company asset", description: "Use this to read one selected/chat-visible CompanyAsset descriptor. Internal creative candidates and local filesystem paths are never exposed.", inputSchema: { type: "object", properties: { asset_id: { type: "string", format: "uuid" } }, required: ["asset_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-    { name: "xspa_creative_submit", title: "Submit creative mission", description: "Use this when the company should create visual work in the background. It queues a governed Creative Mission; candidates remain internal and ChatGPT receives decision-only metadata.", inputSchema: { type: "object", properties: { mission_id: { type: "string", format: "uuid" }, work_id: { type: "string", format: "uuid" }, brief_ref: { type: "string" }, evidence_snapshot_ref: { type: "string" }, candidate_count: { type: "integer", minimum: 2, maximum: 4, default: 2 }, required_successful_candidates: { type: "integer", minimum: 1, maximum: 4, default: 1 }, executive_escalation_required: { type: "boolean", default: false } }, required: ["mission_id", "work_id", "brief_ref", "evidence_snapshot_ref"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_creative_submit", title: "Submit creative mission", description: "Queue a governed Creative Mission for host-managed GPT/tool processing. XanxitoSpA does not call a model-provider API; candidates remain internal and the ChatGPT host receives governed mission metadata.", inputSchema: { type: "object", properties: { mission_id: { type: "string", format: "uuid" }, work_id: { type: "string", format: "uuid" }, brief_ref: { type: "string" }, evidence_snapshot_ref: { type: "string" }, candidate_count: { type: "integer", minimum: 2, maximum: 4, default: 2 }, required_successful_candidates: { type: "integer", minimum: 1, maximum: 4, default: 1 }, executive_escalation_required: { type: "boolean", default: false } }, required: ["mission_id", "work_id", "brief_ref", "evidence_snapshot_ref"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_creative_status", title: "Creative mission status", description: "Use this to read one creative mission state or selected decision receipt. Internal prompts and losing assets are never returned.", inputSchema: { type: "object", properties: { mission_id: { type: "string", format: "uuid" } }, required: ["mission_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_skills_list", title: "List Company skills", description: "List reusable Company-domain catalog metadata, Company-local definitions and active installations for this deployment Company. Full skill bodies are not loaded.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_skills_search", title: "Search Company skills", description: "Match installed Company skills for execution and return separate reusable catalog suggestions without loading full bodies.", inputSchema: { type: "object", properties: { query: { type: "string", maxLength: 1000, default: "" }, scope: { type: "string", maxLength: 240 }, department: { type: "string", maxLength: 160 }, capabilities: { type: "array", items: { type: "string" }, maxItems: 16 }, limit: { type: "integer", minimum: 1, maximum: 50, default: 8 } }, additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -751,8 +752,10 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   return server;
 }
 
-export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string }) {
-  const app = createMcpExpressApp({ host: input.host ?? "127.0.0.1" });
+export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[] }) {
+  const host = input.host ?? "127.0.0.1";
+  const derivedAllowedHosts = input.allowedHosts ?? (input.oauth ? [new URL(input.oauth.resource).hostname] : undefined);
+  const app = createMcpExpressApp({ host, ...(derivedAllowedHosts && derivedAllowedHosts.length > 0 ? { allowedHosts: derivedAllowedHosts } : {}) });
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
   app.post("/mcp", async (req: any, res: any) => {
@@ -791,8 +794,8 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   return app;
 }
 
-export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; port: number }): Promise<HttpServer> {
-  const host = input.host ?? "0.0.0.0";
+export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
+  const host = input.host ?? "127.0.0.1";
   assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}) });
   const app = createXspaMcpExpressApp({ ...input, host }); const server = createHttpServer(app);
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(input.port, host, () => resolve()); });

@@ -1,3 +1,5 @@
+> **Superseded runtime note (2026-08-25):** any model-provider API/client references below are historical design evidence only. The current XanxitoSpA runtime is MCP-only: GPT runs exclusively in the ChatGPT host, with no model API key or model-provider HTTP client in XanxitoSpA.
+
 # XanxitoSpA V1.0 — Real KAST Runtime + Character Production Pipeline
 
 Status: implementation candidate, pending four-lens review/public CI at document creation.

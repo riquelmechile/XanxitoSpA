@@ -31,7 +31,8 @@ async function getHealthStatus(app: ReturnType<typeof createXspaMcpExpressApp>, 
 describe("XanxitoSpA MCP deployment host binding", () => {
   it("accepts Railway health checks when bound to 0.0.0.0", async () => {
     const operations = {} as XspaAppOperations;
-    const app = createXspaMcpExpressApp({ operations, host: "0.0.0.0" });
+    const app = createXspaMcpExpressApp({ operations, host: "0.0.0.0", allowedHosts: ["xanxitospa-production.up.railway.app"] });
     expect(await getHealthStatus(app, "xanxitospa-production.up.railway.app")).toBe(200);
+    expect(await getHealthStatus(app, "attacker.invalid")).toBe(403);
   });
 });

@@ -235,7 +235,7 @@ export async function runCreativeMission(input: CreativeMissionRunInput): Promis
         id: randomUUID(),
         companyId: mission.companyId,
         kind: "creative-image-candidate",
-        providerId: "openai-responses-native",
+        providerId: "chatgpt-host-native",
         capability: "creative.image.generate",
         department: "creative",
         cost: rendered.cost,

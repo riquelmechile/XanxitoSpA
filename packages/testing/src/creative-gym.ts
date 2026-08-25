@@ -28,7 +28,7 @@ function policy(): PrincipalPolicy {
     allowProviderManagedMultiAgent: false,
     allowModelFallback: false,
     capabilityProvidersReplaceable: true,
-    creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+    creativePolicy: { providerFamily: "chatgpt-host-only", imageGeneration: "host-native-image-tool", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
   };
 }
 
@@ -169,8 +169,8 @@ export async function runCreativePipelineGym(): Promise<CreativeGymCaseResult[]>
 
   cases.push(await runCase("default control catalog hides internal creative candidates", async () => {
     const store = new InMemoryRuntimeStore(); const companyId = randomUUID(); const now = new Date().toISOString();
-    const hidden: CompanyAsset = { id: randomUUID(), companyId, kind: "creative-image-candidate", providerId: "openai-responses-native", capability: "creative.image.generate", department: "creative", cost: 1, currency: "USD", status: "active", grantRefs: [], restrictions: ["internal-candidate", "not-chat-visible"], metadata: { visibility: "internal-candidate", artifactRef: "asset://hidden.png" }, createdAt: now, updatedAt: now };
-    const publicAsset: CompanyAsset = { id: randomUUID(), companyId, kind: "selected-creative-image", providerId: "openai-responses-native", capability: "creative.image.generate", department: "creative", cost: 1, currency: "USD", status: "active", grantRefs: [], restrictions: [], metadata: { visibility: "selected" }, createdAt: now, updatedAt: now };
+    const hidden: CompanyAsset = { id: randomUUID(), companyId, kind: "creative-image-candidate", providerId: "chatgpt-host-native", capability: "creative.image.generate", department: "creative", cost: 1, currency: "USD", status: "active", grantRefs: [], restrictions: ["internal-candidate", "not-chat-visible"], metadata: { visibility: "internal-candidate", artifactRef: "asset://hidden.png" }, createdAt: now, updatedAt: now };
+    const publicAsset: CompanyAsset = { id: randomUUID(), companyId, kind: "selected-creative-image", providerId: "chatgpt-host-native", capability: "creative.image.generate", department: "creative", cost: 1, currency: "USD", status: "active", grantRefs: [], restrictions: [], metadata: { visibility: "selected" }, createdAt: now, updatedAt: now };
     await store.saveAsset(hidden); await store.saveAsset(publicAsset);
     const base = { companyId, semantics: createUniversalSemanticCapabilityRegistry(), providers: new ProviderRegistry(), runtime: store };
     const normal = await buildControlCatalog(base);
@@ -187,7 +187,7 @@ export async function runCreativePipelineGym(): Promise<CreativeGymCaseResult[]>
   }));
 
 
-  cases.push(await runCase("creative job remains queued when native image runtime credential is unavailable", async () => {
+  cases.push(await runCase("creative job remains queued when host-native image tooling is unavailable", async () => {
     const store = new InMemoryRuntimeStore(); const m = mission(); const now = new Date(m.createdAt);
     await submitCreativeMission(store, m, now);
     let staged = false;
@@ -199,14 +199,14 @@ export async function runCreativePipelineGym(): Promise<CreativeGymCaseResult[]>
           { id: "b", overlay: "b", run: async () => ({ prompt: "B", rationale: "B", evidenceRefs: [], cost: 0 }) },
         ],
         renderer: {
-          availability: async () => ({ available: false, reason: "openai-runtime-credential-missing" }),
+          availability: async () => ({ available: false, reason: "host-native-image-tool-unavailable" }),
           render: async () => { throw new Error("must not render"); },
         },
         evaluators: [{ id: "eval", evaluate: async () => ({ scores: { quality: 5 }, rationale: "ok", evidenceRefs: [] }) }],
         adjudicator: { decide: async () => ({ winnerId: "never", decisionOwner: m.supervisorPrincipal, rationale: "never" }) },
       });
     } catch (error) { staged = error instanceof Error && error.message.includes("STAGED:creative_renderer_unavailable"); }
-    expect(staged, "missing runtime credential did not stage creative job");
+    expect(staged, "missing host-native image tool did not stage creative job");
     const due = await store.listDueJobs(m.companyId, now, 10);
     const job = due.find((entry) => entry.id === m.id);
     expect(job?.state === "pending" && job.attempts === 0, "staged creative job consumed attempt or left pending state");

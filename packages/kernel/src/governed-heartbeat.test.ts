@@ -17,7 +17,7 @@ function constitution(): CompanyConstitution {
     objectiveId: "objective:ops",
     objective: "Protect operational continuity",
     match: { topics: ["inventory.watch"], capabilityScopes: ["inventory.watch"] },
-    urgencyPolicy: { opportunityCostWeight: 0.7, actionWindowWeight: 0.3, defaultOpportunityCost: 0.2, defaultActionWindowMinutes: 60 },
+    urgencyPolicy: { opportunityCostWeight: 0.7, actionWindowWeight: 0.3, defaultOpportunityCost: 1, defaultActionWindowMinutes: 60 },
     threshold: 0.6,
     accumulationWindowSeconds: 3600,
     accumulationCap: 1,
@@ -65,6 +65,7 @@ describe("governed heartbeat adapter", () => {
       payload: { sourceId: "signal:ops", capability: "inventory.watch", opportunityCost: 1, actionWindowMinutes: 30, ageMinutes: 30 },
       sensitivity: "internal",
       evidenceRefs: ["inventory:1"],
+      signal: { provenance: "observed", sourceId: "signal:ops", topic: "inventory.watch", capability: "inventory.watch", attestationRef: "connector:signal:ops" },
     });
     const first = await engine.tick(companyId, "daemon-a");
     expect(first.state).toBe("wake");
@@ -73,4 +74,29 @@ describe("governed heartbeat adapter", () => {
     const second = await engine.tick(companyId, "daemon-a");
     expect(second.state).toBe("sleep");
   });
+
+  it("rejects a stale sleep-path daemon before cursor persistence", async () => {
+    class TakeoverStore extends InMemoryRuntimeStore {
+      saveCalls = 0;
+      override async listEventsAfter(company: string, cursor: any, limit: number) {
+        const events = await super.listEventsAfter(company, cursor, limit);
+        const current = this.heartbeatLeases.get(company);
+        if (current) {
+          this.heartbeatLeases.set(company, { ...current, owner: "daemon-b", fencingToken: current.fencingToken + 1, leaseUntil: new Date(Date.parse(current.leaseUntil) + 60_000).toISOString() });
+        }
+        return events;
+      }
+      override async saveHeartbeatCursor(lease: any, event: any, at: Date) {
+        this.saveCalls += 1;
+        return super.saveHeartbeatCursor(lease, event, at);
+      }
+    }
+    const store = new TakeoverStore();
+    const engine = new HeartbeatEngine(store, { eventTypes: ["never.material"], minimumJobMateriality: "high" }, async () => {}, { clock: () => new Date("2026-08-24T20:00:00.000Z") });
+    await store.appendEvent({ id: randomUUID(), companyId, type: "noise", occurredAt: "2026-08-24T19:59:00.000Z", actorPrincipal: "system", correlationId: randomUUID(), idempotencyKey: "noise:1", payload: {}, sensitivity: "internal", evidenceRefs: [] });
+    await expect(engine.tick(companyId, "daemon-a")).rejects.toThrow(/stale heartbeat lease/i);
+    expect(store.saveCalls).toBe(1);
+    expect(store.cursors.has(companyId)).toBe(false);
+  });
+
 });

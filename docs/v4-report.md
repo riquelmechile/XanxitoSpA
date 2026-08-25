@@ -1,5 +1,8 @@
 # XanxitoSpA v4: Execution Integrity Under Deterministic Stateful Faults
 
+> **Post-publication correction (2026-08-25):** retain the numbers below as historical deterministic regression outputs, not as a clean causal or inferential comparison. Runner audit found arm-asymmetric recovery/mutation logic and literal failing DIRECT outcomes in two scenarios. The historical sign-test value remains documented but is no longer interpreted as evidential strength. See `BENCHMARK_CORRECTION_2026-08-25.md`.
+
+
 ## Hypothesis
 XanxitoSpA is intended to add governance and recovery semantics without reducing baseline task capability. The v3 capability-matched experiment found no measurable capability difference (14 ties, one XSPA win, one DIRECT win; exact paired sign test p=1.0). v4 tests the orthogonal hypothesis that the execution-integrity substrate improves outcomes when stateful operations encounter deterministic failures.
 

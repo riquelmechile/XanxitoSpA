@@ -91,6 +91,7 @@ export class CsvSignalSource implements BusinessSystemConnector {
         payload: { sourceId: this.id, capability: row.capability, opportunityCost, actionWindowMinutes },
         sensitivity: "internal",
         evidenceRefs: row.evidence_ref ? [row.evidence_ref] : [],
+        signal: { provenance: "observed", sourceId: this.id, topic: row.type ?? "business.signal", capability: row.capability ?? "", attestationRef: `connector:${this.id}` },
       };
     });
     return { events, cursor: { sourceId: this.id, position: String(rows.length) } };

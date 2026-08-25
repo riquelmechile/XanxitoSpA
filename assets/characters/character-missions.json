@@ -11,7 +11,7 @@
     "branchReasoning": "xhigh",
     "ownerReasoning": "xhigh",
     "executiveEscalation": "max-only-if-required",
-    "renderer": "responses-image-generation",
+    "renderer": "host-native-image-tool",
     "video": "staged-unavailable"
   },
   "styleLock": "all eight belong to one visual universe: obsidian/navy atmosphere, warm ivory/gold structural language, restrained department-color energy, painterly edge control, shared contrast curve and cinematic depth",

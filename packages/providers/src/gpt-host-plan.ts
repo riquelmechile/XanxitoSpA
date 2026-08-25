@@ -6,51 +6,50 @@ export interface CreativeCapabilityAvailability {
   reason: string;
 }
 
-export interface OpenAIResponsesPlan {
-  provider: "openai";
-  endpoint: "responses";
+export interface GptHostPlan {
+  host: "chatgpt";
+  transport: "mcp-host";
   model: "gpt-5.6-sol";
   reasoning: { effort: "max" | "xhigh" };
   input: string;
-  tools: Array<{ type: "image_generation" }>;
+  tools: Array<{ type: "host_image_generation" }>;
+  modelProviderApiAllowed: false;
 }
 
 export function getCreativeCapabilityAvailability(
   policy: CreativePolicy,
   capability: "creative.image.generate" | "creative.image.edit" | "creative.video.generate",
 ): CreativeCapabilityAvailability {
-  if (policy.providerFamily !== "openai-only") throw new DomainError("V1 creative policy must remain OpenAI-only");
+  if (policy.providerFamily !== "chatgpt-host-only") throw new DomainError("V1 creative policy must remain ChatGPT-host-only");
   if (capability === "creative.video.generate") {
-    return {
-      available: false,
-      reason: "staged: GPT-5.6 Sol has no stable native video-generation tool in V1; legacy Sora video models are disabled",
-    };
+    return { available: false, reason: "staged: no approved host-native video tool in V1" };
   }
-  if (policy.imageGeneration !== "responses-image-generation") {
-    return { available: false, reason: "image generation disabled by creative policy" };
+  if (policy.imageGeneration !== "host-native-image-tool") {
+    return { available: false, reason: "host-native image generation disabled by creative policy" };
   }
-  return { available: true, reason: "native Responses image_generation tool" };
+  return { available: true, reason: "ChatGPT host-native image tool when exposed by the host" };
 }
 
-export function buildOpenAIResponsesPlan(
+export function buildGptHostPlan(
   policy: PrincipalPolicy,
   role: ReasoningRole,
   input: { prompt: string; enableImageGeneration?: boolean },
-): OpenAIResponsesPlan {
-  if (!input.prompt.trim()) throw new DomainError("OpenAI Responses prompt required");
+): GptHostPlan {
+  if (!input.prompt.trim()) throw new DomainError("GPT host prompt required");
   const profile = resolveModelLawProfile(policy, role);
-  const tools: Array<{ type: "image_generation" }> = [];
+  const tools: Array<{ type: "host_image_generation" }> = [];
   if (input.enableImageGeneration) {
     const availability = getCreativeCapabilityAvailability(policy.creativePolicy, "creative.image.generate");
     if (!availability.available) throw new DomainError(availability.reason);
-    tools.push({ type: "image_generation" });
+    tools.push({ type: "host_image_generation" });
   }
   return {
-    provider: "openai",
-    endpoint: "responses",
+    host: "chatgpt",
+    transport: "mcp-host",
     model: profile.model,
     reasoning: { effort: profile.reasoningEffort },
     input: input.prompt,
     tools,
+    modelProviderApiAllowed: false,
   };
 }

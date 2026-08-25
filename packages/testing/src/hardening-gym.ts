@@ -2,7 +2,7 @@ import { runProductionBackedCase as runCase } from "./production-evidence.js";
 import { randomUUID } from "node:crypto";
 import type { BusinessOutcome, CorporateGene, ExecutionTraceSummary, PrincipalPolicy } from "../../contracts/src/index.js";
 import { applyLearningEvidenceToGene, resolveReasoningProfile, validatePrincipalPolicy } from "../../kernel/src/index.js";
-import { buildOpenAIResponsesPlan, getCreativeCapabilityAvailability } from "../../providers/src/openai-responses.js";
+import { buildGptHostPlan, getCreativeCapabilityAvailability } from "../../providers/src/gpt-host-plan.js";
 import { McpToolTrustRegistry, analyzeMcpToolMetadata } from "../../providers/src/mcp-trust.js";
 
 export interface HardeningGymCaseResult { name: string; ok: boolean; detail: string }
@@ -45,7 +45,7 @@ export async function runEnterpriseHardeningGym(): Promise<HardeningGymCaseResul
       allowProviderManagedMultiAgent: false,
       allowModelFallback: false,
       capabilityProvidersReplaceable: true,
-      creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+      creativePolicy: { providerFamily: "chatgpt-host-only", imageGeneration: "host-native-image-tool", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
     };
     validatePrincipalPolicy(policy);
     let rejected = false;
@@ -66,21 +66,21 @@ export async function runEnterpriseHardeningGym(): Promise<HardeningGymCaseResul
     expect(providerMultiAgentRejected, "provider-managed multi-agent was accepted");
   }));
 
-  cases.push(await runCase("GPT-only creative policy enables native image tool and stages video", () => {
+  cases.push(await runCase("GPT-only creative policy uses host-native image tooling and stages video", () => {
     const policy: PrincipalPolicy = {
       role: "executive-principal", mode: "pinned", model: "gpt-5.6-sol", reasoningEffort: "max",
       subordinateModel: "gpt-5.6-sol", subordinateReasoningEffort: "xhigh", maxReservedForExecutive: true,
       allowSecondaryModelProviders: false, branchOrchestration: "xanxitospa-mission-graph", allowProviderManagedMultiAgent: false,
       allowModelFallback: false, capabilityProvidersReplaceable: true,
-      creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+      creativePolicy: { providerFamily: "chatgpt-host-only", imageGeneration: "host-native-image-tool", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
     };
     const image = getCreativeCapabilityAvailability(policy.creativePolicy, "creative.image.generate");
     const video = getCreativeCapabilityAvailability(policy.creativePolicy, "creative.video.generate");
     expect(image.available, "native image generation should be available");
     expect(!video.available && video.reason.includes("staged"), "video should fail closed as staged");
-    const plan = buildOpenAIResponsesPlan(policy, "worker", { prompt: "Create an original character", enableImageGeneration: true });
-    expect(plan.model === "gpt-5.6-sol" && plan.reasoning.effort === "xhigh", "worker Responses plan violated model law");
-    expect(plan.tools.some((tool) => tool.type === "image_generation"), "native image_generation tool missing");
+    const plan = buildGptHostPlan(policy, "worker", { prompt: "Create an original character", enableImageGeneration: true });
+    expect(plan.model === "gpt-5.6-sol" && plan.reasoning.effort === "xhigh", "worker host plan violated model law");
+    expect(plan.tools.some((tool) => tool.type === "host_image_generation"), "host-native image tool missing");
   }));
 
   cases.push(await runCase("verified outcomes may teach from sanitized execution traces", () => {

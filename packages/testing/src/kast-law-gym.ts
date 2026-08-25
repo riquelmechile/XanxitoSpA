@@ -24,7 +24,7 @@ function policy(): PrincipalPolicy {
     allowProviderManagedMultiAgent: false,
     allowModelFallback: false,
     capabilityProvidersReplaceable: true,
-    creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+    creativePolicy: { providerFamily: "chatgpt-host-only", imageGeneration: "host-native-image-tool", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
   };
 }
 

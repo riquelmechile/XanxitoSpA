@@ -4,7 +4,9 @@ import path from "node:path";
 const manifestPath = path.resolve(process.cwd(), "assets/characters/character-missions.json");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const result = {
-  openaiRuntimeCredentialConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+  controlBoundary: "chatgpt-mcp-host",
+  modelProviderApiAllowed: false,
+  modelApiCredentialRequired: false,
   assetRoot: process.env.XSPA_CREATIVE_ASSET_ROOT ?? ".xspa/creative-assets",
   missionCount: Array.isArray(manifest.missions) ? manifest.missions.length : 0,
   candidateCountPerMission: manifest.execution?.candidateCount ?? null,
@@ -14,4 +16,4 @@ const result = {
   model: manifest.execution?.principal ?? null,
 };
 console.log(JSON.stringify(result, null, 2));
-process.exit(result.openaiRuntimeCredentialConfigured ? 0 : 2);
+process.exit(result.renderer === "host-native-image-tool" ? 0 : 2);

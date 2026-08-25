@@ -389,7 +389,7 @@ export async function runCapabilityPlaneGym(): Promise<CapabilityGymCaseResult[]
     let rejected = false;
     try { await plane.execute(request, { principal: "worker-a", grants: [grant(companyId, capability, "bootstrap")], budgets: [] }); }
     catch (error) { rejected = error instanceof DomainError && error.message === `NATIVE:capability_requires_responses_gateway:${capability}`; }
-    expect(rejected && calls === 0, "arbitrary image model provider bypassed native Responses gateway");
+    expect(rejected && calls === 0, "arbitrary image model provider bypassed the host-native creative boundary");
   }));
 
   cases.push(await runCase("custom semantic registry cannot re-enable staged creative video", async () => {

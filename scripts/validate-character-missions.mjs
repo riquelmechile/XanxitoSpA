@@ -10,7 +10,7 @@ if (!Array.isArray(manifest.missions) || manifest.missions.length !== 8) fail("e
 if (manifest.execution?.principal !== "gpt-5.6-sol" || manifest.execution?.branchReasoning !== "xhigh") fail("character missions violate One Model Law");
 if (manifest.execution?.candidateCount !== 2 || manifest.execution?.requiredSuccessfulCandidates !== 2) fail("character COMPETE must use two successful blind candidates");
 if (manifest.execution?.chatMode !== "decision-only") fail("character candidates must stay out of chat");
-if (manifest.execution?.renderer !== "responses-image-generation") fail("character renderer must remain native Responses image generation");
+if (manifest.execution?.renderer !== "host-native-image-tool") fail("character renderer must remain host-native image tooling");
 
 const dnaIds = new Set();
 const silhouettes = new Set();

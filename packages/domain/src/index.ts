@@ -64,8 +64,8 @@ export function assertPrincipalModelLaw(policy: PrincipalPolicy): void {
   if (policy.allowProviderManagedMultiAgent) throw new DomainError("V1 provider-managed multi-agent orchestration is disabled");
   if (policy.allowModelFallback) throw new DomainError("V1 pinned principal forbids model fallback");
   if (!policy.capabilityProvidersReplaceable) throw new DomainError("capability provider replaceability must remain enabled");
-  if (policy.creativePolicy.providerFamily !== "openai-only") throw new DomainError("V1 creative model policy is OpenAI-only");
-  if (policy.creativePolicy.imageGeneration !== "responses-image-generation") throw new DomainError("V1 images require Responses image_generation");
+  if (policy.creativePolicy.providerFamily !== "chatgpt-host-only") throw new DomainError("V1 creative model policy is ChatGPT-host-only");
+  if (policy.creativePolicy.imageGeneration !== "host-native-image-tool") throw new DomainError("V1 images require a ChatGPT host-native image tool");
   if (policy.creativePolicy.videoGeneration !== "staged-unavailable" || policy.creativePolicy.allowLegacyVideo) throw new DomainError("V1 legacy video generation is disabled");
 }
 

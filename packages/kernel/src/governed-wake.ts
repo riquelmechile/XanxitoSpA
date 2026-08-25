@@ -24,11 +24,6 @@ function deterministicUuid(seed: string): string {
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
 }
 
-function payloadObject(event: BusinessEvent): Record<string, unknown> {
-  return event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
-    ? event.payload as Record<string, unknown>
-    : {};
-}
 
 
 function validateSubscription(subscription: AgentSubscription): void {
@@ -42,27 +37,21 @@ function validateSubscription(subscription: AgentSubscription): void {
 }
 
 function matches(subscription: AgentSubscription, event: BusinessEvent): boolean {
-  const payload = payloadObject(event);
-  const sourceId = typeof payload.sourceId === "string" ? payload.sourceId : undefined;
-  if (sourceId && sourceId !== subscription.signalSourceId) return false;
-  const topic = typeof payload.topic === "string" ? payload.topic : event.type;
-  const capability = typeof payload.capability === "string" ? payload.capability : undefined;
-  const topicMatch = subscription.match.topics.length === 0 || subscription.match.topics.includes(topic);
-  const capabilityMatch = subscription.match.capabilityScopes.length === 0 || Boolean(capability && subscription.match.capabilityScopes.includes(capability));
+  const signal = event.signal;
+  if (!signal || signal.provenance !== "observed") return false;
+  if (signal.sourceId !== subscription.signalSourceId) return false;
+  const topicMatch = subscription.match.topics.length === 0 || subscription.match.topics.includes(signal.topic);
+  const capabilityMatch = subscription.match.capabilityScopes.length === 0 || Boolean(signal.capability && subscription.match.capabilityScopes.includes(signal.capability));
   return topicMatch && capabilityMatch;
 }
 
 function eventUrgency(subscription: AgentSubscription, event: BusinessEvent, now: Date): number {
-  const payload = payloadObject(event);
-  const opportunityCost = typeof payload.opportunityCost === "number"
-    ? clamp01(payload.opportunityCost)
-    : clamp01(subscription.urgencyPolicy.defaultOpportunityCost);
-  const actionWindowMinutes = typeof payload.actionWindowMinutes === "number" && payload.actionWindowMinutes > 0
-    ? payload.actionWindowMinutes
-    : subscription.urgencyPolicy.defaultActionWindowMinutes;
-  const ageMinutes = typeof payload.ageMinutes === "number" && payload.ageMinutes >= 0
-    ? payload.ageMinutes
-    : Math.max(0, (now.getTime() - Date.parse(event.occurredAt)) / 60_000);
+  // V1 deliberately ignores caller/adapter payload urgency. Policy lives in the durable subscription;
+  // the only event-specific input is observed time, which the kernel can validate.
+  const opportunityCost = clamp01(subscription.urgencyPolicy.defaultOpportunityCost);
+  const actionWindowMinutes = subscription.urgencyPolicy.defaultActionWindowMinutes;
+  const occurredAt = Date.parse(event.occurredAt);
+  const ageMinutes = Number.isFinite(occurredAt) ? Math.max(0, (now.getTime() - occurredAt) / 60_000) : 0;
   const actionWindowPressure = actionWindowMinutes > 0 ? clamp01(ageMinutes / actionWindowMinutes) : 1;
   const opportunityWeight = Math.max(0, subscription.urgencyPolicy.opportunityCostWeight);
   const actionWindowWeight = Math.max(0, subscription.urgencyPolicy.actionWindowWeight);
@@ -71,19 +60,22 @@ function eventUrgency(subscription: AgentSubscription, event: BusinessEvent, now
   return clamp01(((opportunityCost * opportunityWeight) + (actionWindowPressure * actionWindowWeight)) / totalWeight);
 }
 
-function resetIfExpired(state: WakeAccumulatorState, subscription: AgentSubscription, now: Date): WakeAccumulatorState {
-  const elapsed = now.getTime() - Date.parse(state.windowStartedAt);
-  if (elapsed <= subscription.accumulationWindowSeconds * 1000) return state;
-  return { subscriptionId: subscription.id, windowStartedAt: now.toISOString(), score: 0, processedEventKeys: [], pendingEventIds: [], pendingEvidenceRefs: [] };
+function decayState(state: WakeAccumulatorState, subscription: AgentSubscription, now: Date): WakeAccumulatorState {
+  const previous = Date.parse(state.lastUpdatedAt || state.windowStartedAt);
+  const elapsedSeconds = Number.isFinite(previous) ? Math.max(0, (now.getTime() - previous) / 1000) : 0;
+  // accumulationWindowSeconds is the half-life, not a cliff. Slow signals can still accumulate.
+  const factor = elapsedSeconds === 0 ? 1 : Math.pow(0.5, elapsedSeconds / subscription.accumulationWindowSeconds);
+  return { ...state, score: clamp01(state.score * factor), lastUpdatedAt: now.toISOString() };
 }
 
 function initialState(subscription: AgentSubscription, now: Date): WakeAccumulatorState {
-  return { subscriptionId: subscription.id, windowStartedAt: now.toISOString(), score: 0, processedEventKeys: [], pendingEventIds: [], pendingEvidenceRefs: [] };
+  return { subscriptionId: subscription.id, windowStartedAt: now.toISOString(), lastUpdatedAt: now.toISOString(), score: 0, processedEventKeys: [], pendingEventIds: [], pendingEvidenceRefs: [] };
 }
 
-
-function boundedKeys(keys: string[]): string[] {
-  return keys.slice(-256);
+function rememberEventKey(keys: string[], key: string): string[] {
+  // Durable runtime idempotency is the primary replay ledger. Keeping the full key set here makes
+  // the pure kernel evaluator replay-safe too; compaction must be an explicit future migration.
+  return keys.includes(key) ? keys : [...keys, key];
 }
 
 function proposalFor(input: { companyId: string; subscription: AgentSubscription; eventIds: string[]; evidenceRefs: string[]; urgency: number; now: Date }): WakeWorkProposal {
@@ -126,7 +118,7 @@ export class GovernedWakeEngine {
 
     for (const subscription of input.constitution.subscriptions) {
       validateSubscription(subscription);
-      let state = resetIfExpired(stateBySubscription.get(subscription.id) ?? initialState(subscription, now), subscription, now);
+      let state = decayState(stateBySubscription.get(subscription.id) ?? initialState(subscription, now), subscription, now);
       const matched = input.events.filter((event) => matches(subscription, event));
       if (matched.length === 0) {
         decisions.push({ subscriptionId: subscription.id, state: "sleep", urgency: 0, accumulatedUrgency: state.score, reason: "no matching event" });
@@ -134,7 +126,6 @@ export class GovernedWakeEngine {
         continue;
       }
 
-      let emitted = false;
       for (const event of matched) {
         const eventKey = `${subscription.id}:${event.id}`;
         if (state.processedEventKeys.includes(eventKey)) {
@@ -145,22 +136,17 @@ export class GovernedWakeEngine {
         const nextScore = Math.min(subscription.accumulationCap, state.score + urgency);
         const pendingEventIds = [...state.pendingEventIds, event.id];
         const pendingEvidenceRefs = [...new Set([...state.pendingEvidenceRefs, ...event.evidenceRefs])];
-        state = { ...state, score: nextScore, processedEventKeys: boundedKeys([...state.processedEventKeys, eventKey]), pendingEventIds, pendingEvidenceRefs };
+        state = { ...state, lastUpdatedAt: now.toISOString(), score: nextScore, processedEventKeys: rememberEventKey(state.processedEventKeys, eventKey), pendingEventIds, pendingEvidenceRefs };
         if (nextScore >= subscription.threshold) {
           const proposal = proposalFor({ companyId: input.companyId, subscription, eventIds: pendingEventIds, evidenceRefs: pendingEvidenceRefs, urgency: nextScore, now });
           proposals.push(proposal);
           decisions.push({ subscriptionId: subscription.id, state: "wake", eventId: event.id, urgency, accumulatedUrgency: nextScore, reason: "wake threshold reached; proposal requires governed Work/authority path" });
           state = { ...state, score: 0, pendingEventIds: [], pendingEvidenceRefs: [] };
-          emitted = true;
         } else {
           decisions.push({ subscriptionId: subscription.id, state: "accumulate", eventId: event.id, urgency, accumulatedUrgency: nextScore, reason: "below wake threshold; accumulated and remain asleep" });
         }
       }
-      if (!emitted && matched.length > 0 && decisions.filter((decision) => decision.subscriptionId === subscription.id).every((decision) => decision.state === "sleep")) {
-        stateBySubscription.set(subscription.id, state);
-      } else {
-        stateBySubscription.set(subscription.id, state);
-      }
+      stateBySubscription.set(subscription.id, state);
     }
 
     return {

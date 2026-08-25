@@ -123,7 +123,7 @@ export async function runKastRuntimeGym(): Promise<KastRuntimeGymCaseResult[]> {
       const workspacePort = await GitWorktreeExperimentPort.create({ repoPath: repo });
       const memory = new InMemoryEngramMemoryPort([{ topicKey: "kast:prior", title: "prior", summary: "prefer minimal skill changes", evidenceRefs: ["trace:prior"], outcome: "remembered" }]);
       const policy: PrincipalPolicy = {
-        role: "executive-principal", mode: "pinned", model: "gpt-5.6-sol", reasoningEffort: "max", subordinateModel: "gpt-5.6-sol", subordinateReasoningEffort: "xhigh", maxReservedForExecutive: true, allowSecondaryModelProviders: false, branchOrchestration: "xanxitospa-mission-graph", allowProviderManagedMultiAgent: false, allowModelFallback: false, capabilityProvidersReplaceable: true, creativePolicy: { providerFamily: "openai-only", imageGeneration: "responses-image-generation", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
+        role: "executive-principal", mode: "pinned", model: "gpt-5.6-sol", reasoningEffort: "max", subordinateModel: "gpt-5.6-sol", subordinateReasoningEffort: "xhigh", maxReservedForExecutive: true, allowSecondaryModelProviders: false, branchOrchestration: "xanxitospa-mission-graph", allowProviderManagedMultiAgent: false, allowModelFallback: false, capabilityProvidersReplaceable: true, creativePolicy: { providerFamily: "chatgpt-host-only", imageGeneration: "host-native-image-tool", videoGeneration: "staged-unavailable", allowLegacyVideo: false },
       };
       let active = 0; let maxActive = 0;
       const runtime = new GitBackedKastRuntime({

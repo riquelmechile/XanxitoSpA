@@ -137,8 +137,25 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const lease2 = await runtimeStore.claimHeartbeatLease(companyA, "daemon-b", new Date(), 40);
     assert(lease2 && lease2.fencingToken > lease1.fencingToken, "fencing token did not advance after database-clock lease expiry");
     assert(!(await runtimeStore.isHeartbeatLeaseCurrent(lease1, new Date())), "stale heartbeat lease still considered current");
+    const newerEvent: BusinessEvent = { ...event, id: randomUUID(), occurredAt: new Date(now.getTime() + 2_000).toISOString(), idempotencyKey: `sale:${randomUUID()}` };
+    assert(!(await runtimeStore.saveHeartbeatCursor(lease1, event, new Date())), "stale heartbeat lease advanced cursor");
+    assert(await runtimeStore.saveHeartbeatCursor(lease2, newerEvent, new Date()), "current lease failed monotonic cursor advance");
+    assert(!(await runtimeStore.saveHeartbeatCursor(lease2, event, new Date())), "cursor regressed to older event");
+    assert((await runtimeStore.getHeartbeatCursor(companyA, new Date())).lastEventId === newerEvent.id, "cursor monotonic guard lost newest event");
     assert(!(await runtimeStore.releaseHeartbeatLease(lease1, new Date())), "stale heartbeat lease released current holder");
     assert(await runtimeStore.releaseHeartbeatLease(lease2, new Date()), "current heartbeat lease failed release");
+
+    const wakeAsset: CompanyAsset = { id: randomUUID(), companyId: companyA, kind: "company-wake-state", capability: "company.attention", department: "executive", cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: [], metadata: { state: [] }, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+    assert(await runtimeStore.saveAsset(wakeAsset, 0), "versioned asset insert failed");
+    const wakeStored = (await runtimeStore.listAssets(companyA)).find((asset) => asset.id === wakeAsset.id);
+    assert(wakeStored?.version === 1, "versioned asset insert did not set version 1");
+    assert(!(await runtimeStore.saveAsset({ ...wakeAsset, metadata: { stale: true } }, 0)), "create-only CAS overwrote existing asset");
+    const missingUpdate = { ...wakeAsset, id: randomUUID(), metadata: { missing: true } };
+    assert(!(await runtimeStore.saveAsset(missingUpdate, 1)), "update-only CAS inserted a missing asset");
+    const atomicMandate = { ...wakeAsset, id: randomUUID(), kind: "company-authority-mandate", metadata: { mandate: true } };
+    assert(!(await runtimeStore.saveAssetsAtomically([{ asset: atomicMandate, expectedVersion: 0 }, { asset: { ...wakeAsset, metadata: { staleAtomic: true } }, expectedVersion: 0 }])), "atomic CAS accepted stale head version");
+    assert(!(await runtimeStore.listAssets(companyA)).some((item) => item.id === atomicMandate.id), "atomic CAS left a partial asset after conflict");
+    assert(await runtimeStore.saveAssetsAtomically([{ asset: atomicMandate, expectedVersion: 0 }, { asset: { ...wakeAsset, metadata: { freshAtomic: true } }, expectedVersion: 1 }]), "atomic CAS update failed");
 
     const key = `effect:${randomUUID()}`;
     const firstClaim = await runtimeStore.claimIdempotency(companyA, key, { action: "demo" }, "worker-a", now);
@@ -156,7 +173,7 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     assert(!(await runtimeStore.markIdempotency(companyA, orphanKey, "worker-crashed", orphan.record.fencingToken, "applied", new Date(), { unsafe: true })), "stale idempotency owner settled after reconciliation takeover");
     assert(await runtimeStore.markIdempotency(companyA, orphanKey, "reconciler", recovery.fencingToken, "reconciled", new Date(), { observed: "not-applied" }), "reconciler could not settle durable orphan");
 
-    console.log("PASS PostgreSQL migrations/checksum lock + RLS + CompanyAsset/CorporateGene + KAST/session close + event idempotency + DB-clock fencing + orphan reconciliation");
+    console.log("PASS PostgreSQL migrations/checksum lock + RLS + CompanyAsset CAS + CorporateGene + KAST/session close + event idempotency + fenced monotonic heartbeat cursor + orphan reconciliation");
   } finally {
     await app?.close();
     await admin.close();

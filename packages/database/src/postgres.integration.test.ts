@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { BusinessEvent, CorporateGene, Work } from "../../contracts/src/index.js";
+import type { BusinessEvent, CompanyAsset, CorporateGene, Work } from "../../contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore } from "./postgres.js";
 
 const connectionString = process.env.XSPA_TEST_DATABASE_URL;
@@ -70,8 +70,27 @@ describePg("PostgreSQL durable runtime", () => {
       const lease2 = await runtimeStore.claimHeartbeatLease(companyA, "daemon-b", new Date(), 40);
       expect(lease2).not.toBeNull();
       expect((lease2?.fencingToken ?? 0)).toBeGreaterThan(lease1?.fencingToken ?? 0);
+      const newerEvent: BusinessEvent = { ...event, id: randomUUID(), occurredAt: new Date(now.getTime() + 2_000).toISOString(), idempotencyKey: "sale:newer" };
+      expect(await runtimeStore.saveHeartbeatCursor(lease1!, event, new Date())).toBe(false);
+      expect(await runtimeStore.saveHeartbeatCursor(lease2!, newerEvent, new Date())).toBe(true);
+      expect(await runtimeStore.saveHeartbeatCursor(lease2!, event, new Date())).toBe(false);
+      const cursor = await runtimeStore.getHeartbeatCursor(companyA, new Date());
+      expect(cursor.lastEventId).toBe(newerEvent.id);
       expect(await runtimeStore.releaseHeartbeatLease(lease1!, new Date())).toBe(false);
       expect(await runtimeStore.releaseHeartbeatLease(lease2!, new Date())).toBe(true);
+
+      const asset: CompanyAsset = { id: randomUUID(), companyId: companyA, kind: "company-wake-state", capability: "company.attention", department: "executive", cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: [], metadata: { state: [] }, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+      expect(await runtimeStore.saveAsset(asset, 0)).toBe(true);
+      const storedAsset = (await runtimeStore.listAssets(companyA)).find((item) => item.id === asset.id)!;
+      expect(storedAsset.version).toBe(1);
+      expect(await runtimeStore.saveAsset({ ...asset, metadata: { stale: true } }, 0)).toBe(false);
+      expect(await runtimeStore.saveAsset({ ...asset, id: randomUUID(), metadata: { missing: true } }, 1)).toBe(false);
+      const atomicAsset = { ...asset, id: randomUUID(), kind: "company-authority-mandate", metadata: { mandate: true } };
+      expect(await runtimeStore.saveAssetsAtomically([{ asset: atomicAsset, expectedVersion: 0 }, { asset: { ...asset, metadata: { staleAtomic: true } }, expectedVersion: 0 }])).toBe(false);
+      expect((await runtimeStore.listAssets(companyA)).some((item) => item.id === atomicAsset.id)).toBe(false);
+      expect(await runtimeStore.saveAssetsAtomically([{ asset: atomicAsset, expectedVersion: 0 }, { asset: { ...asset, metadata: { freshAtomic: true } }, expectedVersion: 1 }])).toBe(true);
+      expect(await runtimeStore.saveAsset({ ...asset, metadata: { fresh: true } }, 1)).toBe(true);
+      expect((await runtimeStore.listAssets(companyA)).find((item) => item.id === asset.id)?.metadata).toEqual({ fresh: true });
 
       const claim1 = await runtimeStore.claimIdempotency(companyA, "effect:pg", { action: "demo" }, "worker-a", now);
       const claim2 = await runtimeStore.claimIdempotency(companyA, "effect:pg", { action: "demo" }, "worker-b", now);

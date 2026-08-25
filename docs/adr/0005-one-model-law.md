@@ -1,7 +1,8 @@
 # ADR-0005 — One Model Law: Sol/max executive, Sol/xhigh branches
 
-Status: **accepted**
+Status: **accepted, amended**
 Date: 2026-08-21
+Amended: 2026-08-25 — canonical runtime is MCP-hosted and model-provider API calls are forbidden
 
 ## Problem
 
@@ -30,11 +31,11 @@ This is stricter than treating `max` as an automatic quality setting. It gives t
 
 ## Creative execution
 
-The active V1 creative model policy is OpenAI-only under the same account/connection family.
+The canonical runtime is **MCP-only for cognitive/generative model control**. GPT-5.6 Sol runs in the ChatGPT host. XanxitoSpA exposes governed state, missions, evidence and actions through MCP; it does not call the OpenAI Responses API, does not call another model-provider API, and does not consume a model API key.
 
 ### Images
 
-`gpt-5.6-sol` can invoke the built-in `image_generation` tool in the Responses API. From XanxitoSpA's perspective the branch remains GPT-5.6 Sol/xhigh or Executive Sol/max; image rendering is a tool call, not a second principal. The current specialized image backend is GPT Image 2, but the Company Manifest does not need to select or reason as that model.
+When the ChatGPT host exposes a native image-generation/editing tool, GPT may invoke it as a host capability while XanxitoSpA remains the governance/evidence substrate. The image backend is not selected, authenticated or called by XanxitoSpA itself. If the host does not expose an approved tool, rendering stays staged/fail-closed.
 
 ### Vector/documents/code-derived design
 
@@ -42,9 +43,11 @@ SVG, diagrams, document structure, HTML/CSS and other deterministic design artif
 
 ### Video
 
-Final video generation is **staged/unavailable in V1**. GPT-5.6 Sol does not currently expose a stable native video-generation tool. OpenAI's current `/v1/videos` models (`sora-2`, `sora-2-pro`) are Legacy/Deprecated as of this decision, so V1 does not make them a kernel dependency.
+Final video generation remains staged unless the ChatGPT host exposes an approved native tool. XanxitoSpA does not add a provider API client to compensate for a missing host capability. GPT may still create briefs, scripts, shot lists, storyboards and image keyframes.
 
-GPT may still create video briefs, scripts, shot lists, storyboards and image keyframes. Final rendering becomes enabled only after a stable supported OpenAI video tool passes the Company Gym and cost/quality evaluation.
+### Legacy/experimental provider adapters
+
+Provider-specific model API adapters may remain temporarily as historical/experimental source while being removed or migrated, but they are **not part of the canonical MCP runtime**. `apps/mcp` is guarded against importing them or referencing model API credentials/endpoints.
 
 ## Why not provider-managed Multi-agent beta?
 
@@ -56,16 +59,6 @@ This ADR does **not** remove provider-neutral business capabilities. Email, cale
 
 The restriction applies to **cognitive/generative model providers**, not ordinary enterprise tools.
 
-## Evidence basis — August 2026
+## Architecture invariant
 
-Official OpenAI documentation confirms:
-
-- `gpt-5.6-sol` supports reasoning efforts through `max`;
-- the Responses API is the recommended interface for reasoning/tool workflows;
-- GPT-5.6 Sol supports the built-in Image generation tool;
-- GPT Image 2 is the current state-of-the-art OpenAI image model;
-- GPT-5.6 has a Multi-agent beta, intentionally disabled by this ADR;
-- GPT-5.6 Sol itself has no video output;
-- current OpenAI video endpoints use Sora 2 / Sora 2 Pro, both marked Legacy/Deprecated.
-
-This ADR must be re-evaluated when OpenAI exposes a stable non-legacy video-generation tool or when Company Gym evidence proves a different compute hierarchy is materially better.
+The Company Kernel never owns the model session. The ChatGPT host owns GPT execution; XanxitoSpA owns business governance, durable state, authority boundaries and MCP tools. This separation is intentional and testable: the canonical MCP source must contain no model-provider API key, endpoint or provider-specific model client import.

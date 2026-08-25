@@ -168,28 +168,20 @@ The MCP server acts as an OAuth 2.1 **resource server**. It publishes `/.well-kn
 
 `XSPA_MCP_INTERNAL_BEARER` exists only for loopback/internal smoke clients. It is **not** a ChatGPT authentication mechanism and the production entrypoint refuses to expose it on a non-loopback bind. Remote app mode requires OAuth.
 
-Required only when native image rendering is enabled:
-
-```text
-OPENAI_API_KEY
-```
-
-The server never returns any of these values.
-
 ## Creative execution
 
-If `OPENAI_API_KEY` is absent, creative image generation remains staged. There is no fallback to Gemini/Grok/Runway or to ChatGPT's visible image tool.
-
-When configured, the creative worker uses:
+Creative model work is host-controlled: the canonical MCP runtime never calls a model-provider API and never consumes a model API key. GPT reasoning and any host-native generation tool are invoked by the ChatGPT host, while XanxitoSpA remains the governed MCP substrate.
 
 ```text
-GPT-5.6 Sol/xhigh
-  → Responses image_generation
-  → internal CompanyAsset
-  → VisualFitness
-  → Creative Supervisor
+ChatGPT host / GPT-5.6 Sol
+  → reads governed mission over MCP
+  → may invoke host-native image/tool capability
+  → returns/persists governed artifact evidence through MCP
+  → VisualFitness / Creative Supervisor policy
   → selected receipt
 ```
+
+There is no `OPENAI_API_KEY` requirement in the canonical MCP deployment. Model-provider API adapters are not part of the governed runtime. GPT execution remains in the ChatGPT host, and source-level Model Law guards reject model-provider credentials, endpoints and runtime clients from the MCP/kernel/provider execution surface.
 
 The chat/app surface remains `decision-only`.
 

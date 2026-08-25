@@ -16,7 +16,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
       modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
       mcp: { ready: true, mode: "streamable-http" },
       database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
-      creative: { configured: true, renderer: "responses-image-generation", chatMode: "decision-only", video: "staged" },
+      creative: { configured: true, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" },
       kast: { configured: true, execution: "queued" },
       skills: { configured: true, healthy: true, indexed: 2, activeCompanyCatalog: 1 },
     }),

@@ -79,12 +79,12 @@ Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
 Wake                     governed urgency/threshold accumulation · wake never grants authority
 Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
 Production trust root    not enrolled yet; trustConfigured=false fails closed by design
-Local test suite         88 PASS · 1 local PostgreSQL integration skipped by environment
+Local test suite         93 PASS · PostgreSQL 18 smoke covers fenced cursor + asset CAS
 MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
-External benchmark       public v5 prospective replication: 8–0–12, p=0.0078125 (scenario-blocked)
+External benchmark       v4/v5 historical deterministic regression; v6 corrected comparison contract in progress
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             cce3fce · 4R #381 approved · exact-head CI PASS
+Release state             kernel hardening in progress · review/CI pending
 ```
 
 ---
@@ -277,7 +277,7 @@ V1.2's PostgreSQL coordination remains verified, but generic workflow durability
 
 ## External evidence
 
-`Company Gym` is an internal invariant suite. It is **not** a workplace-completion benchmark. TheAgentCompany remains only an **external wind tunnel**; it is not a dependency or architecture source. The public paired benchmark lives in [`riquelmechile/xspa-theagentcompany-benchmark`](https://github.com/riquelmechile/xspa-theagentcompany-benchmark), where v5 prospectively replicated the scenario-blocked integrity result at **8 XSPA wins / 0 DIRECT wins / 12 ties, p=0.0078125** on rep2+rep3. Its separate environment LLM serves simulated NPCs/evaluators and is never counted as a XanxitoSpA principal or worker.
+`Company Gym` is an internal invariant suite. It is **not** a workplace-completion benchmark. TheAgentCompany remains only an **external wind tunnel**; it is not a dependency or architecture source. The public paired benchmark lives in [`riquelmechile/xspa-theagentcompany-benchmark`](https://github.com/riquelmechile/xspa-theagentcompany-benchmark). A 2026-08-25 runner audit narrowed the interpretation of v4/v5: the published 8/0/12 result is retained as deterministic historical regression evidence, but the prior `p=0.0078125` statistical-confirmation claim is withdrawn because fixed branches and arm asymmetries do not provide the required randomization model. V6 uses a competent DIRECT baseline, common fault/plan/oracle and pinned PostgreSQL SUT. Its separate environment LLM serves simulated NPCs/evaluators and is never counted as a XanxitoSpA principal or worker.
 
 The preferred experiment holds the principal constant and tests the architecture itself:
 
@@ -296,7 +296,7 @@ same GPT-5.6 Sol + same task + same environment
 official score + cost + latency + reliability
 ```
 
-The current public benchmark claim is intentionally narrow: v3 found no capability advantage, while v4/v5 test execution integrity under stateful faults. The v5 primary result is the prospectively preregistered, scenario-blocked rep2+rep3 analysis; the 60-pair pooled result is descriptive only. DIRECT was not specifically prompted for resilience, so the benchmark does not claim to measure the strongest possible direct-resilience prompt.
+The current public benchmark claim is narrower than before. V3 detected no directional capability difference in its small matched sample but did **not** establish equivalence. V4/v5 show deterministic differences between the exact historical scripts that ran; they do not isolate the causal contribution of the Company OS architecture against a competent resilience baseline. V6 is the corrective design and explicitly gives DIRECT bounded retry/probe hygiene while reserving XANXITOSPA-specific durable fencing, reconciliation and governance as treatment mechanisms.
 
 ```bash
 pnpm run benchmark:theagentcompany:check
@@ -419,16 +419,16 @@ image_generation tool / deterministic renderer / business tool
 Active V1 surfaces:
 
 ```text
-creative.image.generate   → Responses built-in image_generation tool
-creative.image.edit       → same native image tool path
+creative.image.generate   → requested through the ChatGPT host/tool boundary; no model-provider API key in XanxitoSpA
+creative.image.edit       → same host-native tool boundary
 creative.vector.generate  → GPT-authored deterministic SVG/code
 document.render           → GPT structure + deterministic renderer
 creative.video.generate   → STAGED / fail-closed in V1
-creative.model3d.generate → only via approved non-model/procedural tool seam
+creative.model3d.generate → approved non-model/procedural tool seam only
 creative.cad.generate     → approved CAD engine as a tool, not another cognitive model
 ```
 
-OpenAI's current specialized image backend is treated as a renderer behind the tool — not a worker or principal. `OpenAIResponsesImageRenderer` stores raw image bytes only through an internal asset sink; base64 never enters the chat receipt. Concept branches, visual evaluators and the Creative Supervisor are all GPT-5.6 Sol/xhigh. Final video generation stays disabled in V1. See [`adr/0005-one-model-law.md`](docs/adr/0005-one-model-law.md).
+The canonical architecture is **MCP-only for model control**. XanxitoSpA does not call OpenAI Responses or any other model-provider API from its MCP runtime and does not require `OPENAI_API_KEY`. GPT runs in the ChatGPT host; XanxitoSpA supplies governed state, tools, evidence and execution boundaries over MCP. Model-provider API adapters are not part of the runtime at all: GPT execution stays in the ChatGPT host, and repository guards reject model-provider credentials/endpoints from the governed runtime surface.
 
 ---
 

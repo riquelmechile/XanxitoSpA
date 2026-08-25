@@ -192,6 +192,8 @@ export function applyVerifiedMandateToDiscovery(prior: DiscoveryRevision, mandat
   const facts = prior.facts.map(({ revisionId: _revisionId, ...fact }) => structuredClone(fact));
   let resolved = 0;
   for (const claim of claims) {
+    if (!claim.revisionId || !claim.revisionFingerprint) throw new Error("MANDATE_DISCOVERY_REVISION_BINDING_REQUIRED");
+    if (claim.revisionId !== prior.revisionId || claim.revisionFingerprint !== prior.fingerprint) throw new Error("MANDATE_DISCOVERY_REVISION_MISMATCH");
     const unknown = unknowns.find((item) => item.id === claim.unknownId);
     if (!unknown || unknown.status !== "open") continue;
     const requirement = unknown.resolutionRequirement ?? (unknown.category === "governance" ? "constitutional-mandate" : "owner-confirmation");

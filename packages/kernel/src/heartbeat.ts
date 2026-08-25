@@ -10,7 +10,7 @@ import { DomainError } from "../../domain/src/index.js";
 export interface HeartbeatStore {
   listEventsAfter(companyId: string, cursor: HeartbeatCursor, limit: number): Promise<BusinessEvent[]>;
   getHeartbeatCursor(companyId: string, now: Date): Promise<HeartbeatCursor>;
-  saveHeartbeatCursor(companyId: string, event: BusinessEvent | undefined, now: Date): Promise<void>;
+  saveHeartbeatCursor(lease: FencedLease, event: BusinessEvent | undefined, now: Date): Promise<boolean>;
   claimHeartbeatLease(companyId: string, owner: string, now: Date, leaseMs: number): Promise<FencedLease | null>;
   isHeartbeatLeaseCurrent(lease: FencedLease, now: Date): Promise<boolean>;
   releaseHeartbeatLease(lease: FencedLease, now: Date): Promise<boolean>;
@@ -78,7 +78,8 @@ export class HeartbeatEngine {
       const lastEvent = events.at(-1);
 
       if (materialEvents.length === 0 && materialJobs.length === 0) {
-        await this.store.saveHeartbeatCursor(companyId, lastEvent, now);
+        const persisted = await this.store.saveHeartbeatCursor(lease, lastEvent, now);
+        if (!persisted) throw new DomainError("stale heartbeat lease; cursor not advanced");
         return {
           state: "sleep",
           wakeInvoked: false,
@@ -90,10 +91,8 @@ export class HeartbeatEngine {
 
       await this.wake({ companyId, lease, events: materialEvents, jobs: materialJobs, now });
       const completionTime = this.options.clock?.() ?? new Date();
-      if (!(await this.store.isHeartbeatLeaseCurrent(lease, completionTime))) {
-        throw new DomainError("stale heartbeat lease after wake; cursor not advanced");
-      }
-      await this.store.saveHeartbeatCursor(companyId, lastEvent, completionTime);
+      const persisted = await this.store.saveHeartbeatCursor(lease, lastEvent, completionTime);
+      if (!persisted) throw new DomainError("stale heartbeat lease after wake; cursor not advanced");
       return {
         state: "wake",
         wakeInvoked: true,
