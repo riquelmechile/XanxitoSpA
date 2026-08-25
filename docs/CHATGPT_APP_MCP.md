@@ -51,6 +51,24 @@ Idempotent Company write. Recomputes the deployment-scoped plan, optionally veri
 
 Read-only. Returns the latest operating-model snapshot for the deployment Company only. Another Company deployment sees `not-found`; there is no tenant selector argument.
 
+### Company discovery tools
+
+`xspa_company_discovery_orchestrate` is the generic read-only discovery entrypoint for existing companies. It consumes neutral business-system manifests, builds evidence/facts/capabilities, keeps unresolved unknowns explicit and returns **readiness by scope** rather than pretending the whole Company can become globally “complete”. System existence may lower a question's priority and supply candidate evidence, but it never proves source-of-truth status, ownership or authority.
+
+`xspa_company_discovery_plan`, `xspa_company_discovery_apply` and `xspa_company_discovery_status` expose revisioned discovery state with provenance, confidence, parent lineage and deterministic fingerprints. Ordinary `xspa.write` callers cannot create new `owner-confirmed` facts or resolve `owner-confirmation` / `constitutional-mandate` unknowns.
+
+### Verified authority mandate tools
+
+`xspa_authority_mandate_verify` deterministically verifies a signed `authority.mandate.1` envelope against **server-configured** Company trust anchors. Verification checks company binding, payload hash, Ed25519 signature, time window, scope and active revocation/supersession/delegation state. It is read-only and never treats OAuth identity or `xspa.write` as owner identity.
+
+`xspa_authority_mandate_apply` persists only a cryptographically valid immutable mandate. If the mandate explicitly carries a discovery-resolution claim and the required owner/constitutional scope, it may create a new discovery revision that retains `mandate:<id>` provenance. Applying a mandate does not itself execute Work or grant an unbounded capability.
+
+`xspa_authority_mandate_status` returns sanitized active/revoked/superseded state. It never returns private keys or trust-anchor key material. When no real Founder/Owner/Board root has been enrolled, it reports `trustConfigured=false` and the authority path fails closed.
+
+### Governed wake tools
+
+`xspa_company_wake_evaluate` evaluates company events against durable subscriptions and urgency thresholds. It may emit `WakeWorkProposal` metadata only: waking never creates Work and never grants authority, budget or capabilities. `xspa_company_wake_status` reads the durable accumulator/proposal state.
+
 ### `xspa_work_create`
 
 Idempotent write. Creates one Company-scoped `Work` record before material execution. The caller supplies `work_id`, owner, objective and scope, but never `company_id`. Creating Work **does not grant authority or budget**; those remain separate kernel primitives. Reusing a Work identity with changed content fails closed as an idempotency conflict.
@@ -127,6 +145,14 @@ XSPA_DATABASE_URL
 XSPA_COMPANY_ID
 ```
 
+Optional but required before any real Founder/Owner/Board mandate can verify:
+
+```text
+XSPA_AUTHORITY_TRUST_ANCHORS_JSON
+```
+
+This variable contains public trust-anchor configuration only. Private signing keys must remain outside the XanxitoSpA runtime and ordinary MCP write surface.
+
 Required for an authenticated ChatGPT MCP app:
 
 ```text
@@ -178,14 +204,20 @@ GET /.well-known/oauth-protected-resource
 and protected tools declare:
 
 ```text
-xspa_company_plan      → xspa.read
-xspa_company_status    → xspa.read
-xspa_company_apply     → xspa.write
-xspa_work_get          → xspa.read
-xspa_work_create       → xspa.write
-xspa_creative_status  → xspa.read
-xspa_creative_submit  → xspa.write
-xspa_kast_reflect     → xspa.write
+xspa_company_discovery_orchestrate → xspa.read
+xspa_company_discovery_plan/status → xspa.read
+xspa_company_discovery_apply       → xspa.write
+xspa_authority_mandate_verify/status → xspa.read
+xspa_authority_mandate_apply       → xspa.write
+xspa_company_wake_status           → xspa.read
+xspa_company_wake_evaluate         → xspa.write
+xspa_company_plan/status           → xspa.read
+xspa_company_apply                 → xspa.write
+xspa_work_get                      → xspa.read
+xspa_work_create                   → xspa.write
+xspa_creative_status               → xspa.read
+xspa_creative_submit               → xspa.write
+xspa_kast_reflect                  → xspa.write
 ```
 
 `xspa_status` is intentionally public/noauth and contains only non-secret readiness metadata.

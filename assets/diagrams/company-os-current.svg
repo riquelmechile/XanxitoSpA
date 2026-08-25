@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="company-os-current-title company-os-current-desc">
+<title id="company-os-current-title">XanxitoSpA current Company OS architecture</title>
+<desc id="company-os-current-desc">A four-stage architecture showing discovery, constitution, attention and governed execution, with cryptographically verified owner mandates as the authority boundary.</desc>
+<defs>
+  <linearGradient id="company-os-current-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#050812"/><stop offset="0.55" stop-color="#0B1120"/><stop offset="1" stop-color="#070A12"/></linearGradient>
+  <linearGradient id="company-os-current-gold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F0D58E"/><stop offset="1" stop-color="#D8B86A"/></linearGradient>
+  <filter id="company-os-current-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="18"/></filter>
+  <marker id="company-os-current-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#D8B86A"/></marker>
+  <marker id="company-os-current-muted-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#738099"/></marker>
+</defs>
+<rect width="1600" height="900" rx="42" fill="url(#company-os-current-bg)"/>
+<rect x="2" y="2" width="1596" height="896" rx="40" fill="none" stroke="#D8B86A" stroke-opacity="0.42" stroke-width="2"/>
+<circle cx="805" cy="155" r="240" fill="#D8B86A" fill-opacity="0.08" filter="url(#company-os-current-soft)"/>
+<text x="80" y="84" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="20" font-weight="800" letter-spacing="5" fill="#D8B86A">GENERIC COMPANY OS · CURRENT ARCHITECTURE</text>
+<text x="80" y="138" font-family="Georgia,ui-serif,serif" font-size="46" font-weight="700" fill="#F7F1E2">Discover the company. Verify authority. Wake only when it matters.</text>
+<text x="80" y="176" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="20" fill="#AEB5C2">Perception and initiative are continuous; authority is explicit, signed and fail-closed.</text>
+
+<g transform="translate(80 250)">
+  <rect width="330" height="340" rx="28" fill="#0D1525" stroke="#6E82F5" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="28" y="48" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#6E82F5">01 · DISCOVER</text>
+  <text x="28" y="91" font-family="Georgia,ui-serif,serif" font-size="32" font-weight="700" fill="#F7F1E2">What company exists?</text>
+  <text x="28" y="135" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#AEB5C2">BusinessSystemConnector</text>
+  <text x="28" y="165" font-family="ui-monospace,SFMono-Regular,monospace" font-size="17" fill="#F7F1E2">describe() + poll(cursor)</text>
+  <path d="M28 193 H302" stroke="#6E82F5" stroke-opacity="0.35"/>
+  <text x="28" y="226" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">Evidence → Facts → Capabilities</text>
+  <text x="28" y="258" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#AEB5C2">Unknowns keep provenance,</text>
+  <text x="28" y="284" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#AEB5C2">confidence and revision lineage.</text>
+  <text x="28" y="320" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#6E82F5">capability ≠ department</text>
+</g>
+
+<g transform="translate(445 250)">
+  <rect width="330" height="340" rx="28" fill="#111420" stroke="#D8B86A" stroke-opacity="0.75" stroke-width="2"/>
+  <text x="28" y="48" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#D8B86A">02 · CONSTITUTE</text>
+  <text x="28" y="91" font-family="Georgia,ui-serif,serif" font-size="32" font-weight="700" fill="#F7F1E2">What is allowed?</text>
+  <text x="28" y="135" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#AEB5C2">Scoped readiness</text>
+  <text x="28" y="165" font-family="ui-monospace,SFMono-Regular,monospace" font-size="16" fill="#F7F1E2">governance · finance · ops</text>
+  <path d="M28 193 H302" stroke="#D8B86A" stroke-opacity="0.35"/>
+  <text x="28" y="226" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">VerifiedPrincipal</text>
+  <text x="28" y="254" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">AuthorityMandate · Ed25519</text>
+  <text x="28" y="282" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">expiry · delegation · revocation</text>
+  <text x="28" y="320" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#D8B86A">xspa.write ≠ owner authority</text>
+</g>
+
+<g transform="translate(810 250)">
+  <rect width="330" height="340" rx="28" fill="#0C1720" stroke="#55C7E8" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="28" y="48" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#55C7E8">03 · ATTEND</text>
+  <text x="28" y="91" font-family="Georgia,ui-serif,serif" font-size="32" font-weight="700" fill="#F7F1E2">Should anyone wake?</text>
+  <text x="28" y="135" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#AEB5C2">AgentSubscription</text>
+  <text x="28" y="165" font-family="ui-monospace,SFMono-Regular,monospace" font-size="16" fill="#F7F1E2">match + urgency + threshold</text>
+  <path d="M28 193 H302" stroke="#55C7E8" stroke-opacity="0.35"/>
+  <text x="28" y="226" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">Opportunity cost of inaction</text>
+  <text x="28" y="254" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">+ optimal action window</text>
+  <text x="28" y="282" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">Below threshold: accumulate + sleep.</text>
+  <text x="28" y="320" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#55C7E8">wake ≠ authority</text>
+</g>
+
+<g transform="translate(1175 250)">
+  <rect width="345" height="340" rx="28" fill="#10161A" stroke="#4ED09B" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="28" y="48" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#4ED09B">04 · ACT</text>
+  <text x="28" y="91" font-family="Georgia,ui-serif,serif" font-size="32" font-weight="700" fill="#F7F1E2">Can work execute?</text>
+  <text x="28" y="135" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#AEB5C2">WakeWorkProposal → Work</text>
+  <text x="28" y="165" font-family="ui-monospace,SFMono-Regular,monospace" font-size="16" fill="#F7F1E2">adjudicate → kernel → verify</text>
+  <path d="M28 193 H317" stroke="#4ED09B" stroke-opacity="0.35"/>
+  <text x="28" y="226" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">Authority + budget + risk gates</text>
+  <text x="28" y="254" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#F7F1E2">Idempotency + fencing</text>
+  <text x="28" y="282" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">Receipts and outcomes feed learning.</text>
+  <text x="28" y="320" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#4ED09B">Work ≠ authority</text>
+</g>
+
+<path d="M410 420 H440" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+<path d="M775 420 H805" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+<path d="M1140 420 H1170" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+
+<g transform="translate(80 650)">
+  <rect width="1440" height="150" rx="28" fill="#090E18" stroke="#738099" stroke-opacity="0.42"/>
+  <text x="28" y="42" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="4" fill="#AEB5C2">FAIL-CLOSED TRUST CHAIN</text>
+  <text x="28" y="82" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#F7F1E2">Founder / Owner / Board public-key root</text>
+  <path d="M350 76 H480" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+  <text x="505" y="82" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#F7F1E2">signed mandate / delegation</text>
+  <path d="M760 76 H890" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+  <text x="915" y="82" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#F7F1E2">verified scope + active state</text>
+  <path d="M1195 76 H1315" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-current-arrow)"/>
+  <text x="1340" y="82" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="18" fill="#4ED09B">adjudication</text>
+  <text x="28" y="120" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#AEB5C2">No trust root configured → no owner authority. OAuth authentication and MCP write scope never substitute for constitutional identity.</text>
+</g>
+</svg>

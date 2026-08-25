@@ -50,3 +50,21 @@ A downstream reasoning worker may analyze that data for the Work it was given, b
 ## What this does not claim
 
 Static metadata analysis cannot prove a server is safe. The stronger controls are explicit mapping, least privilege, fingerprint registration, runtime drift checks, side-effect semantics and trace-based evidence.
+
+
+## OAuth identity is not constitutional authority
+
+The ChatGPT-facing MCP app uses OAuth scopes such as `xspa.read` and `xspa.write` to authenticate callers and authorize transport-level tool access. Those scopes do **not** prove that the caller is a Company Founder, Owner, Board member or constitutional delegate.
+
+```text
+OAuth authentication ≠ Company ownership
+xspa.write ≠ constitutional authority
+```
+
+Owner/constitutional authority is a separate fail-closed trust domain. XanxitoSpA verifies signed `authority.mandate.1` envelopes against public-key trust anchors configured outside ordinary MCP writes. A caller cannot submit a replacement trust root through `xspa_authority_mandate_verify` or `xspa_authority_mandate_apply`.
+
+The mandate verifier checks company binding, canonical payload hash, Ed25519 signature, issuer trust/delegation chain, time window, requested scope, revocation and supersession. Only an active verified mandate may resolve `owner-confirmation` or `constitutional-mandate` discovery unknowns.
+
+Private signing keys are never accepted by the ordinary MCP surface. `xspa_authority_mandate_status` exposes only sanitized mandate state and does not return trust-anchor key material.
+
+When no Company root is configured, authority verification/application fails closed and status reports `trustConfigured=false`. The absence of a root is never repaired by falling back to OAuth identity or `xspa.write`.

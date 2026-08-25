@@ -24,3 +24,17 @@ Primary reference:
 ## Why
 
 This preserves the unique Company authority model while giving it a clean interoperability path. Protocols can change without changing the constitution or the semantics of internal authority.
+
+## 2026-08-25 implementation update
+
+The interoperability seam is no longer purely future-facing. XanxitoSpA now implements a **Company-general signed mandate boundary** for internal owner/constitutional evidence without claiming AP2 compliance:
+
+- server-configured public-key trust anchors identify Founder/Owner/Board roots;
+- immutable `authority.mandate.1` envelopes are Ed25519 signed and company/scope/time bound;
+- deterministic verification derives active state across expiry, delegation, revocation and supersession;
+- signed delegations may introduce scoped delegate public keys, and revoking the delegation removes the derived authority;
+- discovery unknowns requiring `owner-confirmation` or `constitutional-mandate` may resolve only from an active verified mandate carrying the required scope;
+- OAuth authentication and `xspa.write` remain transport permissions and never become owner identity;
+- private signing keys are not accepted by the ordinary MCP/runtime surface.
+
+This remains **AP2-inspired, not AP2-compliant**. AP2/payment-specific envelopes and payment network behavior are still adapters/interoperability concerns, not kernel dependencies. The implemented mandate is intentionally business-general so the same trust primitive can govern discovery and future non-payment Company decisions.

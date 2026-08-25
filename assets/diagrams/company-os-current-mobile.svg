@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 1480" role="img" aria-labelledby="company-os-current-mobile-title company-os-current-mobile-desc">
+<title id="company-os-current-mobile-title">XanxitoSpA current Company OS architecture mobile</title>
+<desc id="company-os-current-mobile-desc">Portrait architecture showing discovery, constitution, attention and governed execution with a fail-closed verified owner mandate chain.</desc>
+<defs>
+  <linearGradient id="company-os-mobile-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#050812"/><stop offset="0.55" stop-color="#0B1120"/><stop offset="1" stop-color="#070A12"/></linearGradient>
+  <marker id="company-os-mobile-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#D8B86A"/></marker>
+</defs>
+<rect width="760" height="1480" rx="34" fill="url(#company-os-mobile-bg)"/>
+<rect x="2" y="2" width="756" height="1476" rx="32" fill="none" stroke="#D8B86A" stroke-opacity="0.42" stroke-width="2"/>
+<text x="46" y="68" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="800" letter-spacing="4" fill="#D8B86A">GENERIC COMPANY OS · CURRENT</text>
+<text x="46" y="116" font-family="Georgia,ui-serif,serif" font-size="34" font-weight="700" fill="#F7F1E2">Discover. Verify. Wake. Act.</text>
+<text x="46" y="150" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">Authority remains explicit and fail-closed.</text>
+
+<g transform="translate(46 205)">
+  <rect width="668" height="220" rx="24" fill="#0D1525" stroke="#6E82F5" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="24" y="40" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="3" fill="#6E82F5">01 · DISCOVER</text>
+  <text x="24" y="80" font-family="Georgia,ui-serif,serif" font-size="28" font-weight="700" fill="#F7F1E2">What company exists?</text>
+  <text x="24" y="118" font-family="ui-monospace,SFMono-Regular,monospace" font-size="16" fill="#F7F1E2">BusinessSystemConnector.describe() + poll()</text>
+  <text x="24" y="151" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">Evidence → facts → capabilities → unknowns</text>
+  <text x="24" y="188" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="700" fill="#6E82F5">capability ≠ department</text>
+</g>
+<path d="M380 425 V460" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-mobile-arrow)"/>
+
+<g transform="translate(46 475)">
+  <rect width="668" height="235" rx="24" fill="#111420" stroke="#D8B86A" stroke-opacity="0.75" stroke-width="2"/>
+  <text x="24" y="40" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="3" fill="#D8B86A">02 · CONSTITUTE</text>
+  <text x="24" y="80" font-family="Georgia,ui-serif,serif" font-size="28" font-weight="700" fill="#F7F1E2">What is allowed?</text>
+  <text x="24" y="118" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#F7F1E2">Scoped readiness · VerifiedPrincipal</text>
+  <text x="24" y="149" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#F7F1E2">AuthorityMandate · Ed25519 · delegation</text>
+  <text x="24" y="180" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#AEB5C2">expiry · revocation · supersession</text>
+  <text x="24" y="211" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="700" fill="#D8B86A">xspa.write ≠ owner authority</text>
+</g>
+<path d="M380 710 V745" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-mobile-arrow)"/>
+
+<g transform="translate(46 760)">
+  <rect width="668" height="220" rx="24" fill="#0C1720" stroke="#55C7E8" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="24" y="40" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="3" fill="#55C7E8">03 · ATTEND</text>
+  <text x="24" y="80" font-family="Georgia,ui-serif,serif" font-size="28" font-weight="700" fill="#F7F1E2">Should anyone wake?</text>
+  <text x="24" y="118" font-family="ui-monospace,SFMono-Regular,monospace" font-size="16" fill="#F7F1E2">match + urgency + threshold</text>
+  <text x="24" y="151" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">inaction cost + optimal action window</text>
+  <text x="24" y="188" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="700" fill="#55C7E8">wake ≠ authority</text>
+</g>
+<path d="M380 980 V1015" stroke="#D8B86A" stroke-width="3" marker-end="url(#company-os-mobile-arrow)"/>
+
+<g transform="translate(46 1030)">
+  <rect width="668" height="220" rx="24" fill="#10161A" stroke="#4ED09B" stroke-opacity="0.72" stroke-width="2"/>
+  <text x="24" y="40" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="800" letter-spacing="3" fill="#4ED09B">04 · ACT</text>
+  <text x="24" y="80" font-family="Georgia,ui-serif,serif" font-size="28" font-weight="700" fill="#F7F1E2">Can work execute?</text>
+  <text x="24" y="118" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#F7F1E2">proposal → Work → adjudicate → kernel</text>
+  <text x="24" y="151" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#AEB5C2">authority + budget + risk + fencing</text>
+  <text x="24" y="188" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="700" fill="#4ED09B">Work ≠ authority</text>
+</g>
+
+<g transform="translate(46 1300)">
+  <rect width="668" height="130" rx="22" fill="#090E18" stroke="#738099" stroke-opacity="0.5"/>
+  <text x="22" y="35" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" letter-spacing="3" fill="#AEB5C2">FAIL-CLOSED ROOT OF TRUST</text>
+  <text x="22" y="70" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#F7F1E2">Founder/Owner/Board public key → signed mandate → verified scope</text>
+  <text x="22" y="102" font-family="Inter,ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#AEB5C2">No configured root means no owner authority. OAuth/write scope is not identity.</text>
+</g>
+</svg>

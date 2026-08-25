@@ -22,11 +22,19 @@
   <a href="#corporate-evolution">Evolution</a> ·
   <a href="#the-kernel">Kernel</a> ·
   <a href="#run-it">Run it</a> ·
-  <a href="docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md">Architecture</a>
+  <a href="docs/CURRENT_ARCHITECTURE_2026-08-25.md">Current Architecture</a>
 </p>
 
 ---
 
+<p align="center">
+  <picture>
+    <source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/company-os-current-mobile.svg" />
+    <img src="https://raw.githubusercontent.com/riquelmechile/XanxitoSpA/main/assets/diagrams/company-os-current.svg" alt="XanxitoSpA current Company OS architecture — discover, constitute, attend, act" width="100%" />
+  </picture>
+</p>
+
+> **Current architecture source of truth:** [`docs/CURRENT_ARCHITECTURE_2026-08-25.md`](docs/CURRENT_ARCHITECTURE_2026-08-25.md). Historical runtime notes remain in `docs/` as evolution records.
 
 ## Company discovery and constitution
 
@@ -66,15 +74,17 @@ signal → heartbeat → restore state → business preflight
 Version                  1.0.0
 Runtime                  Node.js 24 + TypeScript strict
 Authoritative store      PostgreSQL 18 contract + real adapter
-Company Gym              123 / 123 PASS (local) + production-evidence meta guard
-MCP                      provider bridge + ChatGPT app Streamable HTTP + OAuth
-Observability            OpenTelemetry / GenAI schema 1.42.0, content off
-External benchmark       TheAgentCompany adapter-ready; no score published
-External provider secrets none committed
-Durability direction      DBOS staged adoption (ADR-0001)
+Discovery                revisioned evidence/facts/unknowns/capabilities + scoped readiness
+Connector boundary       BusinessSystemConnector.describe() + poll(cursor)
+Wake                     governed urgency/threshold accumulation · wake never grants authority
+Owner authority          signed authority.mandate.1 · Ed25519 · delegation/revocation/supersession
+Production trust root    not enrolled yet; trustConfigured=false fails closed by design
+Local test suite         88 PASS · 1 local PostgreSQL integration skipped by environment
+MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/authority tools
+External benchmark       public v5 prospective replication: 8–0–12, p=0.0078125 (scenario-blocked)
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     OpenAI-only V1 · native image tool · video staged
-Release state             candidate · local gates PASS · review/CI pending
+Release state             cce3fce · 4R #381 approved · exact-head CI PASS
 ```
 
 ---
@@ -267,7 +277,7 @@ V1.2's PostgreSQL coordination remains verified, but generic workflow durability
 
 ## External evidence
 
-`Company Gym` is an internal invariant suite. It is **not** a workplace-completion benchmark. TheAgentCompany 1.0.0 is kept only as an **external wind tunnel**; it is not a dependency or architecture source. Its separate environment LLM serves simulated NPCs/evaluators and is never counted as a XanxitoSpA principal or worker.
+`Company Gym` is an internal invariant suite. It is **not** a workplace-completion benchmark. TheAgentCompany remains only an **external wind tunnel**; it is not a dependency or architecture source. The public paired benchmark lives in [`riquelmechile/xspa-theagentcompany-benchmark`](https://github.com/riquelmechile/xspa-theagentcompany-benchmark), where v5 prospectively replicated the scenario-blocked integrity result at **8 XSPA wins / 0 DIRECT wins / 12 ties, p=0.0078125** on rep2+rep3. Its separate environment LLM serves simulated NPCs/evaluators and is never counted as a XanxitoSpA principal or worker.
 
 The preferred experiment holds the principal constant and tests the architecture itself:
 
@@ -286,13 +296,13 @@ same GPT-5.6 Sol + same task + same environment
 official score + cost + latency + reliability
 ```
 
-No completion score is published until the official evaluator grades real trajectories. A full 175-task run is deferred until a representative paired pilot proves the adapter measures XanxitoSpA itself rather than another runtime.
+The current public benchmark claim is intentionally narrow: v3 found no capability advantage, while v4/v5 test execution integrity under stateful faults. The v5 primary result is the prospectively preregistered, scenario-blocked rep2+rep3 analysis; the 60-pair pooled result is descriptive only. DIRECT was not specifically prompted for resilience, so the benchmark does not claim to measure the strongest possible direct-resilience prompt.
 
 ```bash
 pnpm run benchmark:theagentcompany:check
 ```
 
-See [`benchmarks/theagentcompany/`](benchmarks/theagentcompany/), [`adr/0004-external-benchmarking.md`](docs/adr/0004-external-benchmarking.md) and [`EXTERNAL_REVIEW_2026-08-21.md`](docs/EXTERNAL_REVIEW_2026-08-21.md).
+See [`benchmarks/theagentcompany/`](benchmarks/theagentcompany/), [`adr/0004-external-benchmarking.md`](docs/adr/0004-external-benchmarking.md), [`EXTERNAL_REVIEW_2026-08-21.md`](docs/EXTERNAL_REVIEW_2026-08-21.md), and the [public benchmark evidence repository](https://github.com/riquelmechile/xspa-theagentcompany-benchmark).
 
 ---
 
@@ -300,22 +310,24 @@ See [`benchmarks/theagentcompany/`](benchmarks/theagentcompany/), [`adr/0004-ext
 
 ### Company Formation / Adoption
 
-The primary product path is now explicit in the runtime: **Company intake → operating model → governed bootstrap/adoption**. The kernel does not infer an industry-specific org chart from vibes; the Executive supplies discovery evidence and proposed optional structure, while deterministic Company OS logic validates universal functional coverage, preserves existing sources of truth, integrates Skill/Capability requirements and produces a stable operating-model fingerprint.
+The primary product path is now explicit in the runtime: **discover → ask → scoped readiness → constitute → operating model → governed bootstrap/adoption**. The kernel does not infer an industry-specific org chart from vibes. `GenericDiscoveryOrchestrator` consumes evidence from neutral business-system connectors, preserves observed ownership/process structure, asks only unresolved business questions, and blocks organization synthesis until the relevant organization/governance scopes are sufficient.
 
 ```text
 NEW COMPANY                         EXISTING COMPANY
-purpose + business model            observed departments/processes/assets
-objectives + constraints             evidence + current sources of truth
-        │                                      │
-        └──────────────┬───────────────────────┘
+purpose + initial constraints       BusinessSystemConnector.describe()
+        │                                      ↓
+        │                         evidence / facts / capabilities
+        │                                      ↓
+        └──────────────┬────────── unknowns + owner questions
                        ▼
+                scoped readiness
+                       ↓
+      verified owner / constitutional mandates
+                       ↓
               xspa_company_plan
                        ↓
       business functions + departments
       processes + skills + capabilities
-      asset/bootstrap requirements
-                       ↓
-              fingerprinted plan
                        ↓
               xspa_company_apply
                        ↓
@@ -441,15 +453,16 @@ XanxitoSpA V1 is operated primarily as a **remote MCP app from ChatGPT**. The hu
 ChatGPT app
     ↓ MCP
 xspa_status
-xspa_company_plan       → NEW/EXISTING Company intake + operating-model plan
-xspa_company_apply      → persist Company-owned model (no Work/authority/budget)
-xspa_company_status     → current deployment-scoped operating model
-xspa_work_create        → explicit Company Work boundary
-xspa_work_get           → Company-scoped Work lookup
-xspa_skills_search/get  → installed Company procedural knowledge
-xspa_creative_submit    → background CreativeMission
-xspa_creative_status    → selected receipt only
-xspa_kast_reflect       → supporting harness self-maintenance only
+xspa_company_discovery_orchestrate → evidence + unknowns + scoped readiness
+xspa_company_discovery_plan/apply   → revisioned discovery state
+xspa_authority_mandate_verify/apply → signed owner/constitutional evidence
+xspa_authority_mandate_status       → sanitized active/revoked/superseded state
+xspa_company_plan/apply/status      → Company operating model
+xspa_company_wake_evaluate/status   → governed attention / proposals only
+xspa_work_create/get                → explicit Work boundary
+xspa_skills_search/get              → installed Company procedural knowledge
+xspa_creative_submit/status         → governed background creative work
+xspa_kast_reflect                   → supporting harness self-maintenance only
     ↓
 XanxitoSpA runtime / Postgres / workers / Engram
 ```
@@ -509,7 +522,8 @@ The smoke test rejects non-loopback hosts unless explicitly enabled for an isola
 
 | Document | Purpose |
 | --- | --- |
-| [`XANXITOSPA_ARQUITECTURA_INICIAL_2026.md`](docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md) | Canonical company architecture and laws |
+| [`CURRENT_ARCHITECTURE_2026-08-25.md`](docs/CURRENT_ARCHITECTURE_2026-08-25.md) | **Current implemented architecture:** discovery, scoped readiness, connectors, wake and verified owner mandates |
+| [`XANXITOSPA_ARQUITECTURA_INICIAL_2026.md`](docs/XANXITOSPA_ARQUITECTURA_INICIAL_2026.md) | Original architecture/laws baseline; historical design source |
 | [`RUNTIME_V11_COMPANY_OS_INTAKE_2026-08-22.md`](docs/RUNTIME_V11_COMPANY_OS_INTAKE_2026-08-22.md) | NEW/EXISTING Company intake, operating-model planning and governed apply/status path |
 | [`RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md`](docs/RUNTIME_V10_SELF_IMPROVEMENT_AND_CHARACTERS_2026-08-22.md) | Real MCP/Engram + Git KAST runtime and GPT-only character production pipeline |
 | [`RUNTIME_V1_ESTADO_2026-08-21.md`](docs/RUNTIME_V1_ESTADO_2026-08-21.md) | First executable kernel |

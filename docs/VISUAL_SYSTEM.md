@@ -150,3 +150,27 @@ The same system can represent:
 - business-unit spawning as new decks;
 - providers as tools/portals, never people;
 - a future Control Plane without changing the visual mythology.
+
+
+## Current Company OS architecture visual
+
+The architecture state introduced on 2026-08-25 adds one canonical technical overview in two compositions:
+
+- `assets/diagrams/company-os-current.svg` — landscape README / desktop;
+- `assets/diagrams/company-os-current-mobile.svg` — portrait mobile.
+
+The diagram uses four sequential concepts rather than one dense systems map:
+
+```text
+DISCOVER → CONSTITUTE → ATTEND → ACT
+```
+
+Visual semantics are intentionally aligned with runtime semantics:
+
+- indigo = evidence/discovery;
+- gold = constitutional authority and signed mandates;
+- cyan = attention/wake;
+- emerald = verified execution/outcomes;
+- muted slate = infrastructure/trust context that does not itself grant authority.
+
+The fail-closed trust chain is shown separately from the operational flow so OAuth/MCP write access cannot be visually confused with Founder/Owner authority. Every public architecture visual should preserve the visible invariants `xspa.write ≠ owner authority`, `wake ≠ authority` and `Work ≠ authority` where space permits.
