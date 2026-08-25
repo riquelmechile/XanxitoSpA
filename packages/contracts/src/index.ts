@@ -710,8 +710,23 @@ export interface SignalCursor {
   position: string | null;
 }
 
+export type RawBusinessEvent<T = unknown> = Omit<BusinessEvent<T>, "signal"> & {
+  signal?: never;
+  signalTopic?: string;
+  signalCapability?: string;
+};
+
+export type ObservedBusinessEvent<T = unknown> = BusinessEvent<T> & {
+  signal: BusinessEventSignal & { provenance: "observed"; attestationRef: string };
+};
+
 export interface SignalPollResult {
-  events: BusinessEvent[];
+  events: RawBusinessEvent[];
+  cursor: SignalCursor;
+}
+
+export interface ObservedSignalPollResult {
+  events: ObservedBusinessEvent[];
   cursor: SignalCursor;
 }
 

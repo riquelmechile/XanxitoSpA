@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { BusinessCapabilityCriticality, DiscoveryRevision, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
+import type { BusinessCapabilityCriticality, DiscoveryRevision, ObservedSignalPollResult, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
 import { buildDiscoveryRevision } from "./company-discovery.js";
 
 export interface DiscoveredSignalCapability {
@@ -91,24 +91,32 @@ export class ManifestBusinessSystemConnector implements BusinessSystemConnector 
 }
 
 
-export async function pollObservedBusinessSystem(input: { connector: BusinessSystemConnector; companyId: string; cursor: SignalCursor }): Promise<SignalPollResult> {
+export async function pollObservedBusinessSystem(input: { connector: BusinessSystemConnector; companyId: string; cursor: SignalCursor }): Promise<ObservedSignalPollResult> {
   const { connector, companyId, cursor } = input;
   if (cursor.sourceId !== connector.id) throw new Error("business system cursor source mismatch");
   const result = await connector.poll(cursor);
   if (result.cursor.sourceId !== connector.id) throw new Error("business system poll returned foreign cursor");
   const events = result.events.map((event) => {
     if (event.companyId !== companyId) throw new Error(`business system event company mismatch:${event.id}`);
-    const topic = event.signal?.topic?.trim() || event.type;
-    const capability = event.signal?.capability?.trim();
+    const topic = event.signalTopic?.trim() || event.type;
+    const capability = event.signalCapability?.trim();
     if (capability && !connector.capabilities.includes(capability)) throw new Error(`business system event capability not declared:${capability}`);
     const attestationRef = `connector-attestation:${createHash("sha256").update(JSON.stringify({ sourceId: connector.id, eventId: event.id, occurredAt: event.occurredAt, cursorBefore: cursor.position, cursorAfter: result.cursor.position })).digest("hex")}`;
+    const { signalTopic: _signalTopic, signalCapability: _signalCapability, ...rawEvent } = structuredClone(event);
     return {
-      ...structuredClone(event),
+      ...rawEvent,
       signal: { provenance: "observed" as const, sourceId: connector.id, topic, ...(capability ? { capability } : {}), attestationRef },
       evidenceRefs: [...new Set([...event.evidenceRefs, attestationRef])],
     };
   });
   return { events, cursor: structuredClone(result.cursor) };
+}
+
+export function observedSignalIdempotencyKey(event: import("../../contracts/src/index.js").ObservedBusinessEvent): string {
+  const sourceId = event.signal.sourceId.trim();
+  const attestationRef = event.signal.attestationRef.trim();
+  if (!sourceId || !attestationRef) throw new Error("observed signal attestation required");
+  return `company:wake:observed:${sourceId}:${event.id}:${createHash("sha256").update(attestationRef).digest("hex")}`;
 }
 
 function stableId(value: string): string { return value.toLowerCase().replace(/[^a-z0-9._:-]+/g, "-").replace(/^-+|-+$/g, ""); }

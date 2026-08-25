@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ManifestBusinessSystemConnector, pollObservedBusinessSystem, projectBusinessSystemDiscoveries } from "./business-system-connector.js";
+import { ManifestBusinessSystemConnector, observedSignalIdempotencyKey, pollObservedBusinessSystem, projectBusinessSystemDiscoveries } from "./business-system-connector.js";
 
 const companyId = "11111111-1111-4111-8111-111111111111";
 
@@ -56,7 +56,7 @@ describe("generic business system connectors", () => {
       signalCapabilities: [{ name: "operations.events", description: "Operational events", criticality: "important", confidence: 1 }],
     }, {
       poll: async () => ({
-        events: [{ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", companyId, type: "operations.events", occurredAt: "2026-08-25T12:00:00.000Z", actorPrincipal: "connector", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", idempotencyKey: "evt:a", payload: {}, sensitivity: "internal", evidenceRefs: [], signal: { provenance: "asserted", sourceId: "spoofed", topic: "operations.events", capability: "operations.events" } }],
+        events: [{ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", companyId, type: "operations.events", occurredAt: "2026-08-25T12:00:00.000Z", actorPrincipal: "connector", correlationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", idempotencyKey: "evt:a", payload: {}, sensitivity: "internal", evidenceRefs: [], signalTopic: "operations.events", signalCapability: "operations.events" }],
         cursor: { sourceId: "system:attested", position: "1" },
       }),
     });
@@ -65,6 +65,7 @@ describe("generic business system connectors", () => {
     expect(result.events[0]?.signal?.sourceId).toBe(connector.id);
     expect(result.events[0]?.signal?.attestationRef).toMatch(/^connector-attestation:[a-f0-9]{64}$/);
     expect(result.events[0]?.evidenceRefs).toContain(result.events[0]?.signal?.attestationRef);
+    expect(observedSignalIdempotencyKey(result.events[0]!)).toMatch(/^company:wake:observed:system:attested:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:[a-f0-9]{64}$/);
   });
 
 

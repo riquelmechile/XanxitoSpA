@@ -228,14 +228,14 @@ At commit `77b1fc4` the current attention/replay-hardening state passed:
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               100 PASS
+Unit/integration suite               102 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #395 approved
+4R review                            #399 approved
 Exact-head GitHub Actions CI          PASS
 ```
 
@@ -253,8 +253,8 @@ The MCP remains the control boundary and defaults to loopback. Broader deploymen
 
 ## Attention-plane status
 
-`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. The kernel now exposes `pollObservedBusinessSystem()` as the trusted attestation boundary that converts events returned by a configured `BusinessSystemConnector.poll()` into observed events with deterministic attestation references. Production connector registration/scheduling is still pending; autonomous wake is therefore fail-closed rather than silently spoofable.
+`xspa_company_wake_evaluate` is intentionally diagnostic-only: MCP-supplied events are asserted and cannot satisfy observed-only subscriptions. `BusinessSystemConnector.poll()` returns `RawBusinessEvent[]`, where trusted `signal` provenance is type-forbidden. The kernel exposes `pollObservedBusinessSystem()` as the only attestation boundary that converts raw connector output into `ObservedBusinessEvent[]` with deterministic attestation references and declared-capability checks. A future scheduler must durably claim `observedSignalIdempotencyKey(event)` before evaluating the event, so the JSON watermark remains secondary replay defense rather than the authoritative ledger. Production connector registration/scheduling is still pending; autonomous wake is therefore fail-closed rather than silently spoofable.
 
 Wake replay state now uses a time retention watermark (`replayRetentionSeconds`) plus per-key observation timestamps. Durable runtime idempotency remains the authoritative replay ledger; the JSONB wake state is compacted by age rather than by a fixed last-N slice.
 
-Authority trust-anchor configuration supports a historical keyring: multiple key IDs for the same principal may coexist with `validFrom`/`validUntil` issuance windows. Retired public keys must remain in the configured keyring for historical verification; issuance after `validUntil` fails closed.
+Authority trust-anchor configuration supports a historical keyring: multiple key IDs for the same principal may coexist with `validFrom`/`validUntil` issuance windows. Retired public keys must remain in the configured keyring for historical verification; issuance after `validUntil` fails closed. New mandate application also persists a `company-authority-keyring-head` containing a deterministic count/hash and public-key fingerprints. Runtime verification rejects a missing or modified historical root with `AUTHORITY_KEYRING_INCOMPLETE`, including a migration backstop that derives required non-delegated signer identities from the mandate ledger.

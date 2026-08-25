@@ -74,6 +74,44 @@ function authorityLedgerHead(mandates: AuthorityMandate[]): { count: number; hea
   return { count: entries.length, headHash: createHash("sha256").update(JSON.stringify(entries)).digest("hex") };
 }
 
+interface AuthorityKeyringEntry {
+  principalId: string;
+  keyId: string;
+  publicKeyHash: string;
+  role: CompanyPrincipalTrustAnchor["role"];
+  validFrom: string | null;
+  validUntil: string | null;
+}
+
+function authorityKeyringEntries(anchors: CompanyPrincipalTrustAnchor[]): AuthorityKeyringEntry[] {
+  return anchors.map((anchor) => ({
+    principalId: anchor.principalId,
+    keyId: anchor.keyId,
+    publicKeyHash: createHash("sha256").update(anchor.publicKeyPem).digest("hex"),
+    role: anchor.role,
+    validFrom: anchor.validFrom ?? null,
+    validUntil: anchor.validUntil ?? null,
+  })).sort((a, b) => a.principalId.localeCompare(b.principalId) || a.keyId.localeCompare(b.keyId));
+}
+
+function authorityKeyringHead(entries: AuthorityKeyringEntry[]): { count: number; headHash: string } {
+  return { count: entries.length, headHash: createHash("sha256").update(JSON.stringify(entries)).digest("hex") };
+}
+
+function delegatedKeyIdentities(mandates: AuthorityMandate[]): Set<string> {
+  const result = new Set<string>();
+  for (const mandate of mandates) {
+    for (const claim of mandate.claims) {
+      if (claim.type !== "delegation" || !claim.value || typeof claim.value !== "object" || Array.isArray(claim.value)) continue;
+      const value = claim.value as Record<string, unknown>;
+      const principalId = String(value.principalId ?? value.principal_id ?? "").trim();
+      const keyId = String(value.keyId ?? value.key_id ?? "").trim();
+      if (principalId && keyId) result.add(`${principalId}:${keyId}`);
+    }
+  }
+  return result;
+}
+
 export class EnvironmentXspaAppOperations implements XspaAppOperations {
   constructor(
     private readonly input: {
@@ -269,12 +307,65 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     };
   }
 
+  private async verifiedAuthorityKeyring(trustAnchors: CompanyPrincipalTrustAnchor[], mandates: AuthorityMandate[]): Promise<{ headAsset: CompanyAsset | null; entries: AuthorityKeyringEntry[] }> {
+    const { store, companyId } = this.requireRuntime();
+    const assets = await store.listAssets(companyId);
+    const headAssets = assets.filter((asset) => asset.kind === "company-authority-keyring-head" && asset.status === "active");
+    if (headAssets.length > 1) throw new Error("AUTHORITY_KEYRING_MULTIPLE_HEADS");
+    const headAsset = headAssets[0] ?? null;
+    const configured = authorityKeyringEntries(trustAnchors);
+    const configuredByIdentity = new Map(configured.map((entry) => [`${entry.principalId}:${entry.keyId}`, entry]));
+
+    if (headAsset) {
+      const rawEntries = headAsset.metadata.entries;
+      if (!Array.isArray(rawEntries)) throw new Error("AUTHORITY_KEYRING_INCOMPLETE");
+      const persisted = rawEntries as AuthorityKeyringEntry[];
+      const persistedHead = authorityKeyringHead(persisted);
+      const count = Number(headAsset.metadata.count);
+      const headHash = typeof headAsset.metadata.headHash === "string" ? headAsset.metadata.headHash : "";
+      if (count !== persistedHead.count || headHash !== persistedHead.headHash) throw new Error("AUTHORITY_KEYRING_INCOMPLETE");
+      for (const entry of persisted) {
+        const current = configuredByIdentity.get(`${entry.principalId}:${entry.keyId}`);
+        if (!current || current.publicKeyHash !== entry.publicKeyHash || current.role !== entry.role) throw new Error("AUTHORITY_KEYRING_INCOMPLETE");
+      }
+    }
+
+    // Migration/backstop: any historical signer not introduced by a delegation claim
+    // must still exist in the externally provisioned root keyring.
+    const delegated = delegatedKeyIdentities(mandates);
+    for (const mandate of mandates) {
+      const identity = `${mandate.issuerPrincipalId}:${mandate.signature.keyId}`;
+      if (delegated.has(identity)) continue;
+      const configuredEntry = configuredByIdentity.get(identity);
+      const configuredAnchor = trustAnchors.find((anchor) => `${anchor.principalId}:${anchor.keyId}` === identity);
+      if (!configuredEntry || !configuredAnchor) throw new Error("AUTHORITY_KEYRING_INCOMPLETE");
+      const issuedAt = Date.parse(mandate.issuedAt);
+      const validFrom = configuredAnchor.validFrom ? Date.parse(configuredAnchor.validFrom) : Number.NEGATIVE_INFINITY;
+      const validUntil = configuredAnchor.validUntil ? Date.parse(configuredAnchor.validUntil) : Number.POSITIVE_INFINITY;
+      if (!Number.isFinite(issuedAt) || issuedAt < validFrom || issuedAt >= validUntil) throw new Error("AUTHORITY_KEYRING_INCOMPLETE");
+    }
+    return { headAsset, entries: configured };
+  }
+
+  private authorityKeyringHeadAsset(entries: AuthorityKeyringEntry[], priorHead: CompanyAsset | null, now: Date): CompanyAsset {
+    const { companyId } = this.requireRuntime();
+    const computed = authorityKeyringHead(entries);
+    return {
+      id: deterministicCompanyAssetId(companyId, "authority-keyring-head"),
+      companyId, kind: "company-authority-keyring-head", capability: "company.authority.keyring", department: "executive",
+      cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: ["append-only-key-history", "fail-closed"],
+      metadata: { schemaVersion: 1, count: computed.count, headHash: computed.headHash, entries: structuredClone(entries) },
+      createdAt: priorHead?.createdAt ?? now.toISOString(), updatedAt: now.toISOString(),
+    };
+  }
+
   async authorityMandateVerify(input: AuthorityMandateInput, _context: XspaRequestContext): Promise<unknown> {
     assertMandatePublicSafe(input.mandate);
     const { companyId } = this.requireRuntime();
     const trustAnchors = this.authorityTrustAnchors();
     if (trustAnchors.length === 0) return { verification: { valid: false, mandateId: input.mandate.id, active: false, reasons: ["AUTHORITY_TRUST_NOT_CONFIGURED"] }, trustConfigured: false, companyScoped: true, grantsAuthority: false };
     const ledgerSnapshot = await this.verifiedAuthorityLedger();
+    await this.verifiedAuthorityKeyring(trustAnchors, ledgerSnapshot.mandates);
     const verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger: ledgerSnapshot.mandates });
     return { verification, trustConfigured: true, companyScoped: true, grantsAuthority: false };
   }
@@ -299,6 +390,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     };
 
     const existingSnapshot = await this.verifiedAuthorityLedger();
+    await this.verifiedAuthorityKeyring(trustAnchors, existingSnapshot.mandates);
     const existing = existingSnapshot.mandates;
     const sameId = existing.find((item) => item.id === input.mandate.id);
     if (sameId) {
@@ -342,12 +434,15 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       for (let attempt = 0; attempt < 3 && !persisted; attempt += 1) {
         const ledgerSnapshot = await this.verifiedAuthorityLedger();
         const ledger = ledgerSnapshot.mandates;
+        const keyringSnapshot = await this.verifiedAuthorityKeyring(trustAnchors, ledger);
         verification = verifyAuthorityMandate({ mandate: input.mandate, companyId, trustAnchors, ledger, now });
         if (!verification.valid) throw new Error(`AUTHORITY_MANDATE_INVALID:${verification.reasons.join(",")}`);
         const headAsset = this.authorityLedgerHeadAsset([...ledger, input.mandate], ledgerSnapshot.headAsset, now);
+        const keyringHeadAsset = this.authorityKeyringHeadAsset(keyringSnapshot.entries, keyringSnapshot.headAsset, now);
         persisted = await store.saveAssetsAtomically([
           { asset, expectedVersion: 0 },
           { asset: headAsset, expectedVersion: ledgerSnapshot.headAsset?.version ?? 0 },
+          { asset: keyringHeadAsset, expectedVersion: keyringSnapshot.headAsset?.version ?? 0 },
         ]);
       }
       if (!persisted || !verification) throw new Error(`AUTHORITY_LEDGER_ATOMIC_CONFLICT:${input.mandate.id}`);
@@ -370,6 +465,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const ledgerSnapshot = await this.verifiedAuthorityLedger();
     const ledger = ledgerSnapshot.mandates;
     if (trustAnchors.length === 0) return { trustConfigured: false, mandates: [], companyScoped: true };
+    await this.verifiedAuthorityKeyring(trustAnchors, ledger);
     const state = deriveActiveMandates(ledger, companyId, trustAnchors);
     return { trustConfigured: true, mandates: ledger.map((mandate) => ({ id: mandate.id, issuerPrincipalId: mandate.issuerPrincipalId, subject: mandate.subject, effect: mandate.effect, scopes: mandate.scopes, issuedAt: mandate.issuedAt, expiresAt: mandate.expiresAt ?? null, payloadHash: mandate.payloadHash, verification: state.get(mandate.id) ?? null })), companyScoped: true };
   }

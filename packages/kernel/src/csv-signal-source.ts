@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { BusinessEvent, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
+import type { RawBusinessEvent, SignalCursor, SignalPollResult } from "../../contracts/src/index.js";
 import type { BusinessSystemConnector, DiscoveredBusinessSystem } from "./business-system-connector.js";
 
 function parseCsvLine(line: string): string[] {
@@ -68,7 +68,7 @@ export class CsvSignalSource implements BusinessSystemConnector {
     if (required.some((name) => !header.includes(name))) throw new Error("CSV signal header missing required columns");
     const rows = lines.slice(1);
     if (start > rows.length) throw new Error("CSV signal cursor exceeds available rows");
-    const events: BusinessEvent[] = rows.slice(start).map((line, offset) => {
+    const events: RawBusinessEvent[] = rows.slice(start).map((line, offset) => {
       const values = parseCsvLine(line);
       const row = Object.fromEntries(header.map((name, index) => [name, values[index] ?? ""]));
       if (row.company_id !== this.companyId) throw new Error(`CSV signal company mismatch at row ${start + offset + 1}`);
@@ -91,7 +91,8 @@ export class CsvSignalSource implements BusinessSystemConnector {
         payload: { sourceId: this.id, capability: row.capability, opportunityCost, actionWindowMinutes },
         sensitivity: "internal",
         evidenceRefs: row.evidence_ref ? [row.evidence_ref] : [],
-        signal: { provenance: "observed", sourceId: this.id, topic: row.type ?? "business.signal", capability: row.capability ?? "", attestationRef: `connector:${this.id}` },
+        signalTopic: row.type ?? "business.signal",
+        signalCapability: row.capability ?? "",
       };
     });
     return { events, cursor: { sourceId: this.id, position: String(rows.length) } };

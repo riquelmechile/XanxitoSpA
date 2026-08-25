@@ -94,6 +94,33 @@ describe("runtime authority mandate boundary", () => {
     expect(status.mandates).toHaveLength(2);
   });
 
+  it("allows a retained historical key to gain a retirement window while preserving mandates issued before retirement", async () => {
+    const store = new InMemoryRuntimeStore();
+    const first = signedFixture();
+    const initial = new EnvironmentXspaAppOperations({ store, workStore: new InMemoryCompanyStore(), companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [first.anchor] });
+    const mandate = first.signMandate({ claims: [], issuedAt: "2026-08-25T10:00:00.000Z" });
+    await initial.authorityMandateApply({ mandate }, context);
+    const retiredAnchor: CompanyPrincipalTrustAnchor = { ...first.anchor, validUntil: "2026-08-25T12:00:00.000Z" };
+    const rotated = new EnvironmentXspaAppOperations({ store, workStore: new InMemoryCompanyStore(), companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [retiredAnchor] });
+    const status = await rotated.authorityMandateStatus(context) as { mandates: Array<{ verification: { active: boolean } }> };
+    expect(status.mandates[0]?.verification.active).toBe(true);
+  });
+
+  it("fails closed when a historical root key required by the persisted keyring is removed from configuration", async () => {
+    const store = new InMemoryRuntimeStore();
+    const first = signedFixture();
+    const operations = new EnvironmentXspaAppOperations({ store, workStore: new InMemoryCompanyStore(), companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [first.anchor] });
+    const mandate = first.signMandate({ claims: [] });
+    await operations.authorityMandateApply({ mandate }, context);
+    const keyringHead = (await store.listAssets(companyId)).find((asset) => asset.kind === "company-authority-keyring-head");
+    expect(keyringHead?.metadata.count).toBe(1);
+
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const replacement: CompanyPrincipalTrustAnchor = { ...first.anchor, keyId: "key:founder:2", publicKeyPem: publicKey.export({ type: "spki", format: "pem" }).toString(), validFrom: "2026-08-26T00:00:00.000Z" };
+    const rotatedWithoutHistory = new EnvironmentXspaAppOperations({ store, workStore: new InMemoryCompanyStore(), companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [replacement] });
+    await expect(rotatedWithoutHistory.authorityMandateStatus(context)).rejects.toThrow(/AUTHORITY_KEYRING_INCOMPLETE/);
+  });
+
   it("fails closed if the persisted authority ledger head does not match mandate history", async () => {
     const store = new InMemoryRuntimeStore();
     const { anchor, signMandate } = signedFixture();
