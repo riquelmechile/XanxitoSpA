@@ -68,3 +68,15 @@ The mandate verifier checks company binding, canonical payload hash, Ed25519 sig
 Private signing keys are never accepted by the ordinary MCP surface. `xspa_authority_mandate_status` exposes only sanitized mandate state and does not return trust-anchor key material.
 
 When no Company root is configured, authority verification/application fails closed and status reports `trustConfigured=false`. The absence of a root is never repaired by falling back to OAuth identity or `xspa.write`.
+
+### Effective root-provisioning authority
+
+The first-root proof-of-possession ceremony does **not** install a trust root. It proves possession of the proposed private key and produces a public enrollment bundle. The effective authority that activates the first Company root is the administrative principal that can change the deployment configuration supplying `XSPA_AUTHORITY_TRUST_ANCHORS_JSON` (for example, the operator with permission to edit the Railway service environment). That deployment-control principal is therefore part of the root-of-trust threat model and must be protected independently of MCP/OAuth.
+
+```text
+signed enrollment bundle ≠ active Company authority
+MCP write access ≠ deployment configuration authority
+deployment configuration authority → can activate/replace configured trust anchors
+```
+
+The ceremony narrows this administrative action to a previously verified public-key proposal; it does not cryptographically prevent a compromised deployment administrator from configuring a different root. Operational controls for the deployment account, environment-change audit, least privilege and recovery therefore remain required.

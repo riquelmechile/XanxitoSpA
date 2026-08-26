@@ -49,6 +49,56 @@ describe("EnvironmentXspaAppOperations first-root enrollment", () => {
     expect(status.trustConfigured).toBe(false);
   });
 
+
+  it("consumes the issued challenge on the first failed verification attempt", async () => {
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const ops = operations();
+    const prepared = await ops.authorityRootEnrollmentPrepare({ principalId: "principal:founder", role: "founder", keyId: "key:founder:fail", publicKeyPem, allowedScopes: ["company.constitution"] }, context) as any;
+    const badProof = { challenge: prepared.challenge, signature: { algorithm: "Ed25519" as const, keyId: prepared.challenge.keyId, value: Buffer.alloc(64, 7).toString("base64") } };
+    const failed = await ops.authorityRootEnrollmentVerify({ proof: badProof }, context) as any;
+    expect(failed.valid).toBe(false);
+    await expect(ops.authorityRootEnrollmentVerify({ proof: badProof }, context)).rejects.toThrow(/CHALLENGE_CONSUMED/);
+    const status = await ops.authorityRootEnrollmentStatus(context) as any;
+    expect(status.challenges[0]?.state).toBe("consumed");
+  });
+
+  it("allows at most one active unexpired challenge at a time", async () => {
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const ops = operations();
+    await ops.authorityRootEnrollmentPrepare({ principalId: "principal:founder", role: "founder", keyId: "key:founder:one", publicKeyPem, allowedScopes: ["company.constitution"] }, context);
+    await expect(ops.authorityRootEnrollmentPrepare({ principalId: "principal:owner", role: "owner", keyId: "key:owner:two", publicKeyPem, allowedScopes: ["company.constitution"] }, context)).rejects.toThrow(/CHALLENGE_ALREADY_ACTIVE/);
+  });
+
+  it("bounds status history while reporting the full challenge count", async () => {
+    const store = new InMemoryRuntimeStore();
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    for (let index = 0; index < 35; index += 1) {
+      const issuedAt = new Date(Date.now() - (index + 20) * 10 * 60_000);
+      const challenge = createRootEnrollmentChallenge({ companyId, principalId: `principal:${index}`, role: "owner", keyId: `key:${index}`, publicKeyPem, allowedScopes: ["company.constitution"], now: issuedAt, ttlMs: 5 * 60_000 });
+      const canonical = canonicalRootEnrollmentPayload(challenge);
+      await store.saveAsset({ id: challenge.challengeId, companyId, kind: "company-authority-root-enrollment-challenge", capability: "company.authority.root-enrollment", department: "executive", cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: ["one-time"], metadata: { challenge, challengeHash: canonical.hash, consumed: false }, createdAt: challenge.issuedAt, updatedAt: challenge.issuedAt }, 0);
+    }
+    const ops = new EnvironmentXspaAppOperations({ store, companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [] });
+    const status = await ops.authorityRootEnrollmentStatus(context) as any;
+    expect(status.challenges).toHaveLength(32);
+    expect(status.totalChallenges).toBe(35);
+    expect(status.truncated).toBe(true);
+  });
+
+  it("reports expired challenges as expired instead of issued", async () => {
+    const store = new InMemoryRuntimeStore();
+    const now = new Date();
+    const expiredChallenge = createRootEnrollmentChallenge({ companyId, principalId: "principal:expired", role: "owner", keyId: "key:expired", publicKeyPem: generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }).toString(), allowedScopes: ["company.constitution"], now: new Date(now.getTime() - 10 * 60_000), ttlMs: 5 * 60_000 });
+    const canonical = canonicalRootEnrollmentPayload(expiredChallenge);
+    await store.saveAsset({ id: expiredChallenge.challengeId, companyId, kind: "company-authority-root-enrollment-challenge", capability: "company.authority.root-enrollment", department: "executive", cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: ["one-time"], metadata: { challenge: expiredChallenge, challengeHash: canonical.hash, consumed: false }, createdAt: expiredChallenge.issuedAt, updatedAt: expiredChallenge.issuedAt }, 0);
+    const ops = new EnvironmentXspaAppOperations({ store, companyId, databaseConfigured: true, creativeConfigured: false, kastConfigured: false, authorityTrustAnchors: [] });
+    const status = await ops.authorityRootEnrollmentStatus(context) as any;
+    expect(status.challenges[0]?.state).toBe("expired");
+  });
+
   it("rejects a self-fabricated proof that was never issued by this runtime", async () => {
     const { publicKey, privateKey } = generateKeyPairSync("ed25519");
     const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();

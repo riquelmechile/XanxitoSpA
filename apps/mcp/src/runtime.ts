@@ -410,6 +410,14 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     if (this.authorityTrustAnchors().length > 0) throw new Error("AUTHORITY_ROOT_ALREADY_CONFIGURED");
     if ((await this.authorityMandates()).length > 0) throw new Error("AUTHORITY_ROOT_HISTORY_EXISTS");
     const now = new Date();
+    const existingChallenges = (await store.listAssets(companyId)).filter((asset) => asset.kind === "company-authority-root-enrollment-challenge");
+    const activeUnexpired = existingChallenges.find((asset) => {
+      if (asset.status !== "active" || asset.metadata.consumed === true) return false;
+      const challenge = asset.metadata.challenge as { expiresAt?: unknown } | undefined;
+      const expiresAt = typeof challenge?.expiresAt === "string" ? Date.parse(challenge.expiresAt) : Number.NaN;
+      return Number.isFinite(expiresAt) && expiresAt > now.getTime();
+    });
+    if (activeUnexpired) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_ALREADY_ACTIVE");
     const challenge = createRootEnrollmentChallenge({ companyId, ...input, now });
     const canonical = canonicalRootEnrollmentPayload(challenge);
     const asset: CompanyAsset = {
@@ -428,13 +436,13 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const issued = (await store.listAssets(companyId)).find((asset) => asset.id === input.proof.challenge.challengeId && asset.kind === "company-authority-root-enrollment-challenge");
     if (!issued) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_NOT_ISSUED");
     if (issued.status !== "active" || issued.metadata.consumed === true) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONSUMED");
+    const now = new Date();
+    const attemptHash = createHash("sha256").update(input.proof.signature.value).digest("hex");
+    const consumed: CompanyAsset = { ...issued, status: "retired", metadata: { ...issued.metadata, consumed: true, consumedAt: now.toISOString(), proofHash: attemptHash }, updatedAt: now.toISOString() };
+    if (!(await store.saveAsset(consumed, issued.version ?? 0))) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONSUMPTION_CONFLICT");
     const canonical = canonicalRootEnrollmentPayload(input.proof.challenge);
     if (issued.metadata.challengeHash !== canonical.hash) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_MISMATCH");
-    const verification = verifyRootEnrollmentProof({ proof: input.proof, companyId });
-    if (!verification.valid) return { ...verification, trustActivated: false, companyScoped: true };
-    const now = new Date();
-    const consumed: CompanyAsset = { ...issued, status: "retired", metadata: { ...issued.metadata, consumed: true, consumedAt: now.toISOString(), proofHash: createHash("sha256").update(input.proof.signature.value).digest("hex") }, updatedAt: now.toISOString() };
-    if (!(await store.saveAsset(consumed, issued.version ?? 0))) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONSUMPTION_CONFLICT");
+    const verification = verifyRootEnrollmentProof({ proof: input.proof, companyId, now });
     return { ...verification, trustActivated: false, companyScoped: true };
   }
 
@@ -442,24 +450,29 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const { store, companyId } = this.requireRuntime();
     const anchors = this.authorityTrustAnchors();
     const historyPresent = (await this.authorityMandates()).length > 0;
-    const challenges = (await store.listAssets(companyId))
+    const now = new Date();
+    const allChallenges = (await store.listAssets(companyId))
       .filter((asset) => asset.kind === "company-authority-root-enrollment-challenge")
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const challenges = allChallenges
+      .slice(0, 32)
       .map((asset) => {
         const challenge = asset.metadata.challenge as Record<string, unknown> | undefined;
+        const expiresAtValue = typeof challenge?.expiresAt === "string" ? challenge.expiresAt : null;
+        const expired = expiresAtValue !== null && Number.isFinite(Date.parse(expiresAtValue)) && Date.parse(expiresAtValue) <= now.getTime();
         return {
           challengeId: asset.id,
-          state: asset.status === "active" ? "issued" : asset.metadata.consumed === true ? "consumed" : asset.status,
+          state: asset.metadata.consumed === true ? "consumed" : expired ? "expired" : asset.status === "active" ? "issued" : asset.status,
           principalId: typeof challenge?.principalId === "string" ? challenge.principalId : null,
           role: typeof challenge?.role === "string" ? challenge.role : null,
           keyId: typeof challenge?.keyId === "string" ? challenge.keyId : null,
           publicKeySha256: typeof challenge?.publicKeySha256 === "string" ? challenge.publicKeySha256 : null,
           issuedAt: typeof challenge?.issuedAt === "string" ? challenge.issuedAt : asset.createdAt,
-          expiresAt: typeof challenge?.expiresAt === "string" ? challenge.expiresAt : null,
+          expiresAt: expiresAtValue,
           consumedAt: typeof asset.metadata.consumedAt === "string" ? asset.metadata.consumedAt : null,
         };
       });
-    return { trustConfigured: anchors.length > 0, historyPresent, challenges, companyScoped: true, grantsAuthority: false, trustActivated: false };
+    return { trustConfigured: anchors.length > 0, historyPresent, challenges, totalChallenges: allChallenges.length, truncated: allChallenges.length > challenges.length, companyScoped: true, grantsAuthority: false, trustActivated: false };
   }
 
   async authorityMandateVerify(input: AuthorityMandateInput, _context: XspaRequestContext): Promise<unknown> {
