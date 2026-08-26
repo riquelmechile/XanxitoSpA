@@ -134,7 +134,7 @@ Owner/constitutional discovery questions may be resolved only when an active ver
 
 ### Production enrollment state
 
-The mandate machinery is deployed, but the first real trust root is intentionally provisioned out of band through `XSPA_AUTHORITY_TRUST_ANCHORS_JSON`. When no real root is enrolled, production reports `trustConfigured=false` and applies no owner authority. This is a safety property, not an error fallback.
+The mandate machinery is deployed, and the first-root bootstrap ceremony is now explicit without turning MCP access into ownership. `xspa_authority_root_enrollment_prepare` generates a short-lived Company-bound challenge over the proposed Founder/Owner/Board identity, Ed25519 public-key fingerprint, scopes, nonce and expiry. The proposed root proves possession by signing that canonical challenge; `xspa_authority_root_enrollment_verify` verifies the proof and returns only a public enrollment bundle with `requiresOutOfBandProvisioning=true`. `prepare` durably registers the one-time challenge and `verify` accepts only that exact server-issued challenge, then CAS-retires it after successful proof-of-possession. This closes fabricated-challenge and replay paths. Neither tool can persist or activate a trust anchor, and both refuse first-root enrollment when a root is already configured or authority-mandate history already exists. The real trust anchor is still provisioned out of band through `XSPA_AUTHORITY_TRUST_ANCHORS_JSON`. Until that happens, production reports `trustConfigured=false` and applies no owner authority. This is a safety property, not an error fallback.
 
 ## 6. Perception and governed wake
 
@@ -228,19 +228,19 @@ At commit `a4dfe8e` the current signal-attestation/keyring-hardening state passe
 
 ```text
 TypeScript typecheck                 PASS
-Unit/integration suite               111 PASS
+Unit/integration suite               118 PASS
 Local PostgreSQL integration         1 skipped by local environment
 Company Gym                          123/123 PASS
 MCP Streamable HTTP smoke            PASS
 ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
-4R review                            #408 approved
+4R review                            #415 approved
 Exact-head CI                         PASS (`f6477c78b25f275e3fc510326bfdac37ed377fad`)
 Exact-head GitHub Actions CI          PASS
 ```
 
-The next architectural block remains the secure first-root enrollment ceremony: establish a real Founder/Owner public-key trust anchor without allowing ordinary `xspa.write` callers to create or replace the authority root. Kernel hardening from the external audit is shipped and exact-head CI is green.
+The first-root proof-of-possession ceremony is now implemented. The next operational step is an explicit out-of-band provisioning of a real Founder/Owner public trust anchor from a successfully verified enrollment bundle, followed by the first signed owner answer resolving a scoped discovery unknown. Ordinary `xspa.write` remains unable to create or replace the authority root.
 
 
 ### Kernel hardening — 2026-08-25

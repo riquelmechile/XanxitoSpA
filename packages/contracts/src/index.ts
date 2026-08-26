@@ -600,6 +600,42 @@ export interface AuthorityMandateVerification {
   reasons: string[];
 }
 
+export interface AuthorityRootEnrollmentChallenge {
+  vct: "authority.root-enrollment.challenge.1";
+  challengeId: UUID;
+  companyId: UUID;
+  principalId: string;
+  role: "founder" | "owner" | "board";
+  keyId: string;
+  algorithm: "Ed25519";
+  publicKeyPem: string;
+  publicKeySha256: string;
+  allowedScopes: string[];
+  nonce: string;
+  issuedAt: ISODateTime;
+  expiresAt: ISODateTime;
+}
+
+export interface AuthorityRootEnrollmentProof {
+  challenge: AuthorityRootEnrollmentChallenge;
+  signature: { algorithm: "Ed25519"; keyId: string; value: string };
+}
+
+export interface AuthorityRootEnrollmentBundle extends CompanyPrincipalTrustAnchor {
+  sourceChallengeHash: string;
+}
+
+export interface AuthorityRootEnrollmentVerification {
+  valid: boolean;
+  companyBound: boolean;
+  timeValid: boolean;
+  keyFingerprintValid: boolean;
+  signatureValid: boolean;
+  reasons: string[];
+  requiresOutOfBandProvisioning: true;
+  enrollmentBundle?: AuthorityRootEnrollmentBundle;
+}
+
 
 export interface DiscoverySource {
   id: string;

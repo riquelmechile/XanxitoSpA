@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import type { AuthorityMandate, BusinessEvent, CompanyAsset, CompanyPrincipalTrustAnchor, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
-import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, CsvSignalSource, ManifestBusinessSystemConnector, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
-import type { AuthorityMandateInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
+import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, CsvSignalSource, ManifestBusinessSystemConnector, canonicalRootEnrollmentPayload, createRootEnrollmentChallenge, verifyRootEnrollmentProof, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
+import type { AuthorityMandateInput, AuthorityRootEnrollmentPrepareInput, AuthorityRootEnrollmentVerifyInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
 const SECRET_LIKE = /(-----BEGIN [A-Z ]*PRIVATE KEY-----|bearer\s+\S{8,}|(?:api[_-]?key|password|secret|token)\s*[:=]\s*\S{8,}|\bsk-[A-Za-z0-9_-]{12,})/i;
 const PROTECTED = new Set(["model-law", "constitution", "authority-root", "secret-isolation", "kast-law", "review-law", "memory-law", "human-reserved-boundary"]);
@@ -403,6 +403,63 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
       metadata: { schemaVersion: 1, count: computed.count, headHash: computed.headHash, entries: structuredClone(entries) },
       createdAt: priorHead?.createdAt ?? now.toISOString(), updatedAt: now.toISOString(),
     };
+  }
+
+  async authorityRootEnrollmentPrepare(input: AuthorityRootEnrollmentPrepareInput, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    if (this.authorityTrustAnchors().length > 0) throw new Error("AUTHORITY_ROOT_ALREADY_CONFIGURED");
+    if ((await this.authorityMandates()).length > 0) throw new Error("AUTHORITY_ROOT_HISTORY_EXISTS");
+    const now = new Date();
+    const challenge = createRootEnrollmentChallenge({ companyId, ...input, now });
+    const canonical = canonicalRootEnrollmentPayload(challenge);
+    const asset: CompanyAsset = {
+      id: challenge.challengeId, companyId, kind: "company-authority-root-enrollment-challenge", capability: "company.authority.root-enrollment", department: "executive",
+      cost: 0, currency: "N/A", status: "active", grantRefs: [], restrictions: ["one-time", "proof-of-possession", "no-authority-grant"],
+      metadata: { challenge: structuredClone(challenge), challengeHash: canonical.hash, consumed: false }, createdAt: now.toISOString(), updatedAt: now.toISOString(),
+    };
+    if (!(await store.saveAsset(asset, 0))) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONFLICT");
+    return { challenge, trustActivated: false, requiresOutOfBandProvisioning: true, companyScoped: true };
+  }
+
+  async authorityRootEnrollmentVerify(input: AuthorityRootEnrollmentVerifyInput, _context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    if (this.authorityTrustAnchors().length > 0) throw new Error("AUTHORITY_ROOT_ALREADY_CONFIGURED");
+    if ((await this.authorityMandates()).length > 0) throw new Error("AUTHORITY_ROOT_HISTORY_EXISTS");
+    const issued = (await store.listAssets(companyId)).find((asset) => asset.id === input.proof.challenge.challengeId && asset.kind === "company-authority-root-enrollment-challenge");
+    if (!issued) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_NOT_ISSUED");
+    if (issued.status !== "active" || issued.metadata.consumed === true) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONSUMED");
+    const canonical = canonicalRootEnrollmentPayload(input.proof.challenge);
+    if (issued.metadata.challengeHash !== canonical.hash) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_MISMATCH");
+    const verification = verifyRootEnrollmentProof({ proof: input.proof, companyId });
+    if (!verification.valid) return { ...verification, trustActivated: false, companyScoped: true };
+    const now = new Date();
+    const consumed: CompanyAsset = { ...issued, status: "retired", metadata: { ...issued.metadata, consumed: true, consumedAt: now.toISOString(), proofHash: createHash("sha256").update(input.proof.signature.value).digest("hex") }, updatedAt: now.toISOString() };
+    if (!(await store.saveAsset(consumed, issued.version ?? 0))) throw new Error("AUTHORITY_ROOT_ENROLLMENT_CHALLENGE_CONSUMPTION_CONFLICT");
+    return { ...verification, trustActivated: false, companyScoped: true };
+  }
+
+  async authorityRootEnrollmentStatus(_context: XspaRequestContext): Promise<unknown> {
+    const { store, companyId } = this.requireRuntime();
+    const anchors = this.authorityTrustAnchors();
+    const historyPresent = (await this.authorityMandates()).length > 0;
+    const challenges = (await store.listAssets(companyId))
+      .filter((asset) => asset.kind === "company-authority-root-enrollment-challenge")
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((asset) => {
+        const challenge = asset.metadata.challenge as Record<string, unknown> | undefined;
+        return {
+          challengeId: asset.id,
+          state: asset.status === "active" ? "issued" : asset.metadata.consumed === true ? "consumed" : asset.status,
+          principalId: typeof challenge?.principalId === "string" ? challenge.principalId : null,
+          role: typeof challenge?.role === "string" ? challenge.role : null,
+          keyId: typeof challenge?.keyId === "string" ? challenge.keyId : null,
+          publicKeySha256: typeof challenge?.publicKeySha256 === "string" ? challenge.publicKeySha256 : null,
+          issuedAt: typeof challenge?.issuedAt === "string" ? challenge.issuedAt : asset.createdAt,
+          expiresAt: typeof challenge?.expiresAt === "string" ? challenge.expiresAt : null,
+          consumedAt: typeof asset.metadata.consumedAt === "string" ? asset.metadata.consumedAt : null,
+        };
+      });
+    return { trustConfigured: anchors.length > 0, historyPresent, challenges, companyScoped: true, grantsAuthority: false, trustActivated: false };
   }
 
   async authorityMandateVerify(input: AuthorityMandateInput, _context: XspaRequestContext): Promise<unknown> {

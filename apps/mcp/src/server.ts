@@ -5,7 +5,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { AuthorityMandate, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
+import type { AuthorityMandate, AuthorityRootEnrollmentProof, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
 
 export interface XspaAppStatus {
@@ -125,6 +125,18 @@ export interface AuthorityMandateInput {
   mandate: AuthorityMandate;
 }
 
+export interface AuthorityRootEnrollmentPrepareInput {
+  principalId: string;
+  role: "founder" | "owner" | "board";
+  keyId: string;
+  publicKeyPem: string;
+  allowedScopes: string[];
+}
+
+export interface AuthorityRootEnrollmentVerifyInput {
+  proof: AuthorityRootEnrollmentProof;
+}
+
 export interface CompanyWakeEvaluateInput {
   evaluationId: string;
   events: BusinessEvent[];
@@ -171,6 +183,9 @@ export interface XspaAppOperations {
   companyDiscoveryApply(input: CompanyDiscoveryApplyInput, context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryStatus(context: XspaRequestContext): Promise<unknown>;
   companyDiscoveryOrchestrate(input: CompanyDiscoveryOrchestrateInput, context: XspaRequestContext): Promise<unknown>;
+  authorityRootEnrollmentPrepare(input: AuthorityRootEnrollmentPrepareInput, context: XspaRequestContext): Promise<unknown>;
+  authorityRootEnrollmentVerify(input: AuthorityRootEnrollmentVerifyInput, context: XspaRequestContext): Promise<unknown>;
+  authorityRootEnrollmentStatus(context: XspaRequestContext): Promise<unknown>;
   authorityMandateVerify(input: AuthorityMandateInput, context: XspaRequestContext): Promise<unknown>;
   authorityMandateApply(input: AuthorityMandateInput, context: XspaRequestContext): Promise<unknown>;
   authorityMandateStatus(context: XspaRequestContext): Promise<unknown>;
@@ -489,6 +504,58 @@ function parseAuthorityMandate(args: unknown): AuthorityMandateInput {
   return { mandate };
 }
 
+function parseAuthorityRootEnrollmentPrepare(args: unknown): AuthorityRootEnrollmentPrepareInput {
+  const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const role = assertText(obj.role, "role", 20);
+  if (!["founder", "owner", "board"].includes(role)) throw new Error("role invalid");
+  return {
+    principalId: assertText(obj.principal_id ?? obj.principalId, "principal_id", 240),
+    role: role as AuthorityRootEnrollmentPrepareInput["role"],
+    keyId: assertText(obj.key_id ?? obj.keyId, "key_id", 240),
+    publicKeyPem: assertText(obj.public_key_pem ?? obj.publicKeyPem, "public_key_pem", 4096),
+    allowedScopes: assertStringArray(obj.allowed_scopes ?? obj.allowedScopes, "allowed_scopes", 64),
+  };
+}
+
+function parseAuthorityRootEnrollmentVerify(args: unknown): AuthorityRootEnrollmentVerifyInput {
+  const outer = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
+  const rawProof = outer.proof;
+  if (!rawProof || typeof rawProof !== "object" || Array.isArray(rawProof)) throw new Error("proof invalid");
+  const proofObj = rawProof as Record<string, unknown>;
+  const rawChallenge = proofObj.challenge;
+  const rawSignature = proofObj.signature;
+  if (!rawChallenge || typeof rawChallenge !== "object" || Array.isArray(rawChallenge)) throw new Error("proof.challenge invalid");
+  if (!rawSignature || typeof rawSignature !== "object" || Array.isArray(rawSignature)) throw new Error("proof.signature invalid");
+  const c = rawChallenge as Record<string, unknown>;
+  const sig = rawSignature as Record<string, unknown>;
+  const role = assertText(c.role, "proof.challenge.role", 20);
+  if (!["founder", "owner", "board"].includes(role)) throw new Error("proof.challenge.role invalid");
+  if (c.vct !== "authority.root-enrollment.challenge.1") throw new Error("proof.challenge.vct invalid");
+  if (c.algorithm !== "Ed25519" || sig.algorithm !== "Ed25519") throw new Error("proof algorithm invalid");
+  return { proof: {
+    challenge: {
+      vct: "authority.root-enrollment.challenge.1",
+      challengeId: assertId(c.challenge_id ?? c.challengeId, "proof.challenge.challenge_id"),
+      companyId: assertId(c.company_id ?? c.companyId, "proof.challenge.company_id"),
+      principalId: assertText(c.principal_id ?? c.principalId, "proof.challenge.principal_id", 240),
+      role: role as "founder" | "owner" | "board",
+      keyId: assertText(c.key_id ?? c.keyId, "proof.challenge.key_id", 240),
+      algorithm: "Ed25519",
+      publicKeyPem: assertText(c.public_key_pem ?? c.publicKeyPem, "proof.challenge.public_key_pem", 4096),
+      publicKeySha256: assertText(c.public_key_sha256 ?? c.publicKeySha256, "proof.challenge.public_key_sha256", 64),
+      allowedScopes: assertStringArray(c.allowed_scopes ?? c.allowedScopes, "proof.challenge.allowed_scopes", 64),
+      nonce: assertText(c.nonce, "proof.challenge.nonce", 128),
+      issuedAt: assertText(c.issued_at ?? c.issuedAt, "proof.challenge.issued_at", 80),
+      expiresAt: assertText(c.expires_at ?? c.expiresAt, "proof.challenge.expires_at", 80),
+    },
+    signature: {
+      algorithm: "Ed25519",
+      keyId: assertText(sig.key_id ?? sig.keyId, "proof.signature.key_id", 240),
+      value: assertText(sig.value, "proof.signature.value", 2048),
+    },
+  } };
+}
+
 function parseCompanyWakeEvaluate(args: unknown): CompanyWakeEvaluateInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
   const eventsRaw = obj.events;
@@ -546,6 +613,31 @@ const COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA = {
       signal_capabilities: { type: "array", maxItems: 64, items: { type: "object", properties: { name: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 2000 }, criticality: { type: "string", enum: ["supporting","important","critical"] }, confidence: { type: "number", minimum: 0, maximum: 1 } }, required: ["name","description","criticality","confidence"], additionalProperties: false } },
     }, required: ["id","label","kind","confidence","signal_capabilities"], additionalProperties: false } },
   }, required: ["systems"], additionalProperties: false,
+};
+
+const AUTHORITY_ROOT_ENROLLMENT_PREPARE_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    principal_id: { type: "string", maxLength: 240 },
+    role: { type: "string", enum: ["founder", "owner", "board"] },
+    key_id: { type: "string", maxLength: 240 },
+    public_key_pem: { type: "string", maxLength: 4096 },
+    allowed_scopes: { type: "array", minItems: 1, maxItems: 64, items: { type: "string", maxLength: 240 } },
+  },
+  required: ["principal_id", "role", "key_id", "public_key_pem", "allowed_scopes"],
+  additionalProperties: false,
+};
+
+const AUTHORITY_ROOT_ENROLLMENT_VERIFY_SCHEMA = {
+  type: "object" as const,
+  properties: { proof: { type: "object", properties: {
+    challenge: { type: "object", properties: {
+      vct: { type: "string", const: "authority.root-enrollment.challenge.1" }, challenge_id: { type: "string", format: "uuid" },
+      company_id: { type: "string", format: "uuid" }, principal_id: { type: "string", maxLength: 240 }, role: { type: "string", enum: ["founder", "owner", "board"] }, key_id: { type: "string", maxLength: 240 }, algorithm: { type: "string", const: "Ed25519" }, public_key_pem: { type: "string", maxLength: 4096 }, public_key_sha256: { type: "string", pattern: "^[a-fA-F0-9]{64}$" }, allowed_scopes: { type: "array", minItems: 1, maxItems: 64, items: { type: "string", maxLength: 240 } }, nonce: { type: "string", minLength: 16, maxLength: 128 }, issued_at: { type: "string", maxLength: 80 }, expires_at: { type: "string", maxLength: 80 },
+    }, required: ["vct", "challenge_id", "company_id", "principal_id", "role", "key_id", "algorithm", "public_key_pem", "public_key_sha256", "allowed_scopes", "nonce", "issued_at", "expires_at"], additionalProperties: false },
+    signature: { type: "object", properties: { algorithm: { type: "string", const: "Ed25519" }, key_id: { type: "string", maxLength: 240 }, value: { type: "string", maxLength: 2048 } }, required: ["algorithm", "key_id", "value"], additionalProperties: false },
+  }, required: ["challenge", "signature"], additionalProperties: false } },
+  required: ["proof"], additionalProperties: false,
 };
 
 const AUTHORITY_MANDATE_SCHEMA = {
@@ -608,6 +700,9 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_company_discovery_apply", title: "Apply Company discovery revision", description: "Persist one evidence-based Company discovery revision with lineage and fingerprint. This cannot create Work or grant authority/budget/capabilities.", inputSchema: companyDiscoverySchema({ discovery_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["discovery_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_status", title: "Get Company discovery revision", description: "Read the latest deployment-scoped Company discovery revision. Discovery is descriptive and cannot authorize execution.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_orchestrate", title: "Orchestrate Company discovery", description: "Discover a generic existing company from neutral business-system manifests and return prioritized owner questions. Read-only; performs no network calls and grants no authority.", inputSchema: COMPANY_DISCOVERY_ORCHESTRATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    { name: "xspa_authority_root_enrollment_prepare", title: "Prepare first authority root enrollment", description: "Create and durably register a short-lived one-time Company-bound Ed25519 proof-of-possession challenge for a proposed Founder/Owner/Board public root. This persists ceremony state only; it never activates trust and refuses when a root or authority history already exists.", inputSchema: AUTHORITY_ROOT_ENROLLMENT_PREPARE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
+    { name: "xspa_authority_root_enrollment_verify", title: "Verify first authority root enrollment proof", description: "Verify and consume a server-issued one-time first-root challenge, returning a public-only enrollment bundle for out-of-band provisioning. It retires ceremony state but never writes or activates the trust root through MCP.", inputSchema: AUTHORITY_ROOT_ENROLLMENT_VERIFY_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
+    { name: "xspa_authority_root_enrollment_status", title: "Inspect authority root enrollment ceremony", description: "Read sanitized first-root ceremony state: whether trust is already configured or historical authority exists, plus issued/consumed challenge metadata without public keys, signatures or secrets.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_authority_mandate_verify", title: "Verify authority mandate", description: "Deterministically verify a signed Company authority mandate against server-configured trust anchors. Caller write access is not treated as owner identity.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_authority_mandate_apply", title: "Apply authority mandate", description: "Persist a cryptographically verified immutable authority mandate and resolve only discovery unknowns explicitly covered by the signed mandate. Trust anchors cannot be supplied by the caller.", inputSchema: AUTHORITY_MANDATE_SCHEMA, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_authority_mandate_status", title: "Authority mandate status", description: "Read sanitized active/revoked/superseded mandate status for the deployment Company. Public keys and trust-anchor material are not returned.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -649,6 +744,18 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
       if (request.params.name === "xspa_company_discovery_orchestrate") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyDiscoveryOrchestrate(parseCompanyDiscoveryOrchestrate(request.params.arguments), requestContext(input.auth)), "Company discovery orchestrated.");
+      }
+      if (request.params.name === "xspa_authority_root_enrollment_prepare") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
+        return toolResult(await operations.authorityRootEnrollmentPrepare(parseAuthorityRootEnrollmentPrepare(request.params.arguments), requestContext(input.auth)), "Authority root enrollment challenge prepared.");
+      }
+      if (request.params.name === "xspa_authority_root_enrollment_verify") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.writeScope)) return challenge(input.oauth, input.oauth.writeScope);
+        return toolResult(await operations.authorityRootEnrollmentVerify(parseAuthorityRootEnrollmentVerify(request.params.arguments), requestContext(input.auth)), "Authority root enrollment proof verified.");
+      }
+      if (request.params.name === "xspa_authority_root_enrollment_status") {
+        if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
+        return toolResult(await operations.authorityRootEnrollmentStatus(requestContext(input.auth)), "Authority root enrollment status loaded.");
       }
       if (request.params.name === "xspa_authority_mandate_verify") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
