@@ -86,7 +86,7 @@ MCP                      ChatGPT Streamable HTTP + OAuth + discovery/wake/author
 External benchmark       v7 frozen mechanism campaign: DIRECT 0/3 · XANXITOSPA 3/3 · deterministic/no sampling p-value
 Model law                Sol/max executive · Sol/xhigh branches · no model fallback
 Creative model policy     ChatGPT-host-only · host-native image tooling · video staged
-Release state             first-root proof-of-possession ceremony · 4R #415 approved · exact-head CI pending
+Release state             first-root proof-of-possession ceremony · 4R #415 approved · exact-head CI PASS
 ```
 
 ---

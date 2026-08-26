@@ -236,6 +236,7 @@ ChatGPT app MCP smoke                PASS
 OAuth resource-server smoke          PASS
 PostgreSQL 18 CI smoke               PASS
 4R review                            #415 approved
+Verified implementation SHA            0ff34d0118ef5fc40ef8bccbc841636e054eb5de · exact-head CI PASS
 Exact-head CI                         PASS (`f6477c78b25f275e3fc510326bfdac37ed377fad`)
 Exact-head GitHub Actions CI          PASS
 ```
