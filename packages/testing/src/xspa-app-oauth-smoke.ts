@@ -54,7 +54,7 @@ export async function verifyXspaAppOAuth(): Promise<void> {
   assert(remoteNoAuthRejected, "remote unauthenticated deployment was not rejected");
 
   const operations: XspaAppOperations = {
-    status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] }, creative: { configured: false, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
+    status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-6-astra/max", branches: "host-role-configured", fallback: false, hostExecutionObserved: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] }, creative: { configured: false, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
     workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
     workforceWorkers: async () => ({workers:[]}),
     workforceAllowSource: async () => ({accepted:true}),

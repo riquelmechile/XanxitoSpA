@@ -9,7 +9,7 @@ import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, pr
 
 export interface XspaAppStatus {
   version: string;
-  modelLaw: { executive: "gpt-5.6-sol/max"; branches: "gpt-5.6-sol/xhigh"; fallback: false };
+  modelLaw: { executive: "gpt-6-astra/max"; branches: "host-role-configured"; fallback: false; hostExecutionObserved: false };
   mcp: { ready: boolean; mode: "streamable-http" };
   database: { configured: boolean };
   companyOs: { ready: boolean; intakeModes: ["new", "existing"]; lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] };
@@ -747,7 +747,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   server.setRequestHandler("tools/call", async (request) => {
     try {
       if (input.publicStatusOnly && request.params.name !== "xspa_status") return { isError: true, content: [{ type: "text", text: "PUBLIC_STATUS_ONLY: authentication required before business operations" }] };
-      if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
+      if (request.params.name === "xspa_status") return toolResult({ ...await operations.status(), access: { mode: input.publicStatusOnly ? "status-only" : (input.oauth ? "oauth" : "local"), businessToolsEnabled: !input.publicStatusOnly, oauthConfigured: Boolean(input.oauth) } }, "XanxitoSpA status loaded.");
       if (request.params.name === "xspa_company_discovery_plan") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyDiscoveryPlan(parseCompanyDiscovery(request.params.arguments), requestContext(input.auth)), "Company discovery revision planned.");

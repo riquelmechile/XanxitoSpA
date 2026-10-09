@@ -7,9 +7,9 @@ const port = Number(process.env.PORT ?? process.env.XSPA_MCP_PORT ?? 3211);
 const host = process.env.XSPA_MCP_HOST?.trim() || (process.env.RAILWAY_PUBLIC_DOMAIN?.trim() || process.env.PORT ? "0.0.0.0" : "127.0.0.1");
 const oauth = loadXspaOAuthConfig();
 const publicStatusOnly = process.env.XSPA_PUBLIC_STATUS_ONLY === "true";
-if (publicStatusOnly && (oauth || process.env.XSPA_COMPANY_ID || process.env.XSPA_CREATIVE_COMPANY_ID || process.env.XSPA_AUTHORITY_TRUST_ANCHORS_JSON)) {
+if (publicStatusOnly && (oauth || process.env.XSPA_AUTHORITY_TRUST_ANCHORS_JSON)) {
   await close();
-  throw new Error("PUBLIC_STATUS_ONLY requires an unbound Company and no OAuth/authority root");
+  throw new Error("PUBLIC_STATUS_ONLY forbids OAuth/authority-root config; Company storage may be initialized but business tools stay blocked");
 }
 const allowedHosts = [...new Set([
   ...(process.env.XSPA_MCP_ALLOWED_HOSTS?.split(",").map((value) => value.trim()).filter(Boolean) ?? []),

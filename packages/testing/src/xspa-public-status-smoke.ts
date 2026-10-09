@@ -21,6 +21,8 @@ try {
     const status=await client.callTool({name:"xspa_status",arguments:{}});
     assert.notEqual(status.isError,true);
     assert.match(JSON.stringify(status),/companyOs/);
+    assert.match(JSON.stringify(status),/gpt-6-astra/);
+    assert.match(JSON.stringify(status),/businessToolsEnabled/);
     const forbidden=await client.callTool({name:"xspa_worker_register",arguments:{host_hint:"unauthenticated"}});
     assert.equal(forbidden.isError,true);
     assert.match(JSON.stringify(forbidden),/PUBLIC_STATUS_ONLY/);

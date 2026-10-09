@@ -13,7 +13,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
   const operations: XspaAppOperations = {
     status: async () => ({
       version: "1.0.0",
-      modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
+      modelLaw: { executive: "gpt-6-astra/max", branches: "host-role-configured", fallback: false, hostExecutionObserved: false },
       mcp: { ready: true, mode: "streamable-http" },
       database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
       creative: { configured: true, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" },
@@ -107,7 +107,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const status = await transport.callTool("xspa_status", {}, metadata);
     assert(status.ok, "xspa_status failed");
     const statusText = JSON.stringify(status.content);
-    assert(statusText.includes("gpt-5.6-sol/max") && statusText.includes("gpt-5.6-sol/xhigh"), "app MCP status lost Model Law");
+    assert(statusText.includes("gpt-6-astra/max") && statusText.includes("host-role-configured"), "app MCP status lost Model Law");
     assert(!statusText.includes(authToken), "app MCP result leaked auth token");
 
     const workId = "22222222-2222-4222-8222-222222222222";

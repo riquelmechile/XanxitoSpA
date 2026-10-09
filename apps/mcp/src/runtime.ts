@@ -179,7 +179,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     const skillHealth = this.input.skillRegistry ? await this.input.skillRegistry.health() : undefined;
     return {
       version: "1.0.0",
-      modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
+      modelLaw: { executive: "gpt-6-astra/max", branches: "host-role-configured", fallback: false, hostExecutionObserved: false },
       mcp: { ready: true, mode: "streamable-http" },
       database: { configured: this.input.databaseConfigured },
       companyOs: { ready: Boolean(this.input.store && this.input.companyId), intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },

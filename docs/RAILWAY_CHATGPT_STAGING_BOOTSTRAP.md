@@ -9,3 +9,7 @@ The temporary `XSPA_PUBLIC_STATUS_ONLY=true` switch is **for connecting the Chat
 - For the initial custom ChatGPT MCP plugin choose **No authentication** and name it `XanxitoSpA (conexión inicial)`. Do not describe this as a registered GPT worker.
 - Once authenticated infrastructure is ready, update the existing plugin connection to OAuth and refresh tools. Do not loosen the OAuth checks to save clicks.
 - `pnpm run mcp:public-status:smoke` verifies real modern MCP transport, public status tool availability, direct forbidden write failure, and rejection of unauthenticated unrestricted remote startup.
+
+## Staging Company initialization
+
+An isolated staging Company UUID may coexist with XSPA_PUBLIC_STATUS_ONLY=true. Database migrations and Company/Workforce storage can initialize, but anonymous clients still receive only xspa_status and all direct business tool calls remain blocked. Company Owner identity, signed authority, OAuth client claims, host execution and A2A wake are NOT activated by this configuration. GPT-6 Astra MAX is requested model metadata, not observed execution.
