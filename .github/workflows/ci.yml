@@ -45,6 +45,8 @@ jobs:
         run: pnpm run visuals:check
       - name: Skill Registry validation
         run: pnpm run skills:check
+      - name: Pinned external development skills contract
+        run: node scripts/check-external-skills-lock.mjs
       - name: Typecheck
         run: pnpm run typecheck
       - name: Unit and integration tests
