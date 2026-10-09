@@ -2,16 +2,19 @@ import { assertMcpDeploymentAuth, loadXspaOAuthConfig } from "./oauth.js";
 import { createEnvironmentXspaAppOperations } from "./runtime.js";
 import { listenXspaMcp } from "./server.js";
 import { SelfHostedOAuth } from "./self-oauth.js";
+import { createPasswordHash } from "./self-oauth-core.js";
 import type { JWK } from "jose";
 
 const { operations, close, oauthDb } = await createEnvironmentXspaAppOperations();
 const port = Number(process.env.PORT ?? process.env.XSPA_MCP_PORT ?? 3211);
 const host = process.env.XSPA_MCP_HOST?.trim() || (process.env.RAILWAY_PUBLIC_DOMAIN?.trim() || process.env.PORT ? "0.0.0.0" : "127.0.0.1");
 const publicStatusOnly = process.env.XSPA_PUBLIC_STATUS_ONLY === "true";
-const ownerHash=process.env.XSPA_SELF_OAUTH_OWNER_PASSWORD_HASH?.trim();
+const ownerPassword=process.env.XSPA_SELF_OAUTH_OWNER_PASSWORD?.trim();
+const ownerHash=process.env.XSPA_SELF_OAUTH_OWNER_PASSWORD_HASH?.trim() || (ownerPassword ? await createPasswordHash(ownerPassword) : undefined);
+if(ownerPassword)delete process.env.XSPA_SELF_OAUTH_OWNER_PASSWORD;
 const signingJson=process.env.XSPA_SELF_OAUTH_SIGNING_JWK?.trim();
 const ownerSubject=process.env.XSPA_SELF_OAUTH_OWNER_SUBJECT?.trim() || ("owner:"+(process.env.XSPA_COMPANY_ID?.trim()||""));
-const selfRequested=Boolean(ownerHash||signingJson||process.env.XSPA_SELF_OAUTH_ENABLED==="true");
+const selfRequested=process.env.XSPA_SELF_OAUTH_ENABLED==="true";
 if(selfRequested && (publicStatusOnly||!ownerHash||!signingJson||!process.env.XSPA_PUBLIC_URL||!oauthDb||!process.env.XSPA_COMPANY_ID)){
  await close();throw new Error("SELF_OAUTH_BOOTSTRAP_INCOMPLETE_OR_STATUS_ONLY");
 }
