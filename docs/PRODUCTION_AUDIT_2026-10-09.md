@@ -2,11 +2,11 @@
 
 **Veredicto: NO LISTO para que únicamente queden las autorizaciones de ChatGPT/Claude/Grok/Spark.** Este informe distingue código aprobado, servicio realmente publicado y pruebas contra anfitriones reales. No convierte simulaciones en evidencia de modelos externos conectados.
 
-## Evidencia observada
+## Sonda remota independiente, 2026-10-09 15:27 UTC\n\nEjecutado `node scripts/audit-stage.mjs` contra `https://xspa-mcp-staging.up.railway.app/mcp`. Observación: `/health` 200, protocolo `modern`, única tool `xspa_status`, `anonymousWorkerRegistrationDenied=true`, `access.mode=status-only`, `oauthConfigured=false`, `database.configured=true`, `companyOs.ready=true`, `workforce.configured=true`, `hostConnectionsVerified=false`, `automaticWake=false`. Metadata OAuth AS/PRM y Agent Card: 404. `readyForAccountConnection=false`.\n\n**Versión exacta en Railway:** `56eb36816f8113bb9dd5044112248fd8b2cec409` (source pin verificado en Railway `describe_service`). La CI de PR en SHA posterior no representa despliegue.\n\n**Prueba local adicional:** Vitest 39 archivos y 125 pruebas pass, 1 skipped; `pnpm audit --prod --audit-level=moderate` sin vulnerabilidades conocidas. No hay evidencia de ensayo de restore.\n\n## Evidencia observada
 
 | Control | Observado | Estado |
 |---|---|---|
-| GitHub feature branch | SHA `68a76ceb0e4cb2098f031ffd774c084dd4ffbe4a` | CI `37942685068` success |
+| GitHub feature branch | SHA `ba41d967f8719585b1fe81ac08832a87adcc08b2` | CI `37951625778` success |
 | PR #1 | 0 revisiones aprobadas; SHA de revisión 4R pendiente corresponde al antiguo `62b2bd0` | BLOQUEO |
 | GitHub `main` | GitHub REST responde `Branch not protected` | BLOQUEO |
 | Railway staging | `xspa-mcp` y `Postgres` con último deployment SUCCESS | OK, pero no equivale a este SHA |
@@ -35,7 +35,7 @@
 
 ## Código local pendiente de saneamiento
 
-El checkout de desarrollo contiene `apps/mcp/src/self-hosted-oauth.ts` **incompleto** y `packages/database/migrations/0010_oauth_issuer.sql` **sin seguimiento Git**. NO incluirlos en un build/deploy ni presentarlos como proveedor OAuth listo. Completar, revisar y probar ambos antes de cualquier merge. El CI verde únicamente ejecuta los archivos versionados.
+El prototipo incompleto del emisor OAuth y la migración sin seguimiento se aislaron en un `git stash` del checkout temporal, sin incluirlos en el PR ni en Railway. No son autorización lista ni deben exponerse; la implementación autentificada continúa pendiente. El CI verde únicamente ejecuta los archivos versionados.
 
 ## Condiciones para estado «solo conectar cuentas»
 
