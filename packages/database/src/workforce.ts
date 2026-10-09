@@ -10,6 +10,8 @@ export interface MeshWork {
 }
 export interface WorkforceStore {
   register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]):Promise<MeshWorker>;
+  allowSource(companyId:string,targetId:string,sourceId:string):Promise<void>;
+  sourceAllowed(companyId:string,targetId:string,sourceId:string):Promise<boolean>;
   workers(companyId:string):Promise<MeshWorker[]>;
   worker(companyId:string,id:string):Promise<MeshWorker|null>;
   delegate(item:MeshWork):Promise<MeshWork>;
@@ -21,6 +23,9 @@ export interface WorkforceStore {
 const clone=<T>(x:T):T=>structuredClone(x);
 export class InMemoryWorkforceStore implements WorkforceStore {
   readonly actors=new Map<string,MeshWorker>();
+  readonly senderAllowlist=new Set<string>();
+  async allowSource(companyId:string,targetId:string,sourceId:string){this.senderAllowlist.add(JSON.stringify([companyId,targetId,sourceId]));}
+  async sourceAllowed(companyId:string,targetId:string,sourceId:string){return this.senderAllowlist.has(JSON.stringify([companyId,targetId,sourceId]));}
   readonly queue=new Map<string,MeshWork>();
   async register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]):Promise<MeshWorker>{
     const a={id:randomUUID(),companyId,ownerKey,hostHint,capabilities:[...capabilities]};this.actors.set(companyId+":"+a.id,a);return clone(a);
@@ -54,6 +59,12 @@ const actor=(r:ActorRow):MeshWorker=>({id:r.worker_id,companyId:r.company_id,own
 const work=(r:WorkRow):MeshWork=>({id:r.delegation_id,companyId:r.company_id,sourceWorkerId:r.source_worker_id,targetWorkerId:r.target_worker_id,workId:r.work_id,idempotencyKey:r.idempotency_key,fingerprint:r.fingerprint,instruction:r.instruction,state:r.state,leaseGeneration:Number(r.lease_generation),leaseUntil:r.lease_until?new Date(r.lease_until).toISOString():null,resultText:r.result_text,createdAt:new Date(r.created_at).toISOString()});
 export class PostgresWorkforceStore implements WorkforceStore {
   constructor(private readonly db:PostgresDatabase){}
+  async allowSource(companyId:string,targetId:string,sourceId:string):Promise<void>{
+    await this.db.withCompanyTransaction(companyId,async c=>{await c.query("INSERT INTO xspa.workforce_allowed_sources(company_id,target_worker_id,source_worker_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[companyId,targetId,sourceId]);});
+  }
+  async sourceAllowed(companyId:string,targetId:string,sourceId:string):Promise<boolean>{
+    return this.db.withCompanyTransaction(companyId,async c=>(await c.query("SELECT 1 FROM xspa.workforce_allowed_sources WHERE company_id=$1 AND target_worker_id=$2 AND source_worker_id=$3",[companyId,targetId,sourceId])).rowCount===1);
+  }
   async register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]){
     return this.db.withCompanyTransaction(companyId,async c=>actor((await c.query<ActorRow>("INSERT INTO xspa.workforce_workers(company_id,worker_id,owner_key,host_hint,capabilities) VALUES($1,$2,$3,$4,$5::jsonb) RETURNING *",[companyId,randomUUID(),ownerKey,hostHint,JSON.stringify(capabilities)])).rows[0]!));
   }

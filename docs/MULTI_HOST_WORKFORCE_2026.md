@@ -17,6 +17,7 @@ This is **host-delivered work**, not model invocation. A pending delegation does
 | `xspa_worker_register` | Authenticated `xspa.write` | Register a new opaque worker ID, a descriptive host hint and skills/capabilities |
 | `xspa_worker_list` | Authenticated `xspa.read` | Discover Company workers; `owned` tells the caller which worker IDs it can operate |
 | `xspa_work_create` | `xspa.write` | Create durable Company Work; does not grant authority |
+| `xspa_workforce_allow_source` | Authenticated `xspa.write` and target-worker ownership | Target explicitly opts in to receive requests from a registered source worker |
 | `xspa_workforce_delegate` | Authenticated `xspa.write` and source-worker ownership | Store a work assignment to a registered target; immutable idempotency fingerprint |
 | `xspa_workforce_pickup` | Authenticated `xspa.write` and target-worker ownership | Exclusively claim one pending/expired delegation for a 30-minute lease |
 | `xspa_workforce_renew` | Authenticated `xspa.write`, current owner and lease generation | Extend active lease without reassigning ownership |
@@ -29,9 +30,10 @@ Workers cannot select arbitrary Companies: `XSPA_COMPANY_ID` owns the deployment
 
 1. In the host's MCP connector settings, configure the XanxitoSpA HTTPS `/mcp` URL; finish OAuth on that platform. The resource server must expose path-correct PRM, validate issuer/audience and deny unauthorized requests.
 2. Call `xspa_worker_register` with `host_hint` such as `chatgpt`, `claude` or `grok`. Persist the returned `workerId` in the host's connected workspace or retrieve `owned` actors through `xspa_worker_list`. Never use the hint as proof that a vendor model connected.
-3. Source host creates `xspa_work_create` with Company scope, then calls `xspa_workforce_delegate` with its owned `source_worker_id`, registered target `target_worker_id`, existing `work_id`, immutable instruction and unique `idempotency_key`.
-4. Recipient host calls `xspa_workforce_pickup` and receives the real durable instruction **only after authenticated ownership validation**. It executes using its own host-provided capabilities and permissions.
-5. Recipient renews as needed and submits `xspa_workforce_complete` with the current `lease_generation`. The requester retrieves the result through `xspa_workforce_receipt`.
+3. Target host first calls `xspa_workforce_allow_source` for a source worker it intends to trust. Otherwise cross-owner delegation fails closed as `WORKFORCE_SENDER_NOT_ACCEPTED`. This is sender consent, not an authority or budget grant.
+4. Source host creates `xspa_work_create` with Company scope, then calls `xspa_workforce_delegate` with its owned `source_worker_id`, registered target `target_worker_id`, existing `work_id`, immutable instruction and unique `idempotency_key`.
+5. Recipient host calls `xspa_workforce_pickup` and receives the real durable instruction **only after authenticated ownership validation**. It executes using its own host-provided capabilities and permissions.
+6. Recipient renews as needed and submits `xspa_workforce_complete` with the current `lease_generation`. The requester retrieves the result through `xspa_workforce_receipt`.
 
 An MCP wake from GitHub/Gmail/Cloudflare/A2A must be a **notification or pointer only**, never an instruction or permission authority. Later adapters should authenticate emitters, deduplicate, queue, and look up the durable delegation before dispatching to a host that has *observed* support for background activation. No static PR-comment hook is treated as an LLM execution guarantee.
 

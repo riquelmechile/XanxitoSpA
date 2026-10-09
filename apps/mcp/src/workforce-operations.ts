@@ -29,10 +29,18 @@ export class CompanyWorkforceOperations {
     const key=this.identity(ctx,false);
     return {workers:(await this.store.workers(this.companyId)).map(x=>({workerId:x.id,hostHint:x.hostHint,hostVerified:false,capabilities:x.capabilities,capabilitiesVerified:false,owned:x.ownerKey===key})),companyScoped:true};
   }
+  async allowSource(input:{targetWorkerId:string;sourceWorkerId:string},ctx:WorkforceCaller){
+    const key=this.identity(ctx,true);await this.owned(input.targetWorkerId,key);
+    if(!await this.store.worker(this.companyId,input.sourceWorkerId))throw Error("WORKFORCE_UNKNOWN_SOURCE");
+    await this.store.allowSource(this.companyId,input.targetWorkerId,input.sourceWorkerId);
+    return {targetWorkerId:input.targetWorkerId,sourceWorkerId:input.sourceWorkerId,accepted:true,grantsAuthority:false};
+  }
   async delegate(input:WorkforceDelegateInput,ctx:WorkforceCaller){
     const key=this.identity(ctx,true);
     await this.owned(input.sourceWorkerId,key);
-    if(!(await this.store.worker(this.companyId,input.targetWorkerId)))throw Error("WORKFORCE_UNKNOWN_TARGET");
+    const target=await this.store.worker(this.companyId,input.targetWorkerId);
+    if(!target)throw Error("WORKFORCE_UNKNOWN_TARGET");
+    if(target.ownerKey!==key && !(await this.store.sourceAllowed(this.companyId,input.targetWorkerId,input.sourceWorkerId)))throw Error("WORKFORCE_SENDER_NOT_ACCEPTED");
     const work=await this.workStore.getWork(this.companyId,input.workId);
     if(!work)throw Error("WORKFORCE_UNKNOWN_COMPANY_WORK");
     const fingerprint=createHash("sha256").update(JSON.stringify([input.sourceWorkerId,input.targetWorkerId,input.workId,input.instruction])).digest("hex");

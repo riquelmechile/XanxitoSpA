@@ -24,6 +24,9 @@ describe("Company-scoped multi-host Workforce",()=>{
     const h=harness(),a=await h.workforce.register({hostHint:"chatgpt",capabilities:["analysis"]},h.alice),b=await h.workforce.register({hostHint:"claude",capabilities:["review"]},h.bob);
     const workId=randomUUID();await h.works.saveWork({id:workId,companyId:h.companyId,owner:"executive",objective:"Analyze",scope:"read-only",createdAt:new Date().toISOString()});
     const input={sourceWorkerId:a.workerId,targetWorkerId:b.workerId,workId,instruction:"Review evidence but do not execute",idempotencyKey:"review-1"};
+    await expect(h.workforce.delegate(input,h.alice)).rejects.toThrow("WORKFORCE_SENDER_NOT_ACCEPTED");
+    await expect(h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.alice)).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
+    await h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
     const queued=await h.workforce.delegate(input,h.alice);
     expect(queued.grantsAuthority).toBe(false);
     expect(queued.modelInvoked).toBe(false);
@@ -45,8 +48,10 @@ describe("Company-scoped multi-host Workforce",()=>{
   it("recovers expired leases with a new generation, rejects stale worker and wrong Company work",async()=>{
     const h=harness(),a=await h.workforce.register({hostHint:"grok",capabilities:[]},h.alice),b=await h.workforce.register({hostHint:"gemini",capabilities:[]},h.bob);
     const workId=randomUUID();const input={sourceWorkerId:a.workerId,targetWorkerId:b.workerId,workId,instruction:"Review",idempotencyKey:"repeat"};
+    await h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
     await expect(h.workforce.delegate(input,h.alice)).rejects.toThrow("WORKFORCE_UNKNOWN_COMPANY_WORK");
     await h.works.saveWork({id:workId,companyId:h.companyId,owner:"executive",objective:"Task",scope:"analysis",createdAt:new Date().toISOString()});
+    await h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
     const item=await h.workforce.delegate(input,h.alice);
     const first=await h.workforce.pickup({workerId:b.workerId},h.bob);if(first.state!=="claimed")throw Error("claim failed");
     const stored=h.storage.queue.get(h.companyId+":"+item.delegationId)!;stored.leaseUntil=new Date(Date.now()-2000).toISOString();

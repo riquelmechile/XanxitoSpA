@@ -76,6 +76,9 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const actorA = await workforce.register(companyA,"oauth:chatgpt:client-a","chatgpt",["analysis"]);
     const actorB = await workforce.register(companyA,"oauth:claude:client-b","claude",["review"]);
     const otherTenant = await workforce.register(companyB,"oauth:grok:client-c","grok",["review"]);
+    await workforce.allowSource(companyA,actorB.id,actorA.id);
+    assert(await workforce.sourceAllowed(companyA,actorB.id,actorA.id),"sender consent not saved");
+    assert(!(await workforce.sourceAllowed(companyB,actorB.id,actorA.id)),"sender consent leaked across tenant");
     assert((await workforce.worker(companyB,actorA.id))===null,"worker isolation leaked Company A");
     assert((await workforce.worker(companyA,otherTenant.id))===null,"worker isolation leaked Company B");
     const workDelegation = {

@@ -57,6 +57,7 @@ export async function verifyXspaAppOAuth(): Promise<void> {
     status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] }, creative: { configured: false, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
     workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
     workforceWorkers: async () => ({workers:[]}),
+    workforceAllowSource: async () => ({accepted:true}),
     workforceDelegate: async () => ({state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
     workforceReceipt: async () => ({state:"not-found"}),

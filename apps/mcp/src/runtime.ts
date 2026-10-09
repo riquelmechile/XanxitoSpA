@@ -217,6 +217,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   private requireWorkforce():CompanyWorkforceOperations {if(!this.input.workforce)throw Error("WORKFORCE_DATABASE_NOT_CONFIGURED");return this.input.workforce;}
   async workforceRegister(input:import("./workforce-operations.js").WorkforceRegisterInput,context:XspaRequestContext){return this.requireWorkforce().register(input,context);}
   async workforceWorkers(context:XspaRequestContext){return this.requireWorkforce().workers(context);}
+  async workforceAllowSource(input:{targetWorkerId:string;sourceWorkerId:string},context:XspaRequestContext){return this.requireWorkforce().allowSource(input,context);}
   async workforceDelegate(input:import("./workforce-operations.js").WorkforceDelegateInput,context:XspaRequestContext){return this.requireWorkforce().delegate(input,context);}
   async workforcePickup(input:import("./workforce-operations.js").WorkforceClaimInput,context:XspaRequestContext){return this.requireWorkforce().pickup(input,context);}
   async workforceReceipt(delegationId:string,context:XspaRequestContext){return this.requireWorkforce().receipt(delegationId,context);}
