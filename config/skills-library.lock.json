@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "repository": "riquelmechile/skills-library",
+  "commit": "95c8577f8008613c4bc1ab4d9152cb4502eb386a",
+  "visibility": "private",
+  "execution": "instructions-only",
+  "scope": "development-and-operations",
+  "automaticCompanyInstall": false,
+  "modelProviderApisAllowed": false,
+  "skills": [
+    {
+      "name": "mcp-a2a-expert",
+      "path": "skills/mcp-a2a-expert/SKILL.md",
+      "uses": [
+        "mcp-protocol",
+        "a2a-protocol",
+        "security"
+      ]
+    },
+    {
+      "name": "webhook-agent-wake",
+      "path": "skills/webhook-agent-wake/SKILL.md",
+      "uses": [
+        "event-wake",
+        "deduplication"
+      ]
+    },
+    {
+      "name": "railway",
+      "path": "skills/railway/SKILL.md",
+      "uses": [
+        "deployment",
+        "infrastructure"
+      ]
+    },
+    {
+      "name": "cloudflare",
+      "path": "skills/cloudflare/SKILL.md",
+      "uses": [
+        "tunnels",
+        "edge"
+      ]
+    },
+    {
+      "name": "github-webhooks",
+      "path": "skills/github-webhooks/SKILL.md",
+      "uses": [
+        "github-events"
+      ]
+    },
+    {
+      "name": "gmail-push",
+      "path": "skills/gmail-push/SKILL.md",
+      "uses": [
+        "mail-events"
+      ]
+    },
+    {
+      "name": "cachyos",
+      "path": "skills/cachyos/SKILL.md",
+      "uses": [
+        "host-operations"
+      ]
+    },
+    {
+      "name": "dev-stack",
+      "path": "skills/dev-stack/SKILL.md",
+      "uses": [
+        "private-topology"
+      ]
+    }
+  ]
+}
