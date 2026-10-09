@@ -59,9 +59,9 @@ export async function verifyXspaAppOAuth(): Promise<void> {
     workforceWorkers: async () => ({workers:[]}),
     workforceAllowSource: async () => ({accepted:true}),
     workforceRevokeSource: async () => ({accepted:false}),
-    workforceDelegate: async () => ({state:"pending"}),
+    workforceDelegate: async () => ({delegationId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
-    workforceReceipt: async () => ({state:"not-found"}),
+    workforceReceipt: async () => ({delegationId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",workId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",state:"completed",resultText:"Worker completed"}),
     workforceSettle: async () => ({state:"completed"}),
     workforceRenew: async () => ({renewed:true}),
     workCreate: async (input, context) => ({ workId: input.workId, status: "created", principal: context.principal }),
@@ -135,6 +135,35 @@ export async function verifyXspaAppOAuth(): Promise<void> {
     await client.connect(transport as unknown as Transport);
     const result = await client.callTool({ name: "xspa_kast_reflect", arguments: { reflection_id: "33333333-3333-4333-8333-333333333333", session_ref: "session:oauth", mode: "improve", category: "friction", severity: "medium", summary: "OAuth authenticated improvement request.", evidence_refs: ["trace:oauth"], recurrence: 2, affected_surfaces: ["developer-experience"], strategy_overlays: ["simplify-first", "reliability-first"] } });
     assert(result.isError !== true && JSON.stringify(result).includes("user:test"), "valid OAuth JWT did not reach app operation with subject context");
+
+    // A2A 1.0 shares the existing OAuth scopes and fenced Company Workforce.
+    const root = `http://127.0.0.1:${appAddress.port}`;
+    const cardResp = await fetch(root + "/.well-known/agent-card.json");
+    assert(cardResp.ok, "A2A Agent Card absent");
+    const card = await cardResp.json() as { supportedInterfaces?: Array<{protocolVersion:string}>; securityRequirements?: unknown[] };
+    assert(card.supportedInterfaces?.[0]?.protocolVersion === "1.0" && Array.isArray(card.securityRequirements), "A2A 1.0 card invalid");
+    const wireBody = {
+      jsonrpc: "2.0", id: 101, method: "SendMessage",
+      params: { message: { messageId: "a2a-smoke-101", role: "ROLE_USER", parts: [{text:"Safely delegate test work"}],
+        metadata: {xspa:{sourceWorkerId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",targetWorkerId:"dddddddd-dddd-4ddd-8ddd-dddddddddddd",workId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}} } },
+    };
+    const anonymousA2a = await fetch(root + "/a2a", {method:"POST",headers:{"Content-Type":"application/json","A2A-Version":"1.0"},body:JSON.stringify(wireBody)});
+    assert(anonymousA2a.status === 401, "anonymous A2A request accepted");
+    const clientBound = await new SignJWT({scope:"xspa.read xspa.write",client_id:"signed-chatgpt-client"})
+      .setProtectedHeader({alg:"RS256",kid:"xspa-test-key"})
+      .setIssuer(issuer).setAudience(resource).setSubject("user:test").setIssuedAt().setExpirationTime("5m").sign(privateKey);
+    const a2aHeaders = {"Content-Type":"application/json","A2A-Version":"1.0",Authorization:"Bearer "+clientBound};
+    const sent = await fetch(root + "/a2a",{method:"POST",headers:a2aHeaders,body:JSON.stringify(wireBody)});
+    const sentJson = await sent.json() as {result?:{task?:{id?:string;status?:{state:string}}}};
+    assert(sent.ok && sentJson.result?.task?.id==="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" &&
+      sentJson.result?.task?.status?.state==="TASK_STATE_SUBMITTED", "OAuth A2A work handoff failed");
+    const get = await fetch(root + "/a2a",{method:"POST",headers:a2aHeaders,
+      body:JSON.stringify({jsonrpc:"2.0",id:102,method:"GetTask",params:{id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}})});
+    const got = await get.json() as {result?:{task?:{status?:{state:string}}}};
+    assert(got.result?.task?.status?.state==="TASK_STATE_COMPLETED", "OAuth A2A task receipt failed");
+    const outdated = await fetch(root + "/a2a",{method:"POST",
+      headers:{"Content-Type":"application/json",Authorization:"Bearer "+clientBound},body:JSON.stringify(wireBody)});
+    assert(outdated.status===400, "A2A protocol version missing was not rejected");
     await client.close();
   } finally {
     await closeServer(appServer);
