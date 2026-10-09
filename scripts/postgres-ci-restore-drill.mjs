@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 
-const get=(args:string[])=>execFileSync("docker",args,{encoding:"utf8",timeout:60_000}).trim();
+const get=(args)=>execFileSync("docker",args,{encoding:"utf8",timeout:60_000}).trim();
 const containers=get(["ps","--filter","ancestor=postgres:18-alpine","--format","{{.ID}}"]).split("\n").filter(Boolean);
 assert.equal(containers.length,1,"exactly one disposable PostgreSQL 18 CI container is required");
-const cid=containers[0]!;
+const cid=containers[0];
 const db="xspa_restore_drill";
-const exec=(...args:string[])=>get(["exec",cid,...args]);
+const exec=(...args)=>get(["exec",cid,...args]);
 try{
  exec("dropdb","-U","postgres","--if-exists",db);
  exec("createdb","-U","postgres",db);
