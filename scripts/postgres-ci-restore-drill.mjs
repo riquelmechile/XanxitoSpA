@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 
 const get=(args)=>execFileSync("docker",args,{encoding:"utf8",timeout:60_000}).trim();
-const containers=get(["ps","--filter","ancestor=postgres:18-alpine","--format","{{.ID}}"]).split("\n").filter(Boolean);
+const containers=get(["ps","--filter","ancestor=public.ecr.aws/docker/library/postgres:18-alpine","--format","{{.ID}}"]).split("\n").filter(Boolean);
 assert.equal(containers.length,1,"exactly one disposable PostgreSQL 18 CI container is required");
 const cid=containers[0];
 const db="xspa_restore_drill";
