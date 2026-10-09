@@ -12,6 +12,7 @@ export interface XspaOAuthConfig {
 export interface XspaAuthContext {
   authenticated: boolean;
   subject?: string;
+  clientId?: string;
   scopes: string[];
 }
 
@@ -75,6 +76,7 @@ export class JwtOAuthVerifier {
       return {
         authenticated: true,
         ...(typeof payload.sub === "string" ? { subject: payload.sub } : {}),
+        ...(typeof payload.client_id === "string" ? { clientId: payload.client_id } : typeof payload.azp === "string" ? { clientId: payload.azp } : {}),
         scopes: parseScopes(payload),
       };
     } catch {

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { BusinessEvent, CompanyAsset, CorporateGene, Work } from "../../contracts/src/index.js";
 import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore } from "../../database/src/postgres.js";
+import { PostgresWorkforceStore } from "../../database/src/workforce.js";
 import { PostgresKastStore } from "../../database/src/postgres-kast.js";
 import { closeHarnessSession, recordKastObservation } from "../../kernel/src/index.js";
 
@@ -70,6 +71,35 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const hiddenFromB = await companyStore.getWork(companyB, workA.id);
     assert(fetchedA?.companyId === companyA && fetchedA.objective === "A", "Company Work lookup failed");
     assert(hiddenFromB === null, "Company Work lookup crossed RLS Company boundary");
+
+    const workforce = new PostgresWorkforceStore(app);
+    const actorA = await workforce.register(companyA,"oauth:chatgpt:client-a","chatgpt",["analysis"]);
+    const actorB = await workforce.register(companyA,"oauth:claude:client-b","claude",["review"]);
+    const otherTenant = await workforce.register(companyB,"oauth:grok:client-c","grok",["review"]);
+    assert((await workforce.worker(companyB,actorA.id))===null,"worker isolation leaked Company A");
+    assert((await workforce.worker(companyA,otherTenant.id))===null,"worker isolation leaked Company B");
+    const workDelegation = {
+      id:randomUUID(),companyId:companyA,sourceWorkerId:actorA.id,targetWorkerId:actorB.id,
+      workId:workA.id,idempotencyKey:"pg-workforce:1",fingerprint:"pg-smoke-immutable",
+      instruction:"Review approved evidence only",state:"pending" as const,leaseGeneration:0,
+      leaseUntil:null,resultText:null,createdAt:new Date().toISOString(),
+    };
+    const dispatched=await workforce.delegate(workDelegation);
+    assert((await workforce.delegate({...workDelegation,id:randomUUID()})).id===dispatched.id,"delegation idempotency lost");
+    let conflict=false;
+    try{await workforce.delegate({...workDelegation,id:randomUUID(),fingerprint:"changed"});}catch{conflict=true;}
+    assert(conflict,"delegation idempotency conflict not rejected");
+    const [pickupA,pickupB]=await Promise.all([workforce.pickup(companyA,actorB.id,30_000),workforce.pickup(companyA,actorB.id,30_000)]);
+    assert(Boolean(pickupA)!==Boolean(pickupB),"concurrent pickup issued duplicate lease");
+    const leased=pickupA??pickupB;
+    assert(leased?.leaseGeneration===1,"first lease generation invalid");
+    assert(!(await workforce.settle(companyA,dispatched.id,actorB.id,2,"forged",false)),"stale/future lease completed");
+    assert(!(await workforce.settle(companyB,dispatched.id,actorB.id,1,"foreign",false)),"cross-Company lease settled");
+    assert(await workforce.renew(companyA,dispatched.id,actorB.id,1,30_000),"current worker lease renewal failed");
+    assert(await workforce.settle(companyA,dispatched.id,actorB.id,1,"approved receipt",false),"valid worker lease rejected");
+    assert(!(await workforce.settle(companyA,dispatched.id,actorB.id,1,"replay",false)),"completed work settled twice");
+    assert((await workforce.receipt(companyA,dispatched.id))?.resultText==="approved receipt","durable workforce receipt missing");
+    assert((await workforce.receipt(companyB,dispatched.id))===null,"receipt leaked cross Company");
 
     const visibleA = await app.withCompanyTransaction(companyA, async (client) => client.query<{ company_id: string }>("SELECT company_id FROM xspa.works ORDER BY id"));
     assert(visibleA.rows.length === 1 && visibleA.rows[0]?.company_id === companyA, "RLS leaked another Company work row");

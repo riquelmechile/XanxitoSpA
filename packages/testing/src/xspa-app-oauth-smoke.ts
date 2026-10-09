@@ -55,6 +55,13 @@ export async function verifyXspaAppOAuth(): Promise<void> {
 
   const operations: XspaAppOperations = {
     status: async () => ({ version: "1.0.0", modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false }, mcp: { ready: true, mode: "streamable-http" }, database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] }, creative: { configured: false, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" }, kast: { configured: true, execution: "queued" }, skills: { configured: true, healthy: true, indexed: 1, activeCompanyCatalog: 1 } }),
+    workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
+    workforceWorkers: async () => ({workers:[]}),
+    workforceDelegate: async () => ({state:"pending"}),
+    workforcePickup: async () => ({state:"empty"}),
+    workforceReceipt: async () => ({state:"not-found"}),
+    workforceSettle: async () => ({state:"completed"}),
+    workforceRenew: async () => ({renewed:true}),
     workCreate: async (input, context) => ({ workId: input.workId, status: "created", principal: context.principal }),
     workGet: async (workId, context) => ({ workId, state: "found", principal: context.principal }),
     companyDiscoveryPlan: async (_input, context) => ({ revision: { revisionId: "22222222-2222-4222-8222-222222222222", fingerprint: "d".repeat(64), sequence: 1 }, principal: context.principal, grantsAuthority: false, grantsBudget: false, grantsCapabilities: false }),

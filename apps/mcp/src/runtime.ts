@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { CompanyWorkforceOperations } from "./workforce-operations.js";
 import path from "node:path";
 import type { AuthorityMandate, BusinessEvent, CompanyAsset, CompanyPrincipalTrustAnchor, WakeAccumulatorState, CompanyOperatingModelPlan, CompanyOperatingModelSnapshot, CorporateGene, CreativeDecisionReceipt, CreativeMission, DiscoveryRevision, ScheduledJob, SkillDefinition, Work } from "../../../packages/contracts/src/index.js";
-import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
+import { PostgresCompanyStore, PostgresDatabase, PostgresRuntimeStore, PostgresWorkforceStore, type CompanyStore, type RuntimeStore } from "../../../packages/database/src/index.js";
 import { buildCompanySkillGene, buildDiscoveryRevision, companyOperatingModelFromAsset, companySkillDefinitionFromAsset, createCompanyOperatingModelAsset, createCompanySkillDefinitionAsset, createDiscoveryAsset, createFileSystemSkillRegistry, createWakeProposalAsset, createWakeStateAsset, createSkillInstallationAsset, planCompanyOperatingModel, planCompanySkillBootstrap, projectCompanyConstitution, resolveCompanySkillMatches, skillDefinitionRef, skillInstallationFromAsset, submitCreativeMission, wakeStateFromAsset, applyVerifiedMandateToDiscovery, deriveActiveMandates, GenericDiscoveryOrchestrator, GovernedWakeEngine, GovernedObservedSignalScheduler, GovernedObservedSignalDaemon, BusinessSystemConnectorRegistry, CsvSignalSource, ManifestBusinessSystemConnector, canonicalRootEnrollmentPayload, createRootEnrollmentChallenge, verifyRootEnrollmentProof, verifyAuthorityMandate, type BusinessSystemConnector, type SkillRegistry } from "../../../packages/kernel/src/index.js";
 import type { AuthorityMandateInput, AuthorityRootEnrollmentPrepareInput, AuthorityRootEnrollmentVerifyInput, AutoskillProposeInput, CompanyApplyInput, CompanyDiscoveryApplyInput, CompanyDiscoveryOrchestrateInput, CompanyDiscoveryPlanInput, CompanyPlanInput, CompanyWakeEvaluateInput, CompanySkillPlanInput, CreativeSubmitInput, GlobalSkillPromotionInput, KastReflectInput, SkillGetRequest, SkillInstallInput, SkillSearchRequest, WorkCreateInput, XspaAppOperations, XspaAppStatus, XspaRequestContext } from "./server.js";
 
@@ -161,6 +162,7 @@ export function parseObservedConnectorConfig(raw: string | undefined, context: {
 export class EnvironmentXspaAppOperations implements XspaAppOperations {
   constructor(
     private readonly input: {
+      workforce?: CompanyWorkforceOperations;
       store?: RuntimeStore;
       workStore?: Pick<CompanyStore, "saveWork" | "getWork" | "saveGene" | "listGenes">;
       companyId?: string;
@@ -191,6 +193,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
         configured: this.input.kastConfigured,
         execution: this.input.kastConfigured ? "queued" : "staged",
       },
+      workforce: {configured:Boolean(this.input.workforce),transport:"mcp",hostConnectionsVerified:false,automaticWake:false},
       skills: {
         configured: Boolean(this.input.skillRegistry),
         healthy: skillHealth?.ok ?? false,
@@ -210,6 +213,15 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
     if (!this.input.workStore) throw new Error("XanxitoSpA Work store is not configured");
     return { store, workStore: this.input.workStore, companyId };
   }
+
+  private requireWorkforce():CompanyWorkforceOperations {if(!this.input.workforce)throw Error("WORKFORCE_DATABASE_NOT_CONFIGURED");return this.input.workforce;}
+  async workforceRegister(input:import("./workforce-operations.js").WorkforceRegisterInput,context:XspaRequestContext){return this.requireWorkforce().register(input,context);}
+  async workforceWorkers(context:XspaRequestContext){return this.requireWorkforce().workers(context);}
+  async workforceDelegate(input:import("./workforce-operations.js").WorkforceDelegateInput,context:XspaRequestContext){return this.requireWorkforce().delegate(input,context);}
+  async workforcePickup(input:import("./workforce-operations.js").WorkforceClaimInput,context:XspaRequestContext){return this.requireWorkforce().pickup(input,context);}
+  async workforceReceipt(delegationId:string,context:XspaRequestContext){return this.requireWorkforce().receipt(delegationId,context);}
+  async workforceSettle(input:import("./workforce-operations.js").WorkforceSettleInput,context:XspaRequestContext){return this.requireWorkforce().settle(input,context);}
+  async workforceRenew(input:import("./workforce-operations.js").WorkforceRenewInput,context:XspaRequestContext){return this.requireWorkforce().renew(input,context);}
 
   async workCreate(input: WorkCreateInput, context: XspaRequestContext): Promise<unknown> {
     const { store, workStore, companyId } = this.requireWorkRuntime();
@@ -1250,6 +1262,7 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
   const operations = new EnvironmentXspaAppOperations({
     ...(store ? { store } : {}),
     ...(workStore ? { workStore } : {}),
+    ...(db && companyId && workStore ? { workforce: new CompanyWorkforceOperations(companyId,new PostgresWorkforceStore(db),workStore) } : {}),
     ...(companyId ? { companyId } : {}),
     databaseConfigured: Boolean(store),
     creativeConfigured: Boolean(store),
