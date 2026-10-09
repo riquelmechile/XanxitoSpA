@@ -1,4 +1,3 @@
-import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import type { XspaOAuthConfig } from "./oauth.js";
 import { JwtOAuthVerifier, hasScope, oauthChallenge } from "./oauth.js";
 import type { XspaAppOperations, XspaRequestContext } from "./server.js";
@@ -13,10 +12,10 @@ function a2aTask(id: string, contextId: string, state: string, text?: string) {
   return { id, contextId, status: { state: states[state] || "TASK_STATE_UNKNOWN", timestamp: new Date().toISOString() },
     artifacts: text ? [{ artifactId: "result-" + id, parts: [{ text, mediaType: "text/plain" }] }] : [] };
 }
-export function installXspaA2a(app: ReturnType<typeof createMcpExpressApp>, input: { operations: XspaAppOperations; oauth: XspaOAuthConfig }) {
+export function installXspaA2a(app: { get: (...args: any[]) => any; post: (...args: any[]) => any }, input: { operations: XspaAppOperations; oauth: XspaOAuthConfig }) {
   const verifier = new JwtOAuthVerifier(input.oauth);
   const origin = new URL(input.oauth.resource).origin;
-  app.get("/.well-known/agent-card.json", (_req, res) => res.json({
+  app.get("/.well-known/agent-card.json", (_req: any, res: any) => res.json({
     name: "XanxitoSpA Workforce Gateway", description: "Company-scoped durable delegation and task retrieval. No server-side LLM execution.",
     version: "1.0.0", supportedInterfaces: [{ url: origin + "/a2a", protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
     capabilities: { streaming: false, pushNotifications: false },
@@ -29,7 +28,7 @@ export function installXspaA2a(app: ReturnType<typeof createMcpExpressApp>, inpu
       pkceRequired: true } } } } },
     securityRequirements: [{ schemes: { xspaOauth: { list: [input.oauth.readScope] } } }],
   }));
-  app.post("/a2a", async (req, res) => {
+  app.post("/a2a", async (req: any, res: any) => {
     res.set("Cache-Control", "no-store");
     const auth = await verifier.authenticate(req.header("authorization"));
     if (!auth.authenticated || !auth.subject || !auth.clientId) {
