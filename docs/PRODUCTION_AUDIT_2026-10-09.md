@@ -1,3 +1,26 @@
+# Auditoría actualizada, 2026-10-09 20:50 UTC
+
+**Conexión OAuth en staging: PREPARADA, pero no hay anfitrión autenticado observado. Autonomía en producción: NO APROBADA.**
+
+Evidencias nuevas y verificables:
+
+- GitHub `d8958766d2777dbc5b9c9a9ef7cd9d34b381662c`: CI `37989559368` success; PostgreSQL 18, OAuth PKCE/refresh con registro de worker autenticado, y restore drill `pg_dump/pg_restore` en base descartable.
+- Railway `xspa-mcp` staging: código `fcc3e05ed13f735eb11b741b44aad65e8604a9f7`, despliegue SUCCESS. OAuth explícitamente habilitado y protegido por JWT.
+- Comprobación externa `node scripts/audit-stage.mjs --require-discovery`: `discoveryReady=true`; health, OAuth AS metadata, PRM, JWKS público, Agent Card A2A y HTTP 401 en MCP anónimo: todos OK.
+- `POST /register` desde una máquina externa devuelve HTTP 201. `@Xspa` anterior, instalado sin auth, falló internamente al consultarse después de activar OAuth. **Debe reconectarse y consentir desde la aplicación anfitriona.**
+- La prueba externa con contraseña temporal no pudo completarse desde la herramienta por controles de seguridad. `authenticatedHostReady=false`; no se afirmó un GPT, Claude, Grok o Spark real conectado.
+- Se generó y almacenó una firma privada Ed25519 en Railway (sin copiarla al repositorio). El JWKS remoto exhibe solo clave pública. **Las variables sensibles aún no están marcadas Sealed**. En staging se debe leer/rotar la contraseña temporal y luego sellar tanto contraseña como clave JWK desde el dashboard Railway.
+- El ensayo de restauración realizado en CI **no es** un respaldo externo de la base Railway ni prueba de PITR/volumen real. Para producción habilitar Volume Backups + PITR y ejecutar un ensayo sobre un clon, sin tocar la base origen.
+- Revisión independiente Xanxito 4R: candidato #833 pendiente. `main` sin protección verificada; raíz legal Founder/Owner no inscrita; wake host-native no observado. Esos tres bloquean producción autónoma.
+
+**Rutas efectivas en staging**: `https://xspa-mcp-staging.up.railway.app/mcp`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource/mcp`, `/oauth/jwks`, `/.well-known/agent-card.json`.
+
+El servidor está listo para **intentar** el consentimiento personal de ChatGPT mediante OAuth. La autorización y la ejecución de una delegación real deben ser observadas antes de marcar el host como conectado.
+
+---
+
+## Hallazgos del corte previo (históricos; la evaluación actual está arriba)
+
 # Auditoría de puesta en marcha de XanxitoSpA — 2026-10-09
 
 **Veredicto: NO LISTO para que únicamente queden las autorizaciones de ChatGPT/Claude/Grok/Spark.** Este informe distingue código aprobado, servicio realmente publicado y pruebas contra anfitriones reales. No convierte simulaciones en evidencia de modelos externos conectados.
