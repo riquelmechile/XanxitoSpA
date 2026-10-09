@@ -35,8 +35,8 @@ await check("mcp", async () => {
     const names = tools.tools.map(item => item.name);
     const status = await client.callTool({ name: "xspa_status", arguments: {} });
     const raw = status.content?.find(x => x.type === "text")?.text || "";
-    let parsed = {};
-    try { parsed = JSON.parse(raw); } catch {}
+    let parsed = status.structuredContent || {};
+    if (!Object.keys(parsed).length) try { parsed = JSON.parse(raw); } catch {}
     const denied = await client.callTool({ name: "xspa_worker_register", arguments: { host_hint: "audit-no-auth", capabilities: [] } });
     return { negotiated: client.getProtocolEra?.(), tools: names, statusToolOk: !status.isError,
       anonymousWorkerRegistrationDenied: denied.isError === true,
