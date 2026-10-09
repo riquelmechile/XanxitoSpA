@@ -3,6 +3,7 @@ import { createServer as createHttpServer, type Server as HttpServer } from "nod
 import { Server, createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
+import { installXspaA2a } from "./a2a.js";
 import type { WorkforceCaller, WorkforceRegisterInput, WorkforceDelegateInput, WorkforceClaimInput, WorkforceSettleInput, WorkforceRenewInput } from "./workforce-operations.js";
 import type { AuthorityMandate, AuthorityRootEnrollmentProof, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
@@ -929,6 +930,7 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
   if (input.oauth) app.get("/.well-known/oauth-protected-resource/mcp", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
+  if (input.oauth && !input.publicStatusOnly) installXspaA2a(app, { operations: input.operations, oauth: input.oauth });
   app.post("/mcp", async (req: any, res: any) => {
     let auth: XspaAuthContext = { authenticated: false, scopes: [] };
     const header = req.header("authorization");
