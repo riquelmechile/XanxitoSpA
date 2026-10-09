@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import type { XspaOAuthConfig } from "./oauth.js";
 import { JwtOAuthVerifier, hasScope, oauthChallenge } from "./oauth.js";
 import type { XspaAppOperations, XspaRequestContext } from "./server.js";
@@ -13,7 +13,7 @@ function a2aTask(id: string, contextId: string, state: string, text?: string) {
   return { id, contextId, status: { state: states[state] || "TASK_STATE_UNKNOWN", timestamp: new Date().toISOString() },
     artifacts: text ? [{ artifactId: "result-" + id, parts: [{ text, mediaType: "text/plain" }] }] : [] };
 }
-export function installXspaA2a(app: Express, input: { operations: XspaAppOperations; oauth: XspaOAuthConfig }) {
+export function installXspaA2a(app: ReturnType<typeof createMcpExpressApp>, input: { operations: XspaAppOperations; oauth: XspaOAuthConfig }) {
   const verifier = new JwtOAuthVerifier(input.oauth);
   const origin = new URL(input.oauth.resource).origin;
   app.get("/.well-known/agent-card.json", (_req, res) => res.json({
