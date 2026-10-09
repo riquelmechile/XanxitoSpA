@@ -63,6 +63,8 @@ jobs:
         run: pnpm run mcp:app:smoke
       - name: XanxitoSpA app OAuth smoke
         run: pnpm run mcp:app:oauth:smoke
+      - name: Multi-host OAuth MCP workforce E2E smoke
+        run: pnpm run mcp:multihost:oauth:smoke
       - name: PostgreSQL 18 smoke
         env:
           XSPA_TEST_DATABASE_URL: postgresql://postgres:xspa@127.0.0.1:5432/xspa_test

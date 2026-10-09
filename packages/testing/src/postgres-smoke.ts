@@ -79,6 +79,9 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     await workforce.allowSource(companyA,actorB.id,actorA.id);
     assert(await workforce.sourceAllowed(companyA,actorB.id,actorA.id),"sender consent not saved");
     assert(!(await workforce.sourceAllowed(companyB,actorB.id,actorA.id)),"sender consent leaked across tenant");
+    await workforce.revokeSource(companyA,actorB.id,actorA.id);
+    assert(!(await workforce.sourceAllowed(companyA,actorB.id,actorA.id)),"source revocation did not persist");
+    await workforce.allowSource(companyA,actorB.id,actorA.id);
     assert((await workforce.worker(companyB,actorA.id))===null,"worker isolation leaked Company A");
     assert((await workforce.worker(companyA,otherTenant.id))===null,"worker isolation leaked Company B");
     const workDelegation = {

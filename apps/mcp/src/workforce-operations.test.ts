@@ -15,6 +15,7 @@ describe("Company-scoped multi-host Workforce",()=>{
   it("denies guest claims, wrong OAuth client, wrong subject and scope elevation",async()=>{
     const h=harness();
     await expect(h.workforce.register({hostHint:"claude",capabilities:[]},{...h.alice,authenticated:false})).rejects.toThrow("WORKFORCE_AUTHENTICATED_SUBJECT_REQUIRED");
+    await expect(h.workforce.register({hostHint:"chatgpt",capabilities:[]},{principal:h.alice.principal,scopes:[...h.alice.scopes],authenticated:true})).rejects.toThrow("WORKFORCE_AUTHENTICATED_CLIENT_ID_REQUIRED");
     const x=await h.workforce.register({hostHint:"chatgpt",capabilities:[]},h.alice);
     await expect(h.workforce.pickup({workerId:x.workerId},h.bob)).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
     await expect(h.workforce.pickup({workerId:x.workerId},{...h.alice,clientId:"other-client"})).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
@@ -26,6 +27,9 @@ describe("Company-scoped multi-host Workforce",()=>{
     const input={sourceWorkerId:a.workerId,targetWorkerId:b.workerId,workId,instruction:"Review evidence but do not execute",idempotencyKey:"review-1"};
     await expect(h.workforce.delegate(input,h.alice)).rejects.toThrow("WORKFORCE_SENDER_NOT_ACCEPTED");
     await expect(h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.alice)).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
+    await h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
+    await h.workforce.revokeSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
+    await expect(h.workforce.delegate(input,h.alice)).rejects.toThrow("WORKFORCE_SENDER_NOT_ACCEPTED");
     await h.workforce.allowSource({targetWorkerId:b.workerId,sourceWorkerId:a.workerId},h.bob);
     const queued=await h.workforce.delegate(input,h.alice);
     expect(queued.grantsAuthority).toBe(false);

@@ -12,6 +12,12 @@ Status: **BLOCKED**. This file is evidence for an incremental rollout; it is not
 - Live Founder/Owner public trust root: not evidenced. Project architecture documents that `trustConfigured=false` blocks owner mandates until out-of-band enrollment.
 - Existing runtime uses `@modelcontextprotocol/sdk@1.30.0` (pre-2026 MCP) and `railway.json`. The current 2026-07-28 protocol requires a separately validated migration path. The external Railway skill warns about railway.json retirement on 2026-12-01; verify the date in Railway release docs during migration.
 
+## Multi-host implementation update
+
+- Branch PR #1 includes a Company-scoped OAuth-bound workforce mesh for MCP clients with persistent PostgreSQL delegations, consent/revocation of senders, idempotent assignments and generation-fenced leases.
+- Local security and OAuth two-host HTTP E2E tests validate isolation and delivery; CI runs PostgreSQL 18. The simulated host names are not proof of real ChatGPT/Claude/Grok connectors.
+- These are improvements to the existing pre-2026 MCP SDK transport, not a completed v2 migration. Automatic external wake/A2A host delivery remains unimplemented and must not be inferred from polling.
+
 ## Critical gates before enabling full business operation
 
 | Gate | Current | Required evidence |

@@ -13,6 +13,7 @@ export class CompanyWorkforceOperations {
   private identity(ctx:WorkforceCaller,write:boolean):string {
     if(!ctx.authenticated||!ctx.principal||ctx.principal==="chatgpt-app-user")throw Error("WORKFORCE_AUTHENTICATED_SUBJECT_REQUIRED");
     if(!ctx.scopes.includes(write?"xspa.write":"xspa.read"))throw Error("WORKFORCE_OAUTH_SCOPE_REQUIRED");
+    if(!ctx.clientId?.trim())throw Error("WORKFORCE_AUTHENTICATED_CLIENT_ID_REQUIRED");
     return createHash("sha256").update(JSON.stringify([this.companyId,ctx.principal,ctx.clientId??""])).digest("hex");
   }
   private async owned(workerId:string,key:string):Promise<MeshWorker> {
@@ -34,6 +35,11 @@ export class CompanyWorkforceOperations {
     if(!await this.store.worker(this.companyId,input.sourceWorkerId))throw Error("WORKFORCE_UNKNOWN_SOURCE");
     await this.store.allowSource(this.companyId,input.targetWorkerId,input.sourceWorkerId);
     return {targetWorkerId:input.targetWorkerId,sourceWorkerId:input.sourceWorkerId,accepted:true,grantsAuthority:false};
+  }
+  async revokeSource(input:{targetWorkerId:string;sourceWorkerId:string},ctx:WorkforceCaller){
+    const key=this.identity(ctx,true);await this.owned(input.targetWorkerId,key);
+    await this.store.revokeSource(this.companyId,input.targetWorkerId,input.sourceWorkerId);
+    return {targetWorkerId:input.targetWorkerId,sourceWorkerId:input.sourceWorkerId,accepted:false,grantsAuthority:false};
   }
   async delegate(input:WorkforceDelegateInput,ctx:WorkforceCaller){
     const key=this.identity(ctx,true);

@@ -23,6 +23,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
     workforceWorkers: async () => ({workers:[]}),
     workforceAllowSource: async () => ({accepted:true}),
+    workforceRevokeSource: async () => ({accepted:false}),
     workforceDelegate: async () => ({state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
     workforceReceipt: async () => ({state:"not-found"}),
@@ -84,7 +85,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const metadata = { headers: { Authorization: `Bearer ${authToken}` } };
     const tools = await transport.listTools(metadata);
     const names = tools.map((tool) => tool.name).sort();
-    for (const required of ["xspa_status", "xspa_company_discovery_plan", "xspa_company_discovery_apply", "xspa_company_discovery_status", "xspa_company_discovery_orchestrate", "xspa_authority_root_enrollment_prepare", "xspa_authority_root_enrollment_verify", "xspa_authority_root_enrollment_status", "xspa_authority_mandate_verify", "xspa_authority_mandate_apply", "xspa_authority_mandate_status", "xspa_company_wake_evaluate", "xspa_company_wake_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_worker_register","xspa_worker_list","xspa_workforce_allow_source","xspa_workforce_delegate","xspa_workforce_pickup","xspa_workforce_receipt","xspa_workforce_complete","xspa_workforce_renew", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
+    for (const required of ["xspa_status", "xspa_company_discovery_plan", "xspa_company_discovery_apply", "xspa_company_discovery_status", "xspa_company_discovery_orchestrate", "xspa_authority_root_enrollment_prepare", "xspa_authority_root_enrollment_verify", "xspa_authority_root_enrollment_status", "xspa_authority_mandate_verify", "xspa_authority_mandate_apply", "xspa_authority_mandate_status", "xspa_company_wake_evaluate", "xspa_company_wake_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_worker_register","xspa_worker_list","xspa_workforce_allow_source","xspa_workforce_revoke_source","xspa_workforce_delegate","xspa_workforce_pickup","xspa_workforce_receipt","xspa_workforce_complete","xspa_workforce_renew", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
       assert(names.includes(required), `missing app MCP tool ${required}`);
     }
 

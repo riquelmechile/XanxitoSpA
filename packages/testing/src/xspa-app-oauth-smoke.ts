@@ -58,6 +58,7 @@ export async function verifyXspaAppOAuth(): Promise<void> {
     workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
     workforceWorkers: async () => ({workers:[]}),
     workforceAllowSource: async () => ({accepted:true}),
+    workforceRevokeSource: async () => ({accepted:false}),
     workforceDelegate: async () => ({state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
     workforceReceipt: async () => ({state:"not-found"}),

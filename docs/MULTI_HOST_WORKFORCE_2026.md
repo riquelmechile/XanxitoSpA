@@ -6,7 +6,7 @@
 
 XanxitoSpA is one Company OS and one persistence/authority boundary. It can expose a single remotely accessible MCP endpoint to ChatGPT, Claude, Grok, Gemini, Spark, Kimi or other hosts **only to the extent that their products actually support remote MCP connections**. No provider model APIs, client impersonation, model keys, or server-side LLM workers are used.
 
-Each connected host authenticates with OAuth resource-server credentials. The verified `iss` and `aud` are enforced by the existing JWT verifier; the signed JWT subject and, if present, its client identifier bind owned workforce actors. A host label is **self-reported** metadata and is not identity proof. Actor IDs are random UUIDs; their owner keys are hashed. Agents are available for delegation only after an authenticated host registers them.
+Each connected host authenticates with OAuth resource-server credentials. The verified `iss` and `aud` are enforced by the existing JWT verifier; both a signed JWT `sub` and signed client identity (`client_id` or `azp`) are **required** to register, claim or receive workforce results. Tokens without these claims fail closed. This may require provider-specific OAuth authorization-server configuration. A host label is **self-reported** metadata and is not identity proof. Actor IDs are random UUIDs; their owner keys are hashed. Agents are available for delegation only after an authenticated host registers them.
 
 This is **host-delivered work**, not model invocation. A pending delegation does not launch Claude/Grok/ChatGPT. An actual host must poll `xspa_workforce_pickup`, or a separately authenticated wake mechanism must open a supported host session. There is intentionally no unverified "always-on LLM" claim.
 
@@ -18,6 +18,7 @@ This is **host-delivered work**, not model invocation. A pending delegation does
 | `xspa_worker_list` | Authenticated `xspa.read` | Discover Company workers; `owned` tells the caller which worker IDs it can operate |
 | `xspa_work_create` | `xspa.write` | Create durable Company Work; does not grant authority |
 | `xspa_workforce_allow_source` | Authenticated `xspa.write` and target-worker ownership | Target explicitly opts in to receive requests from a registered source worker |
+| `xspa_workforce_revoke_source` | Authenticated `xspa.write` and target-worker ownership | Target revokes consent for new delegations from that source; already-issued work retains its prior state |
 | `xspa_workforce_delegate` | Authenticated `xspa.write` and source-worker ownership | Store a work assignment to a registered target; immutable idempotency fingerprint |
 | `xspa_workforce_pickup` | Authenticated `xspa.write` and target-worker ownership | Exclusively claim one pending/expired delegation for a 30-minute lease |
 | `xspa_workforce_renew` | Authenticated `xspa.write`, current owner and lease generation | Extend active lease without reassigning ownership |

@@ -11,6 +11,7 @@ export interface MeshWork {
 export interface WorkforceStore {
   register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]):Promise<MeshWorker>;
   allowSource(companyId:string,targetId:string,sourceId:string):Promise<void>;
+  revokeSource(companyId:string,targetId:string,sourceId:string):Promise<void>;
   sourceAllowed(companyId:string,targetId:string,sourceId:string):Promise<boolean>;
   workers(companyId:string):Promise<MeshWorker[]>;
   worker(companyId:string,id:string):Promise<MeshWorker|null>;
@@ -26,6 +27,7 @@ export class InMemoryWorkforceStore implements WorkforceStore {
   readonly senderAllowlist=new Set<string>();
   async allowSource(companyId:string,targetId:string,sourceId:string){this.senderAllowlist.add(JSON.stringify([companyId,targetId,sourceId]));}
   async sourceAllowed(companyId:string,targetId:string,sourceId:string){return this.senderAllowlist.has(JSON.stringify([companyId,targetId,sourceId]));}
+  async revokeSource(companyId:string,targetId:string,sourceId:string){this.senderAllowlist.delete(JSON.stringify([companyId,targetId,sourceId]));}
   readonly queue=new Map<string,MeshWork>();
   async register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]):Promise<MeshWorker>{
     const a={id:randomUUID(),companyId,ownerKey,hostHint,capabilities:[...capabilities]};this.actors.set(companyId+":"+a.id,a);return clone(a);
@@ -61,6 +63,9 @@ export class PostgresWorkforceStore implements WorkforceStore {
   constructor(private readonly db:PostgresDatabase){}
   async allowSource(companyId:string,targetId:string,sourceId:string):Promise<void>{
     await this.db.withCompanyTransaction(companyId,async c=>{await c.query("INSERT INTO xspa.workforce_allowed_sources(company_id,target_worker_id,source_worker_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[companyId,targetId,sourceId]);});
+  }
+  async revokeSource(companyId:string,targetId:string,sourceId:string):Promise<void>{
+    await this.db.withCompanyTransaction(companyId,async c=>{await c.query("DELETE FROM xspa.workforce_allowed_sources WHERE company_id=$1 AND target_worker_id=$2 AND source_worker_id=$3",[companyId,targetId,sourceId]);});
   }
   async sourceAllowed(companyId:string,targetId:string,sourceId:string):Promise<boolean>{
     return this.db.withCompanyTransaction(companyId,async c=>(await c.query("SELECT 1 FROM xspa.workforce_allowed_sources WHERE company_id=$1 AND target_worker_id=$2 AND source_worker_id=$3",[companyId,targetId,sourceId])).rowCount===1);

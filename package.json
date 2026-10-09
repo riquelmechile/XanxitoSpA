@@ -26,7 +26,8 @@
     "mcp:app:smoke": "tsx packages/testing/src/xspa-app-mcp-smoke.ts",
     "mcp:app:start": "node dist/apps/mcp/src/main.js",
     "mcp:app:oauth:smoke": "tsx packages/testing/src/xspa-app-oauth-smoke.ts",
-    "skills:check": "tsx scripts/validate-skill-registry.ts"
+    "skills:check": "tsx scripts/validate-skill-registry.ts",
+    "mcp:multihost:oauth:smoke": "tsx packages/testing/src/xspa-multihost-oauth-smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
