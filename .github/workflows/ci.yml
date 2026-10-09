@@ -77,3 +77,5 @@ jobs:
         env:
           XSPA_TEST_DATABASE_URL: postgresql://postgres:xspa@127.0.0.1:5432/xspa_test
         run: pnpm run pg:smoke
+      - name: PostgreSQL 18 real dump restore drill
+        run: node scripts/postgres-ci-restore-drill.mjs
