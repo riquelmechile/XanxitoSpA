@@ -10,13 +10,21 @@ Status: **BLOCKED**. This file is evidence for an incremental rollout; it is not
 - GitHub branch protection: `main` not protected at inspection time.
 - Railway workspace query: no XanxitoSpA project/service in the accessible project list. Do not assume that an unrelated service is the target.
 - Live Founder/Owner public trust root: not evidenced. Project architecture documents that `trustConfigured=false` blocks owner mandates until out-of-band enrollment.
-- Existing runtime uses `@modelcontextprotocol/sdk@1.30.0` (pre-2026 MCP) and `railway.json`. The current 2026-07-28 protocol requires a separately validated migration path. The external Railway skill warns about railway.json retirement on 2026-12-01; verify the date in Railway release docs during migration.
+- HTTP MCP server has been upgraded to v2 with 2026-07-28 discovery plus 2025-era compatibility, tested locally and on CI. A v1 client adapter remains temporarily for backward compatibility. Legacy `railway.json` remains and must migrate to IaC before production launch. The external Railway skill warns about railway.json retirement on 2026-12-01; verify the date in Railway release docs during migration.
 
 ## Multi-host implementation update
 
 - Branch PR #1 includes a Company-scoped OAuth-bound workforce mesh for MCP clients with persistent PostgreSQL delegations, consent/revocation of senders, idempotent assignments and generation-fenced leases.
 - Local security and OAuth two-host HTTP E2E tests validate isolation and delivery; CI runs PostgreSQL 18. The simulated host names are not proof of real ChatGPT/Claude/Grok connectors.
 - These are improvements to the existing pre-2026 MCP SDK transport, not a completed v2 migration. Automatic external wake/A2A host delivery remains unimplemented and must not be inferred from polling.
+
+## New staging evidence (2026-10-09 UTC)
+
+- Private Railway project `xanxitospa`, isolated `staging` environment created. Official Railway PostgreSQL template is running PostgreSQL 18 with a persistent volume and successful deployment.
+- `xspa-mcp` exists as a staged **unapplied** empty service; no public endpoint, OAuth issuer, Company Owner root, or live worker has been provisioned.
+- MCP SDK v2 server/Node/Express adapter tested for 2026-07-28 pinned modern and auto-negotiated modern client, plus legacy 2025 smoke, JWT OAuth and two-host simulated workforce E2E.
+- A2A endpoints and real host background wakes not implemented. Never claim vendor model sessions exist until host-native connector and OAuth consent are observed.
+- Railway deployment remains blocked pending approved OAuth provider (issuer/JWKS, OAuth client_id claims), configured Company trust root and rollback/restore drill.
 
 ## Critical gates before enabling full business operation
 
