@@ -6,7 +6,7 @@ export const oauthError=(res:any,code:string,status=400)=>{
  res.set("Cache-Control","no-store").status(status).json({error:code});
 };
 export async function parseOAuthBody(req:any):Promise<Record<string,unknown>>{
- const typ=String(req.headers["content-type"]||"").split(";")[0].trim().toLowerCase();
+ const typ=String(req.headers["content-type"]||"").split(";")[0]?.trim().toLowerCase();
  if(typ==="application/json")return req.body&&typeof req.body==="object"&&!Array.isArray(req.body)?req.body:{};
  if(typ!=="application/x-www-form-urlencoded")return {};
  const chunks:Buffer[]=[];let size=0;

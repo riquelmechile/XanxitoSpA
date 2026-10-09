@@ -4,6 +4,7 @@ import { Server, createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { installXspaA2a } from "./a2a.js";
+import type { SelfHostedOAuth } from "./self-oauth.js";
 import type { WorkforceCaller, WorkforceRegisterInput, WorkforceDelegateInput, WorkforceClaimInput, WorkforceSettleInput, WorkforceRenewInput } from "./workforce-operations.js";
 import type { AuthorityMandate, AuthorityRootEnrollmentProof, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
@@ -923,13 +924,14 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   return server;
 }
 
-export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[] }) {
+export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; oauthIssuer?: SelfHostedOAuth; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[] }) {
   const host = input.host ?? "127.0.0.1";
   const derivedAllowedHosts = input.allowedHosts ?? (input.oauth ? [new URL(input.oauth.resource).hostname] : undefined);
   const app = createMcpExpressApp({ host, ...(derivedAllowedHosts && derivedAllowedHosts.length > 0 ? { allowedHosts: derivedAllowedHosts } : {}) });
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
   if (input.oauth) app.get("/.well-known/oauth-protected-resource/mcp", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
+  if (input.oauthIssuer) input.oauthIssuer.mount(app);
   if (input.oauth && !input.publicStatusOnly) installXspaA2a(app, { operations: input.operations, oauth: input.oauth });
   app.post("/mcp", async (req: any, res: any) => {
     let auth: XspaAuthContext = { authenticated: false, scopes: [] };
@@ -941,6 +943,10 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
       auth = await oauthVerifier.authenticate(header);
     } else if (input.authToken) {
       res.status(401).json({ error: "unauthorized" }); return;
+    }
+    if(input.oauthIssuer && !auth.authenticated){
+      res.set("WWW-Authenticate",oauthChallenge(input.oauth!,input.oauth!.readScope));
+      res.status(401).json({error:"unauthorized"});return;
     }
     const handler = createMcpHandler(() => createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) }));
     const nodeHandler = toNodeHandler(handler);
@@ -954,7 +960,7 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   return app;
 }
 
-export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
+export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; oauthIssuer?: SelfHostedOAuth; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
   const host = input.host ?? "127.0.0.1";
   assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) });
   const app = createXspaMcpExpressApp({ ...input, host }); const server = createHttpServer(app);

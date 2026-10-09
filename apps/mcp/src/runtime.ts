@@ -1239,7 +1239,7 @@ export function parseAuthorityTrustAnchors(raw: string | undefined, companyId: s
   return anchors;
 }
 
-export async function createEnvironmentXspaAppOperations(): Promise<{ operations: EnvironmentXspaAppOperations; close(): Promise<void> }> {
+export async function createEnvironmentXspaAppOperations(): Promise<{ operations: EnvironmentXspaAppOperations; close(): Promise<void>; oauthDb?: PostgresDatabase }> {
   const databaseUrl = process.env.XSPA_DATABASE_URL?.trim();
   const companyId = process.env.XSPA_COMPANY_ID?.trim() ?? process.env.XSPA_CREATIVE_COMPANY_ID?.trim();
   let db: PostgresDatabase | undefined;
@@ -1287,5 +1287,5 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
       leaseMs,
     });
   }
-  return { operations, close: async () => { stopObservedDaemon?.(); if (db) await db.close(); } };
+  return { operations, ...(db ? { oauthDb: db } : {}), close: async () => { stopObservedDaemon?.(); if (db) await db.close(); } };
 }

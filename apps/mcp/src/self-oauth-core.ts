@@ -7,7 +7,7 @@ const base64=(b:Buffer)=>b.toString("base64url");
 export function createPasswordHash(password:string):Promise<string>{
  if(password.length<20)throw Error("OAuth Owner password must have at least 20 characters");
  const salt=randomBytes(24);
- return scrypt(password,salt,32,{N:1<<15,maxmem:64*1024*1024}).then(key=>"scrypt-v1."+base64(salt)+"."+base64(key as Buffer));
+ return scrypt(password,salt,32).then(key=>"scrypt-v1."+base64(salt)+"."+base64(key as Buffer));
 }
 export async function checkPassword(password:string,stored:string):Promise<boolean>{
  const [name,saltText,digestText]=stored.split(".");
@@ -15,7 +15,7 @@ export async function checkPassword(password:string,stored:string):Promise<boole
  try{
   const salt=Buffer.from(saltText,"base64url"),digest=Buffer.from(digestText,"base64url");
   if(salt.length!==24||digest.length!==32)return false;
-  const actual=await scrypt(password,salt,32,{N:1<<15,maxmem:64*1024*1024}) as Buffer;
+  const actual=await scrypt(password,salt,32) as Buffer;
   return timingSafeEqual(actual,digest);
  }catch{return false;}
 }
@@ -41,7 +41,7 @@ export class OAuthSigner {
  }
  async jwt(issuer:string,resource:string,subject:string,clientId:string,scope:string):Promise<string>{
   return new SignJWT({scope,client_id:clientId})
-   .setProtectedHeader({alg:"EdDSA",kid:this.jwks.keys[0]?.kid,typ:"at+jwt"})
+   .setProtectedHeader({alg:"EdDSA",kid:this.jwks.keys[0]?.kid||"xspa-key-1",typ:"at+jwt"})
    .setIssuer(issuer).setSubject(subject).setAudience(resource)
    .setIssuedAt().setExpirationTime("15m").setJti(newSecret(16))
    .sign(await this.signingKey);
