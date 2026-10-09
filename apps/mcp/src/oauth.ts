@@ -49,8 +49,10 @@ export function protectedResourceMetadata(config: XspaOAuthConfig) {
   };
 }
 
+export function protectedResourceMetadataUrl(config: XspaOAuthConfig):string { const u=new URL(config.resource); return u.origin+"/.well-known/oauth-protected-resource"+(u.pathname==="/"?"":u.pathname.replace(/\/$/,"")); }
+
 export function oauthChallenge(config: XspaOAuthConfig, scope: string, reason = "Authentication required"): string {
-  return `Bearer resource_metadata="${config.resource}/.well-known/oauth-protected-resource", scope="${scope}", error="insufficient_scope", error_description="${reason.replace(/[\"\\]/g, "")}"`;
+  return `Bearer resource_metadata="${protectedResourceMetadataUrl(config)}", scope="${scope}", error="insufficient_scope", error_description="${reason.replace(/[\"\\]/g, "")}"`;
 }
 
 function parseScopes(payload: Record<string, unknown>): string[] {

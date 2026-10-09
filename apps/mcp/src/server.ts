@@ -1,10 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { Server, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
+import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import type { WorkforceCaller, WorkforceRegisterInput, WorkforceDelegateInput, WorkforceClaimInput, WorkforceSettleInput, WorkforceRenewInput } from "./workforce-operations.js";
 import type { AuthorityMandate, AuthorityRootEnrollmentProof, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
@@ -703,7 +701,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   const server = new Server({ name: "xanxitospa", version: "1.0.0" }, { capabilities: { tools: {} } });
   const readSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.readScope] }] : [{ type: "noauth" }];
   const writeSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.writeScope] }] : [{ type: "noauth" }];
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [
+  server.setRequestHandler("tools/list", async () => ({ tools: [
     { name: "xspa_status", title: "XanxitoSpA status", description: "Use this when you need runtime and Model Law readiness. This is public metadata and never returns secrets.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: [{ type: "noauth" }], _meta: { securitySchemes: [{ type: "noauth" }] }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_create", title: "Create company Work", description: "Use this to create one Company-scoped Work item before material execution. The deployment owns company identity; creating Work does not grant authority or budget.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" }, owner: { type: "string", maxLength: 200 }, objective: { type: "string", maxLength: 4000 }, scope: { type: "string", maxLength: 4000 } }, required: ["work_id", "owner", "objective", "scope"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     {name:"xspa_worker_register",title:"Register worker",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"host_hint":{"type":"string","maxLength":60},"capabilities":{"type":"array","items":{"type":"string"},"maxItems":24}},"required":["host_hint"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
@@ -746,7 +744,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_kast_reflect", title: "KAST reflection", description: "Use this when GPT detects a harness bug, friction, test gap, workaround, security issue, or concrete improvement. Constitutional surfaces remain Founder/Board-only.", inputSchema: { type: "object", properties: { reflection_id: { type: "string", format: "uuid" }, session_ref: { type: "string" }, mode: { type: "string", enum: ["noop", "remember", "improve"] }, category: { type: "string", enum: ["bug", "friction", "opportunity", "performance", "security", "test-gap", "repeated-workaround"] }, severity: { type: "string", enum: ["low", "medium", "high", "critical"] }, summary: { type: "string", maxLength: 2000 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 }, recurrence: { type: "integer", minimum: 1, default: 1 }, affected_surfaces: { type: "array", items: { type: "string", enum: [...KAST_SURFACES] }, maxItems: 16 }, strategy_overlays: { type: "array", items: { type: "string" }, maxItems: 4 } }, required: ["reflection_id", "session_ref", "mode", "category", "severity", "summary"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
   ] }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler("tools/call", async (request) => {
     try {
       if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
       if (request.params.name === "xspa_company_discovery_plan") {
@@ -929,6 +927,7 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   const app = createMcpExpressApp({ host, ...(derivedAllowedHosts && derivedAllowedHosts.length > 0 ? { allowedHosts: derivedAllowedHosts } : {}) });
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
+  if (input.oauth) app.get("/.well-known/oauth-protected-resource/mcp", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
   app.post("/mcp", async (req: any, res: any) => {
     let auth: XspaAuthContext = { authenticated: false, scopes: [] };
     const header = req.header("authorization");
@@ -940,24 +939,11 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
     } else if (input.authToken) {
       res.status(401).json({ error: "unauthorized" }); return;
     }
-    const server = createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}) });
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined } as unknown as ConstructorParameters<typeof StreamableHTTPServerTransport>[0]);
-    let cleaned = false;
-    const cleanup = async () => {
-      if (cleaned) return;
-      cleaned = true;
-      await transport.close().catch(() => undefined);
-      await server.close().catch(() => undefined);
-    };
-    res.once("close", () => { void cleanup(); });
-    res.once("finish", () => { void cleanup(); });
-    try {
-      await server.connect(transport as unknown as Transport);
-      await transport.handleRequest(req, res, req.body);
-    } catch (error) {
-      await cleanup();
-      throw error;
-    }
+    const handler = createMcpHandler(() => createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}) }));
+    const nodeHandler = toNodeHandler(handler);
+    res.once("finish", () => { void handler.close(); });
+    res.once("close", () => { void handler.close(); });
+    await nodeHandler(req, res, req.body);
   });
   app.get("/mcp", (_req: any, res: any) => res.status(405).end());
   app.delete("/mcp", (_req: any, res: any) => res.status(405).end());

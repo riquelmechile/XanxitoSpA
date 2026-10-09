@@ -34,7 +34,7 @@ export async function verifyXspaAppOAuth(): Promise<void> {
   await once(jwksServer, "listening");
   const jwksAddress = jwksServer.address() as AddressInfo;
   const issuer = `http://127.0.0.1:${jwksAddress.port}`;
-  const resource = "http://127.0.0.1:45678";
+  const resource = "http://127.0.0.1:45678/mcp";
   const oauth: XspaOAuthConfig = {
     resource,
     issuer,
@@ -102,6 +102,8 @@ export async function verifyXspaAppOAuth(): Promise<void> {
   const metadataUrl = `http://127.0.0.1:${appAddress.port}/.well-known/oauth-protected-resource`;
 
   try {
+    const scoped=await fetch(`http://127.0.0.1:${appAddress.port}/.well-known/oauth-protected-resource/mcp`);
+    assert(scoped.ok && (await scoped.json() as {resource:string}).resource===resource,"path-aware PRM invalid");
     const metadataResponse = await fetch(metadataUrl);
     assert(metadataResponse.ok, "OAuth protected-resource metadata endpoint unavailable");
     const metadata = await metadataResponse.json() as Record<string, unknown>;
