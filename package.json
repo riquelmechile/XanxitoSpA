@@ -28,7 +28,8 @@
     "mcp:app:oauth:smoke": "tsx packages/testing/src/xspa-app-oauth-smoke.ts",
     "skills:check": "tsx scripts/validate-skill-registry.ts",
     "mcp:multihost:oauth:smoke": "tsx packages/testing/src/xspa-multihost-oauth-smoke.ts",
-    "mcp:modern:smoke": "tsx packages/testing/src/xspa-mcp-modern-smoke.ts"
+    "mcp:modern:smoke": "tsx packages/testing/src/xspa-mcp-modern-smoke.ts",
+    "mcp:public-status:smoke": "tsx packages/testing/src/xspa-public-status-smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",

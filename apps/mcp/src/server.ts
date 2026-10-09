@@ -697,7 +697,7 @@ function companyIntakeSchema(extraProperties: Record<string, unknown> = {}, extr
   return { type: "object" as const, properties: { ...extraProperties, ...COMPANY_INTAKE_SCHEMA_PROPERTIES }, required: [...extraRequired, ...COMPANY_INTAKE_SCHEMA_REQUIRED], additionalProperties: false };
 }
 
-export function createXspaMcpServer(operations: XspaAppOperations, input: { auth: XspaAuthContext; oauth?: XspaOAuthConfig }): Server {
+export function createXspaMcpServer(operations: XspaAppOperations, input: { auth: XspaAuthContext; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean }): Server {
   const server = new Server({ name: "xanxitospa", version: "1.0.0" }, { capabilities: { tools: {} } });
   const readSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.readScope] }] : [{ type: "noauth" }];
   const writeSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.writeScope] }] : [{ type: "noauth" }];
@@ -742,10 +742,11 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_autoskill_propose", title: "Create Company AutoSkill candidate", description: "Create a sanitized Company-local skill definition, install it for one department and register a CorporateGene type=skill candidate. This is Business Learning and does not use KAST or write the global catalog.", inputSchema: { type: "object", properties: { proposal_id: { type: "string", format: "uuid" }, skill_id: { type: "string", maxLength: 80 }, name: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 1200 }, instructions: { type: "string", maxLength: 4000 }, department: { type: "string", maxLength: 160 }, triggers: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 32 }, scopes: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 16 }, capabilities: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 32 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 } }, required: ["proposal_id", "skill_id", "name", "description", "instructions", "department", "triggers", "scopes", "capabilities"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_skill_global_promotion_propose", title: "Propose global skill promotion", description: "Escalate a proven Company-local champion SkillGene for possible reusable global catalog promotion. This is the KAST-governed system-change boundary and never writes the global catalog directly.", inputSchema: { type: "object", properties: { proposal_id: { type: "string", format: "uuid" }, session_ref: { type: "string", maxLength: 500 }, skill_id: { type: "string", maxLength: 80 }, summary: { type: "string", maxLength: 1200 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 }, severity: { type: "string", enum: ["low", "medium", "high", "critical"], default: "medium" } }, required: ["proposal_id", "session_ref", "skill_id", "summary"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_kast_reflect", title: "KAST reflection", description: "Use this when GPT detects a harness bug, friction, test gap, workaround, security issue, or concrete improvement. Constitutional surfaces remain Founder/Board-only.", inputSchema: { type: "object", properties: { reflection_id: { type: "string", format: "uuid" }, session_ref: { type: "string" }, mode: { type: "string", enum: ["noop", "remember", "improve"] }, category: { type: "string", enum: ["bug", "friction", "opportunity", "performance", "security", "test-gap", "repeated-workaround"] }, severity: { type: "string", enum: ["low", "medium", "high", "critical"] }, summary: { type: "string", maxLength: 2000 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 }, recurrence: { type: "integer", minimum: 1, default: 1 }, affected_surfaces: { type: "array", items: { type: "string", enum: [...KAST_SURFACES] }, maxItems: 16 }, strategy_overlays: { type: "array", items: { type: "string" }, maxItems: 4 } }, required: ["reflection_id", "session_ref", "mode", "category", "severity", "summary"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-  ] }));
+   ].filter(tool => !input.publicStatusOnly || tool.name === "xspa_status").map(tool => ({...tool,inputSchema:{...tool.inputSchema,type:"object" as const}})) }));
 
   server.setRequestHandler("tools/call", async (request) => {
     try {
+      if (input.publicStatusOnly && request.params.name !== "xspa_status") return { isError: true, content: [{ type: "text", text: "PUBLIC_STATUS_ONLY: authentication required before business operations" }] };
       if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
       if (request.params.name === "xspa_company_discovery_plan") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
@@ -921,7 +922,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   return server;
 }
 
-export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[] }) {
+export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[] }) {
   const host = input.host ?? "127.0.0.1";
   const derivedAllowedHosts = input.allowedHosts ?? (input.oauth ? [new URL(input.oauth.resource).hostname] : undefined);
   const app = createMcpExpressApp({ host, ...(derivedAllowedHosts && derivedAllowedHosts.length > 0 ? { allowedHosts: derivedAllowedHosts } : {}) });
@@ -939,7 +940,7 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
     } else if (input.authToken) {
       res.status(401).json({ error: "unauthorized" }); return;
     }
-    const handler = createMcpHandler(() => createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}) }));
+    const handler = createMcpHandler(() => createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) }));
     const nodeHandler = toNodeHandler(handler);
     res.once("finish", () => { void handler.close(); });
     res.once("close", () => { void handler.close(); });
@@ -951,9 +952,9 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   return app;
 }
 
-export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
+export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
   const host = input.host ?? "127.0.0.1";
-  assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}) });
+  assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) });
   const app = createXspaMcpExpressApp({ ...input, host }); const server = createHttpServer(app);
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(input.port, host, () => resolve()); });
   return server;

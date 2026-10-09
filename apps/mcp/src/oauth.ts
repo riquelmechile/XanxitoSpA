@@ -91,9 +91,9 @@ export function hasScope(context: XspaAuthContext, scope: string): boolean {
   return context.authenticated && context.scopes.includes(scope);
 }
 
-export function assertMcpDeploymentAuth(input: { host: string; oauth: XspaOAuthConfig | null; internalAuthToken?: string }): void {
+export function assertMcpDeploymentAuth(input: { host: string; oauth: XspaOAuthConfig | null; internalAuthToken?: string; publicStatusOnly?: boolean }): void {
   const loopback = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
   if (loopback.has(input.host)) return;
   if (input.internalAuthToken) throw new Error("XSPA_MCP_INTERNAL_BEARER is loopback-only; remote XanxitoSpA MCP must use OAuth");
-  if (!input.oauth) throw new Error("Remote XanxitoSpA MCP requires OAuth configuration; unauthenticated remote app mode is forbidden");
+  if (!input.oauth && !input.publicStatusOnly) throw new Error("Remote XanxitoSpA MCP requires OAuth configuration; unauthenticated remote app mode is forbidden");
 }
