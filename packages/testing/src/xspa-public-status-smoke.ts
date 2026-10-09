@@ -23,6 +23,16 @@ try {
     assert.match(JSON.stringify(status),/companyOs/);
     assert.match(JSON.stringify(status),/gpt-6-astra/);
     assert.match(JSON.stringify(status),/businessToolsEnabled/);
+    const origin=`http://127.0.0.1:${port}`;
+    const a2aCard=await fetch(origin+"/.well-known/agent-card.json");
+    assert.equal(a2aCard.status,404,"public status mode must not expose A2A Agent Card");
+    const a2aCall=await fetch(origin+"/a2a",{
+      method:"POST",headers:{"Content-Type":"application/json","A2A-Version":"1.0"},
+      body:JSON.stringify({jsonrpc:"2.0",id:1,method:"SendMessage",params:{}})
+    });
+    assert.equal(a2aCall.status,404,"public status mode must not expose A2A requests");
+    const oauthMetadata=await fetch(origin+"/.well-known/oauth-authorization-server");
+    assert.equal(oauthMetadata.status,404,"public diagnostic mode must not advertise a nonexistent issuer");
     const forbidden=await client.callTool({name:"xspa_worker_register",arguments:{host_hint:"unauthenticated"}});
     assert.equal(forbidden.isError,true);
     assert.match(JSON.stringify(forbidden),/PUBLIC_STATUS_ONLY/);
