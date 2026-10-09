@@ -75,6 +75,8 @@ export async function verifyPostgresRuntime(connectionString: string): Promise<v
     const workforce = new PostgresWorkforceStore(app);
     const actorA = await workforce.register(companyA,"oauth:chatgpt:client-a","chatgpt",["analysis"]);
     const actorB = await workforce.register(companyA,"oauth:claude:client-b","claude",["review"]);
+    const duplicateActor=await workforce.register(companyA,"oauth:chatgpt:client-a","chatgpt",["analysis"]);
+    assert(duplicateActor.id===actorA.id,"worker registration not stable across reconnect");
     const otherTenant = await workforce.register(companyB,"oauth:grok:client-c","grok",["review"]);
     await workforce.allowSource(companyA,actorB.id,actorA.id);
     assert(await workforce.sourceAllowed(companyA,actorB.id,actorA.id),"sender consent not saved");

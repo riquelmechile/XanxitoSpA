@@ -17,6 +17,8 @@ describe("Company-scoped multi-host Workforce",()=>{
     await expect(h.workforce.register({hostHint:"claude",capabilities:[]},{...h.alice,authenticated:false})).rejects.toThrow("WORKFORCE_AUTHENTICATED_SUBJECT_REQUIRED");
     await expect(h.workforce.register({hostHint:"chatgpt",capabilities:[]},{principal:h.alice.principal,scopes:[...h.alice.scopes],authenticated:true})).rejects.toThrow("WORKFORCE_AUTHENTICATED_CLIENT_ID_REQUIRED");
     const x=await h.workforce.register({hostHint:"chatgpt",capabilities:[]},h.alice);
+    const reused=await h.workforce.register({hostHint:"chatgpt",capabilities:[]},h.alice);
+    expect(reused.workerId).toBe(x.workerId);
     await expect(h.workforce.pickup({workerId:x.workerId},h.bob)).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
     await expect(h.workforce.pickup({workerId:x.workerId},{...h.alice,clientId:"other-client"})).rejects.toThrow("WORKFORCE_ACTOR_NOT_OWNED");
     await expect(h.workforce.pickup({workerId:x.workerId},{...h.alice,scopes:["xspa.read"]})).rejects.toThrow("WORKFORCE_OAUTH_SCOPE_REQUIRED");

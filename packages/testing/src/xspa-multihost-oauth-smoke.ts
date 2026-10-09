@@ -52,6 +52,8 @@ export async function verifyMultiHostOAuth():Promise<void>{
   const writerA=output(await call(chatgpt,"xspa_worker_register",{host_hint:"chatgpt",capabilities:["research"]}));
   const writerB=output(await call(claude,"xspa_worker_register",{host_hint:"claude",capabilities:["review"]}));
   const alice=writerA.workerId as string,bob=writerB.workerId as string;
+  const reconnected=output(await call(chatgpt,"xspa_worker_register",{host_hint:"chatgpt",capabilities:["research"]}));
+  assert(reconnected.workerId===alice,"reconnection generated a new workforce actor");
   assert(Boolean(alice&&bob&&alice!==bob),"opaque identities were not assigned");
   assert(writerA.hostVerified===false,"self-reported ChatGPT label should not certify a provider");
   const list=output(await call(chatgpt,"xspa_worker_list"));

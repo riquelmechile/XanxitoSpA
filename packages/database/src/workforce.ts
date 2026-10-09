@@ -30,6 +30,8 @@ export class InMemoryWorkforceStore implements WorkforceStore {
   async revokeSource(companyId:string,targetId:string,sourceId:string){this.senderAllowlist.delete(JSON.stringify([companyId,targetId,sourceId]));}
   readonly queue=new Map<string,MeshWork>();
   async register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]):Promise<MeshWorker>{
+    const prior=[...this.actors.values()].find(x=>x.companyId===companyId&&x.ownerKey===ownerKey&&x.hostHint===hostHint);
+    if(prior)return clone(prior);
     const a={id:randomUUID(),companyId,ownerKey,hostHint,capabilities:[...capabilities]};this.actors.set(companyId+":"+a.id,a);return clone(a);
   }
   async workers(companyId:string){return [...this.actors.values()].filter(x=>x.companyId===companyId).map(clone);}
@@ -71,7 +73,7 @@ export class PostgresWorkforceStore implements WorkforceStore {
     return this.db.withCompanyTransaction(companyId,async c=>(await c.query("SELECT 1 FROM xspa.workforce_allowed_sources WHERE company_id=$1 AND target_worker_id=$2 AND source_worker_id=$3",[companyId,targetId,sourceId])).rowCount===1);
   }
   async register(companyId:string,ownerKey:string,hostHint:string,capabilities:string[]){
-    return this.db.withCompanyTransaction(companyId,async c=>actor((await c.query<ActorRow>("INSERT INTO xspa.workforce_workers(company_id,worker_id,owner_key,host_hint,capabilities) VALUES($1,$2,$3,$4,$5::jsonb) RETURNING *",[companyId,randomUUID(),ownerKey,hostHint,JSON.stringify(capabilities)])).rows[0]!));
+    return this.db.withCompanyTransaction(companyId,async c=>actor((await c.query<ActorRow>("INSERT INTO xspa.workforce_workers(company_id,worker_id,owner_key,host_hint,capabilities) VALUES($1,$2,$3,$4,$5::jsonb) ON CONFLICT(company_id,owner_key,host_hint) DO UPDATE SET last_seen_at=now() RETURNING *",[companyId,randomUUID(),ownerKey,hostHint,JSON.stringify(capabilities)])).rows[0]!));
   }
   async workers(companyId:string){
     return this.db.withCompanyTransaction(companyId,async c=>(await c.query<ActorRow>("SELECT * FROM xspa.workforce_workers WHERE company_id=$1 ORDER BY registered_at,worker_id",[companyId])).rows.map(actor));
