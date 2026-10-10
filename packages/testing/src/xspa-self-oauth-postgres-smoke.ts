@@ -64,6 +64,13 @@ try{
  const authUrl=root+"/authorize?"+new URLSearchParams(params);
  const authPage=await fetch(authUrl);
  assert.equal(authPage.status,200);
+ // Browser follows 302 from /oauth/consent to ChatGPT's callback on a different
+ // origin. CSP form-action='self' blocks the redirect chain in Chrome (even
+ // when the form's POST target is same-origin), leaving ChatGPT disconnected.
+ const authorizeCsp=authPage.headers.get("content-security-policy")||"";
+ assert.match(authorizeCsp,/default-src 'none'/);
+ assert.match(authorizeCsp,/frame-ancestors 'none'/);
+ assert.doesNotMatch(authorizeCsp,/form-action/i,"OAuth browser callback must not be blocked by form-action CSP");
  assert.match(await authPage.text(),/ChatGPT test OAuth/);
  const wrong=await fetch(root+"/oauth/consent",{method:"POST",body:new URLSearchParams({...params,owner_password:"bad-password",decision:"approve"}),redirect:"manual"});
  assert.equal(wrong.status,403);
