@@ -126,9 +126,12 @@ export class PostgresGrokWakeOutbox {
     const retryDelayMs = ok ? 15 * 60_000 : Math.min(300_000, 5_000 * 2 ** Math.max(0, claim.attempts-1));
     return this.db.withCompanyTransaction(this.companyId, async c => {
       const result = await c.query(`
-        UPDATE xspa.workforce_wake_outbox SET state=$4,
+        UPDATE xspa.workforce_wake_outbox
+        SET state=CASE WHEN $7::boolean AND picked_up_at IS NOT NULL THEN 'observed' ELSE $4 END,
           last_http_status=$5,last_error_category=$6,
           accepted_at=CASE WHEN $7::boolean THEN now() ELSE accepted_at END,
+          observed_at=CASE WHEN $7::boolean AND picked_up_at IS NOT NULL
+            THEN COALESCE(observed_at,now()) ELSE observed_at END,
           next_attempt_at=now()+($8::int*interval '1 millisecond'),
           lease_token=NULL,lease_until=NULL,updated_at=now()
         WHERE company_id=$1 AND delegation_id=$2 AND lease_token=$3::uuid AND state='sending'
