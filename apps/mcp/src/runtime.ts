@@ -222,6 +222,7 @@ export class EnvironmentXspaAppOperations implements XspaAppOperations {
   async workforceDelegate(input:import("./workforce-operations.js").WorkforceDelegateInput,context:XspaRequestContext){return this.requireWorkforce().delegate(input,context);}
   async workforcePickup(input:import("./workforce-operations.js").WorkforceClaimInput,context:XspaRequestContext){return this.requireWorkforce().pickup(input,context);}
   async workforceReceipt(delegationId:string,context:XspaRequestContext){return this.requireWorkforce().receipt(delegationId,context);}
+  async workforceWakeStatus(delegationId:string,context:XspaRequestContext){return this.requireWorkforce().wakeStatus(delegationId,context);}
   async workforceSettle(input:import("./workforce-operations.js").WorkforceSettleInput,context:XspaRequestContext){return this.requireWorkforce().settle(input,context);}
   async workforceRenew(input:import("./workforce-operations.js").WorkforceRenewInput,context:XspaRequestContext){return this.requireWorkforce().renew(input,context);}
 
@@ -1264,7 +1265,7 @@ export async function createEnvironmentXspaAppOperations(): Promise<{ operations
   const operations = new EnvironmentXspaAppOperations({
     ...(store ? { store } : {}),
     ...(workStore ? { workStore } : {}),
-    ...(db && companyId && workStore ? { workforce: new CompanyWorkforceOperations(companyId,new PostgresWorkforceStore(db),workStore) } : {}),
+    ...(db && companyId && workStore ? { workforce: new CompanyWorkforceOperations(companyId,new PostgresWorkforceStore(db,process.env.XSPA_GROK_WAKE_ENABLED==="true"?(process.env.XSPA_GROK_WAKE_WORKER_ID?.trim()??null):null),workStore) } : {}),
     ...(companyId ? { companyId } : {}),
     databaseConfigured: Boolean(store),
     creativeConfigured: Boolean(store),
