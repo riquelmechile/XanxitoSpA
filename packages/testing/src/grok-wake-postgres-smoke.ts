@@ -29,7 +29,7 @@ try {
  check(native?.senderKey===opaque && readyHeader?.senderKey===opaque && directHeader?.senderKey===opaque,
    "Opaque key and copied Cursor Bearer header must normalize identically");
  let injectionBlocked=false;
- try{loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:"Bearer "+opaque+"\\r\\nOther: bad"},companyId,true,true);}
+ try{loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:"Bearer "+opaque+"\r\nOther: bad"},companyId,true,true);}
  catch{injectionBlocked=true;}
  check(injectionBlocked,"HTTP header injection must be blocked");
  const active=new PostgresWorkforceStore(db,target.id);
