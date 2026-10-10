@@ -30,7 +30,8 @@
     "mcp:multihost:oauth:smoke": "tsx packages/testing/src/xspa-multihost-oauth-smoke.ts",
     "mcp:modern:smoke": "tsx packages/testing/src/xspa-mcp-modern-smoke.ts",
     "mcp:public-status:smoke": "tsx packages/testing/src/xspa-public-status-smoke.ts",
-    "mcp:self-oauth:pg:smoke": "tsx packages/testing/src/xspa-self-oauth-postgres-smoke.ts"
+    "mcp:self-oauth:pg:smoke": "tsx packages/testing/src/xspa-self-oauth-postgres-smoke.ts",
+    "mcp:grok-wake:pg:smoke": "tsx packages/testing/src/grok-wake-postgres-smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",
