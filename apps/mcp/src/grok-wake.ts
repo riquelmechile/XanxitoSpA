@@ -60,6 +60,7 @@ type WakeStatusRow = {
   last_error_category: string | null;
   accepted_at: Date | null;
   observed_at: Date | null;
+  picked_up_at: Date | null;
 };
 
 export class PostgresGrokWakeOutbox {
@@ -75,7 +76,17 @@ export class PostgresGrokWakeOutbox {
           WHERE o.company_id=$1 AND o.target_worker_id=$2 AND d.state='pending'
             AND o.attempts < $4 AND o.created_at > now() - interval '24 hours'
             AND ((o.state='pending' AND o.next_attempt_at<=now())
-              OR (o.state='sending' AND o.lease_until<now()))
+              OR (o.state='sending' AND o.lease_until<now())
+              OR (o.state='accepted' AND o.next_attempt_at<=now()))
+            AND NOT EXISTS (
+              SELECT 1 FROM xspa.workforce_wake_outbox another
+              JOIN xspa.workforce_delegations active
+                ON active.company_id=another.company_id AND active.delegation_id=another.delegation_id
+              WHERE another.company_id=o.company_id AND another.target_worker_id=o.target_worker_id
+                AND another.delegation_id<>o.delegation_id
+                AND another.state IN ('accepted','sending')
+                AND active.state IN ('pending','running')
+            )
           ORDER BY o.created_at,o.delegation_id FOR UPDATE OF o SKIP LOCKED LIMIT 1
         )
         UPDATE xspa.workforce_wake_outbox o SET state='sending', attempts=o.attempts+1,
@@ -93,7 +104,7 @@ export class PostgresGrokWakeOutbox {
     const ok = responseStatus !== null && responseStatus >= 200 && responseStatus < 300;
     const permanent = responseStatus !== null && [400,401,403,404,405,410,422].includes(responseStatus);
     const terminal = !ok && (permanent || claim.attempts >= MAX_ATTEMPTS);
-    const retryDelayMs = Math.min(300_000, 5_000 * 2 ** Math.max(0, claim.attempts-1));
+    const retryDelayMs = ok ? 15 * 60_000 : Math.min(300_000, 5_000 * 2 ** Math.max(0, claim.attempts-1));
     return this.db.withCompanyTransaction(this.companyId, async c => {
       const result = await c.query(`
         UPDATE xspa.workforce_wake_outbox SET state=$4,
@@ -111,13 +122,14 @@ export class PostgresGrokWakeOutbox {
   async status(delegationId: string): Promise<object> {
     return this.db.withCompanyTransaction(this.companyId, async c => {
       const r = await c.query<WakeStatusRow>(`
-        SELECT state,attempts,last_http_status,last_error_category,accepted_at,observed_at
+        SELECT state,attempts,last_http_status,last_error_category,accepted_at,observed_at,picked_up_at
         FROM xspa.workforce_wake_outbox WHERE company_id=$1 AND delegation_id=$2
       `, [this.companyId,delegationId]);
       const row = r.rows[0];
       return row ? { state:row.state, attempts:row.attempts, lastHttpStatus:row.last_http_status,
         lastErrorCategory:row.last_error_category, signalAcceptedAt:row.accepted_at?.toISOString()??null,
-        wakeObservedAt:row.observed_at?.toISOString()??null, modelExecutionObserved:false }
+        wakeObservedAt:row.observed_at?.toISOString()??null,
+        pickupObservedAt:row.picked_up_at?.toISOString()??null, modelExecutionObserved:false }
         : {state:"not-configured",attempts:0,modelExecutionObserved:false};
     });
   }
