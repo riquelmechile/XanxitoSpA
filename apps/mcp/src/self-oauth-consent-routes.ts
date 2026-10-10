@@ -14,7 +14,10 @@ export function mountOAuthConsentRoutes(app:{get:(...a:any[])=>any;post:(...a:an
    };
    const hidden=Object.entries(form).map(([k,v])=>'<input type="hidden" name="'+k+'" value="'+stripHtml(v)+'">').join("");
    res.set("Cache-Control","no-store");
-   res.set("Content-Security-Policy","default-src 'none'; form-action 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
+   // Do not set form-action: Chrome applies it to every redirect after the consent POST,
+   // including ChatGPT's cross-origin OAuth callback and its subsequent redirect chain.
+   // The consent form itself still submits to a fixed same-origin endpoint.
+   res.set("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
    res.type("html").send(
     '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>XanxitoSpA OAuth</title>'+
     '<style>body{background:#101827;color:#f9fbff;font:16px system-ui;display:grid;place-items:center;min-height:90vh}main{max-width:450px;padding:26px;background:#1b293d;border-radius:14px}input,button{width:100%;box-sizing:border-box;padding:12px;margin:10px 0}button{background:#4ae0bf}code{overflow-wrap:anywhere}</style>'+
