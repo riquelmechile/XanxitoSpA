@@ -63,7 +63,7 @@ export class CompanyWorkforceOperations {
   async receipt(delegationId:string,ctx:WorkforceCaller){
     const key=this.identity(ctx,false);
     const item=await this.store.receipt(this.companyId,delegationId);
-    if(!item)return {state:"not-found"};
+    if(!item)return {state:"not-found",resultText:null};
     const source=await this.store.worker(this.companyId,item.sourceWorkerId);
     const target=await this.store.worker(this.companyId,item.targetWorkerId);
     if(source?.ownerKey!==key&&target?.ownerKey!==key)throw Error("WORKFORCE_RECEIPT_DENIED");
