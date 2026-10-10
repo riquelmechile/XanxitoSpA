@@ -229,7 +229,21 @@ function safeToolError(error: unknown): string {
     .replace(/((?:api[_-]?key|password|secret|token)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
     .slice(0, 300);
 }
-function toolResult(data: unknown, text: string) { return { content: [{ type: "text" as const, text }], structuredContent: data && typeof data === "object" ? data as Record<string, unknown> : { result: data } }; }
+const WORKFORCE_VISIBLE_RESULTS = new Set([
+  "XanxitoSpA status loaded.", "Worker registered.", "Workers loaded.",
+  "Source worker accepted.", "Source worker revoked.", "Delegation queued.",
+  "Pickup checked.", "Receipt loaded.", "Lease renewed.", "Delegation settled."
+]);
+function toolResult(data: unknown, text: string) {
+  const structuredContent = data && typeof data === "object" ? data as Record<string, unknown> : { result: data };
+  // Some MCP hosts forward content[].text but discard structuredContent. Keep
+  // the structured payload unchanged and expose authorized Workforce receipts
+  // as text so the recipient can see delegationId and leaseGeneration.
+  const readable = WORKFORCE_VISIBLE_RESULTS.has(text)
+    ? JSON.stringify(structuredContent)
+    : text;
+  return { content: [{ type: "text" as const, text: readable }], structuredContent };
+}
 
 function parseWorkCreate(args: unknown): WorkCreateInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
