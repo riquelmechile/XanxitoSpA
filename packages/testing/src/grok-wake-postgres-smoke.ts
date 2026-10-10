@@ -3,7 +3,7 @@ import {PostgresDatabase,PostgresCompanyStore} from "../../database/src/postgres
 import {PostgresWorkforceStore} from "../../database/src/workforce.js";
 import {PostgresGrokWakeOutbox,dispatchGrokWakeOnce,type GrokWakeConfig} from "../../../apps/mcp/src/grok-wake.js";
 
-const check=(value:unknown,message:string):asserts value=>{if(!value)throw Error(message);};
+function check(value:unknown,message:string):asserts value {if(!value)throw Error(message);}
 const dsn=process.env.XSPA_TEST_DATABASE_URL;
 if(!dsn||!["localhost","127.0.0.1"].includes(new URL(dsn).hostname))throw Error("Loopback CI PostgreSQL required");
 const db=new PostgresDatabase(dsn);
