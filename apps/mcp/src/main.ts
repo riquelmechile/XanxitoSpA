@@ -4,6 +4,8 @@ import { listenXspaMcp } from "./server.js";
 import { SelfHostedOAuth } from "./self-oauth.js";
 import { createPasswordHash } from "./self-oauth-core.js";
 import type { JWK } from "jose";
+import { loadGrokWakeConfig, PostgresGrokWakeOutbox, startGrokWakeDispatcher } from "./grok-wake.js";
+import { PostgresWorkforceStore } from "../../../packages/database/src/workforce.js";
 
 const { operations, close, oauthDb } = await createEnvironmentXspaAppOperations();
 const port = Number(process.env.PORT ?? process.env.XSPA_MCP_PORT ?? 3211);
@@ -27,6 +29,14 @@ const oauth=oauthIssuer?.config ?? loadXspaOAuthConfig();
 if (publicStatusOnly && (oauth || process.env.XSPA_AUTHORITY_TRUST_ANCHORS_JSON)) {
   await close();
   throw new Error("PUBLIC_STATUS_ONLY forbids OAuth/authority-root config; Company storage may be initialized but business tools stay blocked");
+}
+const grokWake = loadGrokWakeConfig(process.env,process.env.XSPA_COMPANY_ID?.trim(),Boolean(oauthDb),Boolean(oauth&&!publicStatusOnly));
+if(grokWake && oauthDb){
+  const worker = await new PostgresWorkforceStore(oauthDb).worker(grokWake.companyId,grokWake.workerId);
+  if(!worker || worker.hostHint!=="grok-bot"){
+    await close();
+    throw Error("XSPA_GROK_WAKE_TARGET_NOT_REGISTERED_GROK_BOT");
+  }
 }
 const allowedHosts = [...new Set([
   ...(process.env.XSPA_MCP_ALLOWED_HOSTS?.split(",").map((value) => value.trim()).filter(Boolean) ?? []),
@@ -52,10 +62,14 @@ const server = await listenXspaMcp({
   port,
 });
 
+const stopGrokWake = grokWake && oauthDb
+  ? startGrokWakeDispatcher(grokWake,new PostgresGrokWakeOutbox(oauthDb,grokWake.companyId))
+  : undefined;
 console.log(`XanxitoSpA MCP listening on ${host}:${port}/mcp`);
 
 async function shutdown() {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  stopGrokWake?.();
   await close();
 }
 
