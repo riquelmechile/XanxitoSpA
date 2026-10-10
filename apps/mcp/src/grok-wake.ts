@@ -69,6 +69,20 @@ export class PostgresGrokWakeOutbox {
   async claim(workerId: string): Promise<GrokWakeClaim | null> {
     const token = randomUUID();
     return this.db.withCompanyTransaction(this.companyId, async c => {
+      // One company+target may dispatch one signal at a time even across
+      // multiple Railway replicas: serialize the claim on an advisory xact lock.
+      const locked=await c.query<{locked:boolean}>(
+        "SELECT pg_try_advisory_xact_lock(hashtext($1),hashtext($2)) AS locked",
+        [this.companyId,workerId]);
+      if(!locked.rows[0]?.locked)return null;
+      // A Routine that repeatedly accepted a webhook but never picked up
+      // should not block this worker's queue forever.
+      await c.query(`
+        UPDATE xspa.workforce_wake_outbox
+        SET state='failed',last_error_category='signal_unobserved_after_max_attempts',updated_at=now()
+        WHERE company_id=$1 AND target_worker_id=$2
+          AND state='accepted' AND attempts >= $3 AND next_attempt_at <= now()
+      `,[this.companyId,workerId,MAX_ATTEMPTS]);
       const found = await c.query<WakeRow>(`
         WITH candidate AS (
           SELECT o.delegation_id FROM xspa.workforce_wake_outbox o
