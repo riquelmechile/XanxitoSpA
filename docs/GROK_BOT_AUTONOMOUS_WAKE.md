@@ -22,7 +22,7 @@ The outbox deduplicates delegation retries, leases sender attempts against concu
 3. In the Grok Bot routine panel, copy its **new** webhook URL and sending key. They are NOT the Xanxittoo values. Do not paste the key into ChatGPT or GitHub.
 4. In Railway project `xanxitospa` → environment `staging` → service `xspa-mcp` → Variables, create:
    - `XSPA_GROK_WAKE_URL`: the new routine webhook URL (must be HTTPS at `api2.cursor.sh`)
-   - `XSPA_GROK_WAKE_SECRET`: native routine sender key (`crsr_...`); mark sealed
+   - `XSPA_GROK_WAKE_SECRET`: opaque API key shown as `key` in Grok Bot, or the entire `Authorization: Bearer ...` header; mark sealed. The provider does not guarantee a `crsr_` prefix.
    - `XSPA_GROK_WAKE_WORKER_ID`: `d40141dc-3640-40ae-8b09-fe70d5496a84`
    - `XSPA_GROK_WAKE_ENABLED`: `true`
    - optional `XSPA_GROK_WAKE_INTERVAL_MS`: `4000`
