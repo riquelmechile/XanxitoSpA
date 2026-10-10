@@ -67,7 +67,11 @@ export class CompanyWorkforceOperations {
     const source=await this.store.worker(this.companyId,item.sourceWorkerId);
     const target=await this.store.worker(this.companyId,item.targetWorkerId);
     if(source?.ownerKey!==key&&target?.ownerKey!==key)throw Error("WORKFORCE_RECEIPT_DENIED");
-    return {delegationId:item.id,state:item.state,workId:item.workId,sourceWorkerId:item.sourceWorkerId,targetWorkerId:item.targetWorkerId,leaseGeneration:item.leaseGeneration,leaseUntil:item.leaseUntil,resultText:item.resultText};
+    // Include sanitized wake evidence in the already-authorized Workforce
+    // receipt so text-only OAuth host connectors can diagnose Routine delivery
+    // without requiring a plugin reconnect for a newly added tool.
+    const wake=await this.store.wakeStatus?.(this.companyId,delegationId);
+    return {delegationId:item.id,state:item.state,workId:item.workId,sourceWorkerId:item.sourceWorkerId,targetWorkerId:item.targetWorkerId,leaseGeneration:item.leaseGeneration,leaseUntil:item.leaseUntil,resultText:item.resultText,...(wake?{wake}:{})};
   }
   async settle(input:WorkforceSettleInput,ctx:WorkforceCaller){
     const key=this.identity(ctx,true);await this.owned(input.workerId,key);
