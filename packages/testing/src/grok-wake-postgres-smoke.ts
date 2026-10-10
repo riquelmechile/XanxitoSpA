@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {PostgresDatabase,PostgresCompanyStore} from "../../database/src/postgres.js";
 import {PostgresWorkforceStore} from "../../database/src/workforce.js";
-import {PostgresGrokWakeOutbox,dispatchGrokWakeOnce,type GrokWakeConfig} from "../../../apps/mcp/src/grok-wake.js";
+import {PostgresGrokWakeOutbox,dispatchGrokWakeOnce,loadGrokWakeConfig,type GrokWakeConfig} from "../../../apps/mcp/src/grok-wake.js";
 
 function check(value:unknown,message:string):asserts value {if(!value)throw Error(message);}
 const dsn=process.env.XSPA_TEST_DATABASE_URL;
@@ -18,6 +18,20 @@ try {
  const source=await original.register(companyId,"sender","chatgpt",[]);
  const target=await original.register(companyId,"recipient","grok-bot",[]);
  await original.allowSource(companyId,target.id,source.id);
+ const baseEnv:NodeJS.ProcessEnv={
+   XSPA_GROK_WAKE_ENABLED:"true",XSPA_GROK_WAKE_WORKER_ID:target.id,
+   XSPA_GROK_WAKE_URL:"https://api2.cursor.sh/routine-test",
+ };
+ const opaque="opaqueNativeKey1234567890/+-_=";
+ const native=loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:opaque},companyId,true,true);
+ const readyHeader=loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:"Authorization: Bearer "+opaque},companyId,true,true);
+ const directHeader=loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:"Bearer "+opaque},companyId,true,true);
+ check(native?.senderKey===opaque && readyHeader?.senderKey===opaque && directHeader?.senderKey===opaque,
+   "Opaque key and copied Cursor Bearer header must normalize identically");
+ let injectionBlocked=false;
+ try{loadGrokWakeConfig({...baseEnv,XSPA_GROK_WAKE_SECRET:"Bearer "+opaque+"\\r\\nOther: bad"},companyId,true,true);}
+ catch{injectionBlocked=true;}
+ check(injectionBlocked,"HTTP header injection must be blocked");
  const active=new PostgresWorkforceStore(db,target.id);
  const item={id:randomUUID(),companyId,sourceWorkerId:source.id,targetWorkerId:target.id,workId,
   instruction:"INTERNAL_ONLY",idempotencyKey:"test-wake-idem",fingerprint:"test-wake-fingerprint",
