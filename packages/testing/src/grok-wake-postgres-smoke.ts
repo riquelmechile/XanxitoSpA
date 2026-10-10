@@ -36,6 +36,9 @@ try {
  const item={id:randomUUID(),companyId,sourceWorkerId:source.id,targetWorkerId:target.id,workId,
   instruction:"INTERNAL_ONLY",idempotencyKey:"test-wake-idem",fingerprint:"test-wake-fingerprint",
   state:"pending" as const,leaseGeneration:0,leaseUntil:null,resultText:null,createdAt:new Date().toISOString()};
+ // A disconnected previous manual test must not hijack this Routine wake.
+ const oldPending=await original.delegate({...item,id:randomUUID(),
+   fingerprint:"legacy-unsignaled-fingerprint",idempotencyKey:"legacy-unsignaled"});
  const first=await active.delegate(item);
  const second=await active.delegate({...item,id:randomUUID()});
  check(first.id===second.id,"duplicate queued work");
@@ -53,7 +56,9 @@ try {
  const repeated=await dispatchGrokWakeOnce(config,outbox,async()=>{throw Error("unexpected retry")});
  check(repeated.state==="idle","accepted wake sent again");
  const claim=await active.pickup(companyId,target.id,30000);
- check(claim?.id===first.id&&claim.leaseGeneration===1,"target failed to claim work");
+ check(claim?.id===first.id&&claim.leaseGeneration===1,"target failed to prioritize webhook-signaled work");
+ check((await original.receipt(companyId,oldPending.id))?.state==="pending",
+   "an older unsignaled delegation stole the webhook claim");
  const observed=await outbox.status(first.id) as {state:string;wakeObservedAt:string|null;modelExecutionObserved:boolean};
  check(observed.state==="observed"&&!!observed.wakeObservedAt&&!observed.modelExecutionObserved,"pickup evidence missing");
  const other=await new PostgresGrokWakeOutbox(db,foreignId).status(first.id) as {state:string};
