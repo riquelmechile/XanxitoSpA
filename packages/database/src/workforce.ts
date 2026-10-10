@@ -114,8 +114,10 @@ export class PostgresWorkforceStore implements WorkforceStore {
         // Pickup from the OAuth-bound target proves the host consumed work.
         // HTTP acceptance alone never changes this state.
         await c.query(`UPDATE xspa.workforce_wake_outbox
-          SET state='observed',observed_at=COALESCE(observed_at,now()),
-          lease_token=NULL,lease_until=NULL,updated_at=now()
+          SET picked_up_at=COALESCE(picked_up_at,now()),
+          state=CASE WHEN state='accepted' THEN 'observed' ELSE state END,
+          observed_at=CASE WHEN state='accepted' THEN COALESCE(observed_at,now()) ELSE observed_at END,
+          updated_at=now()
           WHERE company_id=$1 AND delegation_id=$2 AND state IN ('pending','sending','accepted','failed')`,
           [companyId,r.rows[0].delegation_id]);
       }
@@ -126,14 +128,14 @@ export class PostgresWorkforceStore implements WorkforceStore {
     return this.db.withCompanyTransaction(companyId,async c=>{
       const r=await c.query<{
         state:string;attempts:number;last_http_status:number|null;
-        last_error_category:string|null;accepted_at:Date|null;observed_at:Date|null;
-      }>(`SELECT state,attempts,last_http_status,last_error_category,accepted_at,observed_at
+        last_error_category:string|null;accepted_at:Date|null;observed_at:Date|null;picked_up_at:Date|null;
+      }>(`SELECT state,attempts,last_http_status,last_error_category,accepted_at,observed_at,picked_up_at
          FROM xspa.workforce_wake_outbox WHERE company_id=$1 AND delegation_id=$2`,[companyId,delegationId]);
       const row=r.rows[0];
       return row?{state:row.state,attempts:row.attempts,lastHttpStatus:row.last_http_status,
         lastErrorCategory:row.last_error_category,
         signalAcceptedAt:row.accepted_at?.toISOString()??null,
-        wakeObservedAt:row.observed_at?.toISOString()??null,modelExecutionObserved:false}
+        wakeObservedAt:row.observed_at?.toISOString()??null,pickupObservedAt:row.picked_up_at?.toISOString()??null,modelExecutionObserved:false}
         :{state:"not-configured",attempts:0,modelExecutionObserved:false};
     });
   }
