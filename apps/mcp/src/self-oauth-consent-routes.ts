@@ -37,7 +37,24 @@ export function mountOAuthConsentRoutes(app:{get:(...a:any[])=>any;post:(...a:an
     const next=old&&old.until>now?old:{failures:0,until:now+900000};
     next.failures++;throttle.set(ip,next);
     if(throttle.size>512)throttle.clear();
-    oauthError(res,"access_denied",403);return;
+    // Return a useful browser page while preserving 403 for security monitoring.
+    // The retry URL only contains non-secret OAuth client request parameters.
+    const retry=new URL("/authorize",ctx.config.issuer);
+    for(const [k,v] of Object.entries({
+      response_type:"code",client_id:p.id,redirect_uri:p.redirect,
+      code_challenge:p.challenge,code_challenge_method:"S256",
+      scope:p.scope,resource:p.resource,state:p.state
+    }))retry.searchParams.set(k,v);
+    res.set("Cache-Control","no-store");
+    res.set("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
+    res.status(403).type("html").send(
+      '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+      '<title>XanxitoSpA | Autorización denegada</title>'+
+      '<style>body{background:#101827;color:#f9fbff;font:16px system-ui;display:grid;place-items:center;min-height:90vh}main{max-width:440px;background:#1b293d;padding:28px;border-radius:16px}a{display:inline-block;background:#4ae0bf;color:#101827;padding:12px;border-radius:8px;font-weight:700;text-decoration:none}</style>'+
+      '<main><h2>Contraseña no válida</h2><p>La contraseña del propietario no coincide. Comprueba la variable XSPA_SELF_OAUTH_OWNER_PASSWORD en Railway y evita el autocompletado del navegador.</p>'+
+      '<p>El cliente MCP no se ha autorizado. Puedes volver al formulario sin repetir la configuración.</p>'+
+      '<a href="'+stripHtml(retry.toString())+'">Volver al formulario OAuth</a></main></html>');
+    return;
    }
    throttle.delete(ip);
    const code=newSecret(36);
