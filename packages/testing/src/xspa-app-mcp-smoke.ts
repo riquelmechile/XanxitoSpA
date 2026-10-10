@@ -13,13 +13,23 @@ export async function verifyXspaAppMcp(): Promise<void> {
   const operations: XspaAppOperations = {
     status: async () => ({
       version: "1.0.0",
-      modelLaw: { executive: "gpt-5.6-sol/max", branches: "gpt-5.6-sol/xhigh", fallback: false },
+      modelLaw: { executive: "gpt-6-astra/max", branches: "host-role-configured", fallback: false, hostExecutionObserved: false },
       mcp: { ready: true, mode: "streamable-http" },
       database: { configured: true }, companyOs: { ready: true, intakeModes: ["new", "existing"], lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] },
       creative: { configured: true, renderer: "chatgpt-host-native-tooling", chatMode: "mcp-host-only", video: "staged" },
       kast: { configured: true, execution: "queued" },
       skills: { configured: true, healthy: true, indexed: 2, activeCompanyCatalog: 1 },
     }),
+    workforceRegister: async () => ({workerId:"00000000-0000-4000-8000-000000000001"}),
+    workforceWorkers: async () => ({workers:[]}),
+    workforceAllowSource: async () => ({accepted:true}),
+    workforceRevokeSource: async () => ({accepted:false}),
+    workforceDelegate: async () => ({state:"pending"}),
+    workforcePickup: async () => ({state:"empty"}),
+    workforceReceipt: async () => ({state:"not-found"}),
+    workforceWakeStatus: async () => ({state:"not-configured",attempts:0,modelExecutionObserved:false}),
+    workforceSettle: async () => ({state:"completed"}),
+    workforceRenew: async () => ({renewed:true}),
     workCreate: async (input) => {
       calls.push(`work:${input.workId}`);
       return { work: { id: input.workId, owner: input.owner, objective: input.objective, scope: input.scope }, status: "created", companyScoped: true, grantsAuthority: false, grantsBudget: false };
@@ -76,7 +86,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const metadata = { headers: { Authorization: `Bearer ${authToken}` } };
     const tools = await transport.listTools(metadata);
     const names = tools.map((tool) => tool.name).sort();
-    for (const required of ["xspa_status", "xspa_company_discovery_plan", "xspa_company_discovery_apply", "xspa_company_discovery_status", "xspa_company_discovery_orchestrate", "xspa_authority_root_enrollment_prepare", "xspa_authority_root_enrollment_verify", "xspa_authority_root_enrollment_status", "xspa_authority_mandate_verify", "xspa_authority_mandate_apply", "xspa_authority_mandate_status", "xspa_company_wake_evaluate", "xspa_company_wake_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
+    for (const required of ["xspa_status", "xspa_company_discovery_plan", "xspa_company_discovery_apply", "xspa_company_discovery_status", "xspa_company_discovery_orchestrate", "xspa_authority_root_enrollment_prepare", "xspa_authority_root_enrollment_verify", "xspa_authority_root_enrollment_status", "xspa_authority_mandate_verify", "xspa_authority_mandate_apply", "xspa_authority_mandate_status", "xspa_company_wake_evaluate", "xspa_company_wake_status", "xspa_company_plan", "xspa_company_apply", "xspa_company_status", "xspa_worker_register","xspa_worker_list","xspa_workforce_allow_source","xspa_workforce_revoke_source","xspa_workforce_delegate","xspa_workforce_pickup","xspa_workforce_receipt","xspa_workforce_complete","xspa_workforce_renew", "xspa_work_create", "xspa_work_get", "xspa_kast_status", "xspa_asset_get", "xspa_creative_submit", "xspa_creative_status", "xspa_skills_list", "xspa_skills_search", "xspa_skill_get", "xspa_skill_install", "xspa_skills_health", "xspa_company_skill_plan", "xspa_autoskill_propose", "xspa_skill_global_promotion_propose", "xspa_kast_reflect"]) {
       assert(names.includes(required), `missing app MCP tool ${required}`);
     }
 
@@ -98,7 +108,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     const status = await transport.callTool("xspa_status", {}, metadata);
     assert(status.ok, "xspa_status failed");
     const statusText = JSON.stringify(status.content);
-    assert(statusText.includes("gpt-5.6-sol/max") && statusText.includes("gpt-5.6-sol/xhigh"), "app MCP status lost Model Law");
+    assert(statusText.includes("gpt-6-astra/max") && statusText.includes("host-role-configured"), "app MCP status lost Model Law");
     assert(!statusText.includes(authToken), "app MCP result leaked auth token");
 
     const workId = "22222222-2222-4222-8222-222222222222";

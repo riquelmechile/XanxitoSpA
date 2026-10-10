@@ -12,6 +12,7 @@ export interface XspaOAuthConfig {
 export interface XspaAuthContext {
   authenticated: boolean;
   subject?: string;
+  clientId?: string;
   scopes: string[];
 }
 
@@ -48,8 +49,10 @@ export function protectedResourceMetadata(config: XspaOAuthConfig) {
   };
 }
 
+export function protectedResourceMetadataUrl(config: XspaOAuthConfig):string { const u=new URL(config.resource); return u.origin+"/.well-known/oauth-protected-resource"+(u.pathname==="/"?"":u.pathname.replace(/\/$/,"")); }
+
 export function oauthChallenge(config: XspaOAuthConfig, scope: string, reason = "Authentication required"): string {
-  return `Bearer resource_metadata="${config.resource}/.well-known/oauth-protected-resource", scope="${scope}", error="insufficient_scope", error_description="${reason.replace(/[\"\\]/g, "")}"`;
+  return `Bearer resource_metadata="${protectedResourceMetadataUrl(config)}", scope="${scope}", error="insufficient_scope", error_description="${reason.replace(/[\"\\]/g, "")}"`;
 }
 
 function parseScopes(payload: Record<string, unknown>): string[] {
@@ -75,6 +78,7 @@ export class JwtOAuthVerifier {
       return {
         authenticated: true,
         ...(typeof payload.sub === "string" ? { subject: payload.sub } : {}),
+        ...(typeof payload.client_id === "string" ? { clientId: payload.client_id } : typeof payload.azp === "string" ? { clientId: payload.azp } : {}),
         scopes: parseScopes(payload),
       };
     } catch {
@@ -87,9 +91,9 @@ export function hasScope(context: XspaAuthContext, scope: string): boolean {
   return context.authenticated && context.scopes.includes(scope);
 }
 
-export function assertMcpDeploymentAuth(input: { host: string; oauth: XspaOAuthConfig | null; internalAuthToken?: string }): void {
+export function assertMcpDeploymentAuth(input: { host: string; oauth: XspaOAuthConfig | null; internalAuthToken?: string; publicStatusOnly?: boolean }): void {
   const loopback = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
   if (loopback.has(input.host)) return;
   if (input.internalAuthToken) throw new Error("XSPA_MCP_INTERNAL_BEARER is loopback-only; remote XanxitoSpA MCP must use OAuth");
-  if (!input.oauth) throw new Error("Remote XanxitoSpA MCP requires OAuth configuration; unauthenticated remote app mode is forbidden");
+  if (!input.oauth && !input.publicStatusOnly) throw new Error("Remote XanxitoSpA MCP requires OAuth configuration; unauthenticated remote app mode is forbidden");
 }

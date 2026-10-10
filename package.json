@@ -26,15 +26,24 @@
     "mcp:app:smoke": "tsx packages/testing/src/xspa-app-mcp-smoke.ts",
     "mcp:app:start": "node dist/apps/mcp/src/main.js",
     "mcp:app:oauth:smoke": "tsx packages/testing/src/xspa-app-oauth-smoke.ts",
-    "skills:check": "tsx scripts/validate-skill-registry.ts"
+    "skills:check": "tsx scripts/validate-skill-registry.ts",
+    "mcp:multihost:oauth:smoke": "tsx packages/testing/src/xspa-multihost-oauth-smoke.ts",
+    "mcp:modern:smoke": "tsx packages/testing/src/xspa-mcp-modern-smoke.ts",
+    "mcp:public-status:smoke": "tsx packages/testing/src/xspa-public-status-smoke.ts",
+    "mcp:self-oauth:pg:smoke": "tsx packages/testing/src/xspa-self-oauth-postgres-smoke.ts",
+    "mcp:grok-wake:pg:smoke": "tsx packages/testing/src/grok-wake-postgres-smoke.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@modelcontextprotocol/express": "2.0.2",
+    "@modelcontextprotocol/node": "2.1.1",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@modelcontextprotocol/server": "2.3.1",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "0.221.0",
     "@opentelemetry/sdk-trace-base": "2.10.0",
     "ajv": "8.20.0",
-    "fastify": "5.12.1",
+    "fastify": "5.12.5",
     "jose": "6.2.10",
     "pg": "8.23.0"
   },
@@ -45,5 +54,15 @@
     "tsx": "4.23.12",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
+  },
+  "pnpm": {
+    "overrides": {
+      "proxy-addr": "2.0.8",
+      "fast-uri@^3.0.0": "3.1.8",
+      "fast-uri@^4.0.0": "4.1.5",
+      "hono": "4.13.7",
+      "qs": "6.16.0",
+      "ip-address": "10.7.1"
+    }
   }
 }

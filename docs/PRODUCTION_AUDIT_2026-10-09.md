@@ -1,0 +1,80 @@
+# Auditoría actualizada, 2026-10-09 20:50 UTC
+
+**Conexión OAuth en staging: PREPARADA, pero no hay anfitrión autenticado observado. Autonomía en producción: NO APROBADA.**
+
+Evidencias nuevas y verificables:
+
+- GitHub `d8958766d2777dbc5b9c9a9ef7cd9d34b381662c`: CI `37989559368` success; PostgreSQL 18, OAuth PKCE/refresh con registro de worker autenticado, y restore drill `pg_dump/pg_restore` en base descartable.
+- Railway `xspa-mcp` staging: código `fcc3e05ed13f735eb11b741b44aad65e8604a9f7`, despliegue SUCCESS. OAuth explícitamente habilitado y protegido por JWT.
+- Comprobación externa `node scripts/audit-stage.mjs --require-discovery`: `discoveryReady=true`; health, OAuth AS metadata, PRM, JWKS público, Agent Card A2A y HTTP 401 en MCP anónimo: todos OK.
+- `POST /register` desde una máquina externa devuelve HTTP 201. `@Xspa` anterior, instalado sin auth, falló internamente al consultarse después de activar OAuth. **Debe reconectarse y consentir desde la aplicación anfitriona.**
+- La prueba externa con contraseña temporal no pudo completarse desde la herramienta por controles de seguridad. `authenticatedHostReady=false`; no se afirmó un GPT, Claude, Grok o Spark real conectado.
+- Se generó y almacenó una firma privada Ed25519 en Railway (sin copiarla al repositorio). El JWKS remoto exhibe solo clave pública. **Las variables sensibles aún no están marcadas Sealed**. En staging se debe leer/rotar la contraseña temporal y luego sellar tanto contraseña como clave JWK desde el dashboard Railway.
+- El ensayo de restauración realizado en CI **no es** un respaldo externo de la base Railway ni prueba de PITR/volumen real. Para producción habilitar Volume Backups + PITR y ejecutar un ensayo sobre un clon, sin tocar la base origen.
+- Revisión independiente Xanxito 4R: candidato #833 pendiente. `main` sin protección verificada; raíz legal Founder/Owner no inscrita; wake host-native no observado. Esos tres bloquean producción autónoma.
+
+**Rutas efectivas en staging**: `https://xspa-mcp-staging.up.railway.app/mcp`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource/mcp`, `/oauth/jwks`, `/.well-known/agent-card.json`.
+
+El servidor está listo para **intentar** el consentimiento personal de ChatGPT mediante OAuth. La autorización y la ejecución de una delegación real deben ser observadas antes de marcar el host como conectado.
+
+---
+
+## Hallazgos del corte previo (históricos; la evaluación actual está arriba)
+
+# Auditoría de puesta en marcha de XanxitoSpA — 2026-10-09
+
+**Veredicto: NO LISTO para que únicamente queden las autorizaciones de ChatGPT/Claude/Grok/Spark.** Este informe distingue código aprobado, servicio realmente publicado y pruebas contra anfitriones reales. No convierte simulaciones en evidencia de modelos externos conectados.
+
+## Sonda remota independiente, 2026-10-09 15:27 UTC\n\nEjecutado `node scripts/audit-stage.mjs` contra `https://xspa-mcp-staging.up.railway.app/mcp`. Observación: `/health` 200, protocolo `modern`, única tool `xspa_status`, `anonymousWorkerRegistrationDenied=true`, `access.mode=status-only`, `oauthConfigured=false`, `database.configured=true`, `companyOs.ready=true`, `workforce.configured=true`, `hostConnectionsVerified=false`, `automaticWake=false`. Metadata OAuth AS/PRM y Agent Card: 404. `readyForAccountConnection=false`.\n\n**Versión exacta en Railway:** `56eb36816f8113bb9dd5044112248fd8b2cec409` (source pin verificado en Railway `describe_service`). La CI de PR en SHA posterior no representa despliegue.\n\n**Prueba local adicional:** Vitest 39 archivos y 125 pruebas pass, 1 skipped; `pnpm audit --prod --audit-level=moderate` sin vulnerabilidades conocidas. No hay evidencia de ensayo de restore.\n\n## Evidencia observada
+
+| Control | Observado | Estado |
+|---|---|---|
+| GitHub feature branch | SHA `ba41d967f8719585b1fe81ac08832a87adcc08b2` | CI `37951625778` success |
+| PR #1 | 0 revisiones aprobadas; SHA de revisión 4R pendiente corresponde al antiguo `62b2bd0` | BLOQUEO |
+| GitHub `main` | GitHub REST responde `Branch not protected` | BLOQUEO |
+| Railway staging | `xspa-mcp` y `Postgres` con último deployment SUCCESS | OK, pero no equivale a este SHA |
+| Health remoto | `GET /health` HTTP 200 | OK |
+| OAuth issuer remoto | `GET /.well-known/oauth-authorization-server` HTTP 404 | BLOQUEO |
+| OAuth protected-resource remoto | `GET /.well-known/oauth-protected-resource/mcp` HTTP 404 | BLOQUEO |
+| Agent Card remota | `GET /.well-known/agent-card.json` HTTP 404 | BLOQUEO |
+| ChatGPT @Xspa | MCP accesible con herramienta `xspa_status`, `XSPA_PUBLIC_STATUS_ONLY=true` | Solo diagnóstico |
+| Company OS / Workforce | PostgreSQL tenant, migraciones Workforce y store configurados en staging; actor OAuth externo no registrado | Backend presente, no operativo multi-host real |
+| A2A 1.0 | Agent Card, `SendMessage`, `GetTask` y guards en PR; pruebas OAuth locales simuladas y CI verde | Código preparado, no publicado activo |
+| Wake automático | Sin puente host-native verificado; GitHub/Gmail externos y presencia observada no equivalen a ejecución | BLOQUEO |
+| Claves Owner / autoridad | No existe evidencia de una raíz legal/Owner pública efectivamente inscrita | BLOQUEO |
+| Base de datos restauración | PostgreSQL 18 y volumen persistente, pero ningún restore drill certificado | BLOQUEO |
+| Railway IaC | `.railway/railway.ts` en repo; `railway.json` legado todavía existe; plan/apply IaC no confirmado | BLOQUEO operativo |
+| Model Law | `gpt-6-astra/max` es la preferencia declarada; `hostExecutionObserved=false` | Correcto, no prueba host |
+
+## Riesgos de seguridad y conformidad antes de publicar
+
+1. No basta con `JwtOAuthVerifier` para conectar cuentas: solo **verifica** tokens ajenos, no expone Authorization Server. El login/consentimiento, emisión, claves, registro de clientes y refresh/revocación no están terminados. No apagar `XSPA_PUBLIC_STATUS_ONLY` para evitar el problema.
+2. El actor Workforce se deriva de (company ID, `sub`, `client_id`). Un emisor futuro debe dar **subject estable** por propietario para conservar identidad al volver a autorizar; no utilizar `sub` aleatorio en cada consentimiento ni aceptar `hostHint` como identidad verificada.
+3. Owner necesita enroll real, autenticación fuerte, separación respecto a acceso de plataforma y authority trust anchors. Consentir un plugin no equivale a otorgar autoridad empresarial.
+4. El esquema MCP vigente es 2026-07-28; conservar interoperabilidad con 2025-11-25. A2A 1.0 exige verificar en cada llamada el alcance de acceso a tareas; el backend lo restringe por dueño source/target.
+5. El trabajo con anfitriones externos requiere prueba **observada**: OAuth consentido, registro `xspa_worker_register`, aceptación del emisor, delegación por ID, pickup real del host, receipt firmado/autorizado y ejecución de una tarea innocua. Un cliente mock no prueba esto.
+6. Sin mecanismo host-native permitido para despertar una sesión, una cola durable o un comentario GitHub son solo un timbre, no inferencia ejecutada. `provider_api_calls=0` y `server_side_model_workers=0` no permiten resolverlo llamando las APIs de modelos.
+7. `main` desprotegida, sin revisión 4R para SHA vigente y sin ensayo de restauración: ninguna aprobación de producción es válida.
+
+## Código local pendiente de saneamiento
+
+El prototipo incompleto del emisor OAuth y la migración sin seguimiento se aislaron en un `git stash` del checkout temporal, sin incluirlos en el PR ni en Railway. No son autorización lista ni deben exponerse; la implementación autentificada continúa pendiente. El CI verde únicamente ejecuta los archivos versionados.
+
+## Condiciones para estado «solo conectar cuentas»
+
+- Emisor OAuth propio y consent autenticado de Owner, registro de clientes DCR / CIMD compatibles, PKCE S256, JWKS, issuer, audience y refresh/revocación seguros, persistentes y cubiertos por E2E, sin inventar credenciales del usuario.
+- Establecer y validar Owner/Founder trust root y permisos mínimos de empresa.
+- Publicar una compilación exact-SHA segura en Railway con `XSPA_PUBLIC_STATUS_ONLY` apagado **solo cuando** el emisor funcione, PRM y OAuth metadata devuelvan información correcta, y la herramienta no autenticada jamás permita acciones de empresa.
+- A2A 1.0 contract/schema tests y wake de cada plataforma, con deduplicación, retry, límites, recuperación de eventos y evidencia de callback/pickup real.
+- Restore de PostgreSQL documentado y probado; migración IaC sin conflicto con `railway.json`, plan previo y rollback.
+- Cuatro revisiones de seguridad/código/resiliencia, rama principal protegida y CI verde para SHA exacto.
+
+Solo después de cumplir estas condiciones será honesto decir: **falta únicamente que el propietario autorice las cuentas**.
+
+## Referencias
+
+- PR: https://github.com/riquelmechile/XanxitoSpA/pull/1
+- Skills fijadas: `config/skills-library.lock.json`
+- SDK MCP: https://modelcontextprotocol.io/specification/2026-07-28
+- A2A: https://a2a-protocol.org/v1.0.1/specification/
+- Railway IaC: https://docs.railway.com/infrastructure-as-code

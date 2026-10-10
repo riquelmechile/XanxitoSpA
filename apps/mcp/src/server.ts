@@ -1,22 +1,24 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { Server, createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
+import { createMcpExpressApp } from "@modelcontextprotocol/express";
+import { installXspaA2a } from "./a2a.js";
+import type { SelfHostedOAuth } from "./self-oauth.js";
+import type { WorkforceCaller, WorkforceRegisterInput, WorkforceDelegateInput, WorkforceClaimInput, WorkforceSettleInput, WorkforceRenewInput } from "./workforce-operations.js";
 import type { AuthorityMandate, AuthorityRootEnrollmentProof, BusinessCapability, BusinessEvent, BusinessEvidence, BusinessFact, BusinessUnknown, CompanyIntakeInput } from "../../../packages/contracts/src/index.js";
 import { JwtOAuthVerifier, assertMcpDeploymentAuth, hasScope, oauthChallenge, protectedResourceMetadata, type XspaAuthContext, type XspaOAuthConfig } from "./oauth.js";
 
 export interface XspaAppStatus {
   version: string;
-  modelLaw: { executive: "gpt-5.6-sol/max"; branches: "gpt-5.6-sol/xhigh"; fallback: false };
+  modelLaw: { executive: "gpt-6-astra/max"; branches: "host-role-configured"; fallback: false; hostExecutionObserved: false };
   mcp: { ready: boolean; mode: "streamable-http" };
   database: { configured: boolean };
   companyOs: { ready: boolean; intakeModes: ["new", "existing"]; lifecycleModes: ["bootstrap", "operate", "improve", "grow", "expand", "recover", "exit"] };
   creative: { configured: boolean; renderer: "chatgpt-host-native-tooling"; chatMode: "mcp-host-only"; video: "staged" };
   kast: { configured: boolean; execution: "queued" | "available" | "staged" };
   skills: { configured: boolean; healthy: boolean; indexed: number; activeCompanyCatalog: number };
+  workforce?: {configured:boolean; transport:"mcp"; hostConnectionsVerified:false; automaticWake:false};
 }
 
 export interface WorkCreateInput {
@@ -164,10 +166,20 @@ export interface GlobalSkillPromotionInput {
   severity: "low" | "medium" | "high" | "critical";
 }
 
-export interface XspaRequestContext { principal: string; scopes: string[] }
+export interface XspaRequestContext extends WorkforceCaller {}
 export interface XspaAppOperations {
   status(): Promise<XspaAppStatus>;
   workCreate(input: WorkCreateInput, context: XspaRequestContext): Promise<unknown>;
+  workforceRegister(input:WorkforceRegisterInput,context:XspaRequestContext):Promise<unknown>;
+  workforceWorkers(context:XspaRequestContext):Promise<unknown>;
+  workforceAllowSource(input:{targetWorkerId:string;sourceWorkerId:string},context:XspaRequestContext):Promise<unknown>;
+  workforceRevokeSource(input:{targetWorkerId:string;sourceWorkerId:string},context:XspaRequestContext):Promise<unknown>;
+  workforceDelegate(input:WorkforceDelegateInput,context:XspaRequestContext):Promise<unknown>;
+  workforcePickup(input:WorkforceClaimInput,context:XspaRequestContext):Promise<unknown>;
+  workforceReceipt(delegationId:string,context:XspaRequestContext):Promise<unknown>;
+  workforceWakeStatus(delegationId:string,context:XspaRequestContext):Promise<unknown>;
+  workforceSettle(input:WorkforceSettleInput,context:XspaRequestContext):Promise<unknown>;
+  workforceRenew(input:WorkforceRenewInput,context:XspaRequestContext):Promise<unknown>;
   workGet(workId: string, context: XspaRequestContext): Promise<unknown>;
   kastStatus(reflectionId: string, context: XspaRequestContext): Promise<unknown>;
   assetGet(assetId: string, context: XspaRequestContext): Promise<unknown>;
@@ -218,7 +230,21 @@ function safeToolError(error: unknown): string {
     .replace(/((?:api[_-]?key|password|secret|token)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
     .slice(0, 300);
 }
-function toolResult(data: unknown, text: string) { return { content: [{ type: "text" as const, text }], structuredContent: data && typeof data === "object" ? data as Record<string, unknown> : { result: data } }; }
+const WORKFORCE_VISIBLE_RESULTS = new Set([
+  "XanxitoSpA status loaded.", "Worker registered.", "Workers loaded.",
+  "Source worker accepted.", "Source worker revoked.", "Delegation queued.",
+  "Pickup checked.", "Receipt loaded.", "Grok wake status loaded.", "Lease renewed.", "Delegation settled."
+]);
+function toolResult(data: unknown, text: string) {
+  const structuredContent = data && typeof data === "object" ? data as Record<string, unknown> : { result: data };
+  // Some MCP hosts forward content[].text but discard structuredContent. Keep
+  // the structured payload unchanged and expose authorized Workforce receipts
+  // as text so the recipient can see delegationId and leaseGeneration.
+  const readable = WORKFORCE_VISIBLE_RESULTS.has(text)
+    ? JSON.stringify(structuredContent)
+    : text;
+  return { content: [{ type: "text" as const, text: readable }], structuredContent };
+}
 
 function parseWorkCreate(args: unknown): WorkCreateInput {
   const obj = (args && typeof args === "object" && !Array.isArray(args)) ? args as Record<string, unknown> : {};
@@ -592,7 +618,7 @@ function challenge(oauth: XspaOAuthConfig | undefined, scope: string) {
   if (!oauth) return { isError: true, content: [{ type: "text" as const, text: "Authentication required." }] };
   return { isError: true, content: [{ type: "text" as const, text: "Authentication required." }], _meta: { "mcp/www_authenticate": [oauthChallenge(oauth, scope)] } };
 }
-function requestContext(auth: XspaAuthContext): XspaRequestContext { return { principal: auth.subject || "chatgpt-app-user", scopes: [...auth.scopes] }; }
+function requestContext(auth: XspaAuthContext): XspaRequestContext { return { principal: auth.subject || "chatgpt-app-user", scopes: [...auth.scopes], authenticated: auth.authenticated, ...(auth.clientId ? {clientId:auth.clientId} : {}) }; }
 
 
 const COMPANY_DISCOVERY_SCHEMA_PROPERTIES = {
@@ -688,13 +714,23 @@ function companyIntakeSchema(extraProperties: Record<string, unknown> = {}, extr
   return { type: "object" as const, properties: { ...extraProperties, ...COMPANY_INTAKE_SCHEMA_PROPERTIES }, required: [...extraRequired, ...COMPANY_INTAKE_SCHEMA_REQUIRED], additionalProperties: false };
 }
 
-export function createXspaMcpServer(operations: XspaAppOperations, input: { auth: XspaAuthContext; oauth?: XspaOAuthConfig }): Server {
+export function createXspaMcpServer(operations: XspaAppOperations, input: { auth: XspaAuthContext; oauth?: XspaOAuthConfig; publicStatusOnly?: boolean }): Server {
   const server = new Server({ name: "xanxitospa", version: "1.0.0" }, { capabilities: { tools: {} } });
   const readSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.readScope] }] : [{ type: "noauth" }];
   const writeSchemes = input.oauth ? [{ type: "oauth2", scopes: [input.oauth.writeScope] }] : [{ type: "noauth" }];
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [
+  server.setRequestHandler("tools/list", async () => ({ tools: [
     { name: "xspa_status", title: "XanxitoSpA status", description: "Use this when you need runtime and Model Law readiness. This is public metadata and never returns secrets.", inputSchema: { type: "object", additionalProperties: false }, securitySchemes: [{ type: "noauth" }], _meta: { securitySchemes: [{ type: "noauth" }] }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_work_create", title: "Create company Work", description: "Use this to create one Company-scoped Work item before material execution. The deployment owns company identity; creating Work does not grant authority or budget.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" }, owner: { type: "string", maxLength: 200 }, objective: { type: "string", maxLength: 4000 }, scope: { type: "string", maxLength: 4000 } }, required: ["work_id", "owner", "objective", "scope"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
+    {name:"xspa_worker_register",title:"Register worker",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"host_hint":{"type":"string","maxLength":60},"capabilities":{"type":"array","items":{"type":"string"},"maxItems":24}},"required":["host_hint"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
+    {name:"xspa_worker_list",title:"Company worker directory",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{},"required":[],"additionalProperties":false},securitySchemes:readSchemes,_meta:{securitySchemes:readSchemes},annotations:{readOnlyHint:true,idempotentHint:true}},
+    {name:"xspa_workforce_revoke_source",title:"Revoke source worker",description:"Target may revoke acceptance of future delegated instructions from a source worker. Previously claimed work is not affected.",inputSchema:{type:"object",properties:{target_worker_id:{type:"string",format:"uuid"},source_worker_id:{type:"string",format:"uuid"}},required:["target_worker_id","source_worker_id"],additionalProperties:false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:true}},
+    {name:"xspa_workforce_allow_source",title:"Accept source worker",description:"Target must explicitly opt in to work instructions from another authenticated worker.",inputSchema:{type:"object",properties:{target_worker_id:{type:"string",format:"uuid"},source_worker_id:{type:"string",format:"uuid"}},required:["target_worker_id","source_worker_id"],additionalProperties:false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:true}},
+    {name:"xspa_workforce_delegate",title:"Delegate scoped Company Work",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"source_worker_id":{"type":"string","format":"uuid"},"target_worker_id":{"type":"string","format":"uuid"},"work_id":{"type":"string","format":"uuid"},"instruction":{"type":"string","maxLength":12000},"idempotency_key":{"type":"string","maxLength":160}},"required":["source_worker_id","target_worker_id","work_id","instruction","idempotency_key"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
+    {name:"xspa_workforce_pickup",title:"Claim work with fenced lease",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"}},"required":["worker_id"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
+    {name:"xspa_workforce_wake_status",title:"Read Grok Routine wake delivery",description:"OAuth ownership-scoped wake telemetry. A signal accepted by the Routine is not proof of model execution.",inputSchema:{type:"object",properties:{delegation_id:{type:"string",format:"uuid"}},required:["delegation_id"],additionalProperties:false},securitySchemes:readSchemes,_meta:{securitySchemes:readSchemes},annotations:{readOnlyHint:true,idempotentHint:true}},
+    {name:"xspa_workforce_receipt",title:"Read delegated result",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"delegation_id":{"type":"string","format":"uuid"}},"required":["delegation_id"],"additionalProperties":false},securitySchemes:readSchemes,_meta:{securitySchemes:readSchemes},annotations:{readOnlyHint:true,idempotentHint:true}},
+    {name:"xspa_workforce_complete",title:"Settle leased work",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"},"delegation_id":{"type":"string","format":"uuid"},"lease_generation":{"type":"integer","minimum":1},"result_text":{"type":"string","maxLength":20000},"failed":{"type":"boolean"}},"required":["worker_id","delegation_id","lease_generation","result_text"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
+    {name:"xspa_workforce_renew",title:"Extend fenced lease",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"},"delegation_id":{"type":"string","format":"uuid"},"lease_generation":{"type":"integer","minimum":1}},"required":["worker_id","delegation_id","lease_generation"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
     { name: "xspa_work_get", title: "Get company Work", description: "Use this to read one Work item in the deployment Company scope. It cannot select another Company.", inputSchema: { type: "object", properties: { work_id: { type: "string", format: "uuid" } }, required: ["work_id"], additionalProperties: false }, securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_plan", title: "Plan Company discovery revision", description: "Build an evidence-based Company discovery revision. Read-only and descriptive: it grants no authority, budget, credentials or capabilities.", inputSchema: companyDiscoverySchema(), securitySchemes: readSchemes, _meta: { securitySchemes: readSchemes }, annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_company_discovery_apply", title: "Apply Company discovery revision", description: "Persist one evidence-based Company discovery revision with lineage and fingerprint. This cannot create Work or grant authority/budget/capabilities.", inputSchema: companyDiscoverySchema({ discovery_id: { type: "string", format: "uuid" }, expected_fingerprint: { type: "string", pattern: "^[a-fA-F0-9]{64}$" } }, ["discovery_id"]), securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
@@ -724,11 +760,12 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     { name: "xspa_autoskill_propose", title: "Create Company AutoSkill candidate", description: "Create a sanitized Company-local skill definition, install it for one department and register a CorporateGene type=skill candidate. This is Business Learning and does not use KAST or write the global catalog.", inputSchema: { type: "object", properties: { proposal_id: { type: "string", format: "uuid" }, skill_id: { type: "string", maxLength: 80 }, name: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 1200 }, instructions: { type: "string", maxLength: 4000 }, department: { type: "string", maxLength: 160 }, triggers: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 32 }, scopes: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 16 }, capabilities: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 32 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 } }, required: ["proposal_id", "skill_id", "name", "description", "instructions", "department", "triggers", "scopes", "capabilities"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_skill_global_promotion_propose", title: "Propose global skill promotion", description: "Escalate a proven Company-local champion SkillGene for possible reusable global catalog promotion. This is the KAST-governed system-change boundary and never writes the global catalog directly.", inputSchema: { type: "object", properties: { proposal_id: { type: "string", format: "uuid" }, session_ref: { type: "string", maxLength: 500 }, skill_id: { type: "string", maxLength: 80 }, summary: { type: "string", maxLength: 1200 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 }, severity: { type: "string", enum: ["low", "medium", "high", "critical"], default: "medium" } }, required: ["proposal_id", "session_ref", "skill_id", "summary"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
     { name: "xspa_kast_reflect", title: "KAST reflection", description: "Use this when GPT detects a harness bug, friction, test gap, workaround, security issue, or concrete improvement. Constitutional surfaces remain Founder/Board-only.", inputSchema: { type: "object", properties: { reflection_id: { type: "string", format: "uuid" }, session_ref: { type: "string" }, mode: { type: "string", enum: ["noop", "remember", "improve"] }, category: { type: "string", enum: ["bug", "friction", "opportunity", "performance", "security", "test-gap", "repeated-workaround"] }, severity: { type: "string", enum: ["low", "medium", "high", "critical"] }, summary: { type: "string", maxLength: 2000 }, evidence_refs: { type: "array", items: { type: "string" }, maxItems: 32 }, recurrence: { type: "integer", minimum: 1, default: 1 }, affected_surfaces: { type: "array", items: { type: "string", enum: [...KAST_SURFACES] }, maxItems: 16 }, strategy_overlays: { type: "array", items: { type: "string" }, maxItems: 4 } }, required: ["reflection_id", "session_ref", "mode", "category", "severity", "summary"], additionalProperties: false }, securitySchemes: writeSchemes, _meta: { securitySchemes: writeSchemes }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } },
-  ] }));
+   ].filter(tool => !input.publicStatusOnly || tool.name === "xspa_status").map(tool => ({...tool,inputSchema:{...tool.inputSchema,type:"object" as const}})) }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler("tools/call", async (request) => {
     try {
-      if (request.params.name === "xspa_status") return toolResult(await operations.status(), "XanxitoSpA status loaded.");
+      if (input.publicStatusOnly && request.params.name !== "xspa_status") return { isError: true, content: [{ type: "text", text: "PUBLIC_STATUS_ONLY: authentication required before business operations" }] };
+      if (request.params.name === "xspa_status") return toolResult({ ...await operations.status(), access: { mode: input.publicStatusOnly ? "status-only" : (input.oauth ? "oauth" : "local"), businessToolsEnabled: !input.publicStatusOnly, oauthConfigured: Boolean(input.oauth) } }, "XanxitoSpA status loaded.");
       if (request.params.name === "xspa_company_discovery_plan") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyDiscoveryPlan(parseCompanyDiscovery(request.params.arguments), requestContext(input.auth)), "Company discovery revision planned.");
@@ -788,6 +825,55 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
       if (request.params.name === "xspa_company_status") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
         return toolResult(await operations.companyStatus(requestContext(input.auth)), "Company operating model loaded.");
+      }
+
+      if(request.params.name==="xspa_worker_register"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceRegister({hostHint:assertText(a?.host_hint,"host_hint",60),capabilities:assertStringArray(a?.capabilities,"capabilities",24)},requestContext(input.auth)),"Worker registered.");
+      }
+      if(request.params.name==="xspa_worker_list"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.readScope))return challenge(input.oauth,input.oauth.readScope);
+        return toolResult(await operations.workforceWorkers(requestContext(input.auth)),"Workers loaded.");
+      }
+      if(request.params.name==="xspa_workforce_revoke_source"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceRevokeSource({targetWorkerId:assertId(a?.target_worker_id,"target_worker_id"),sourceWorkerId:assertId(a?.source_worker_id,"source_worker_id")},requestContext(input.auth)),"Source worker revoked.");
+      }
+      if(request.params.name==="xspa_workforce_allow_source"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceAllowSource({targetWorkerId:assertId(a?.target_worker_id,"target_worker_id"),sourceWorkerId:assertId(a?.source_worker_id,"source_worker_id")},requestContext(input.auth)),"Source worker accepted.");
+      }
+      if(request.params.name==="xspa_workforce_delegate"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceDelegate({sourceWorkerId:assertId(a?.source_worker_id,"source_worker_id"),targetWorkerId:assertId(a?.target_worker_id,"target_worker_id"),workId:assertId(a?.work_id,"work_id"),instruction:assertText(a?.instruction,"instruction",12000),idempotencyKey:assertText(a?.idempotency_key,"idempotency_key",160)},requestContext(input.auth)),"Delegation queued.");
+      }
+      if(request.params.name==="xspa_workforce_pickup"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforcePickup({workerId:assertId(a?.worker_id,"worker_id")},requestContext(input.auth)),"Pickup checked.");
+      }
+      if(request.params.name==="xspa_workforce_wake_status"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.readScope))return challenge(input.oauth,input.oauth.readScope);
+        const args=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceWakeStatus(assertId(args?.delegation_id,"delegation_id"),requestContext(input.auth)),"Grok wake status loaded.");
+      }
+      if(request.params.name==="xspa_workforce_receipt"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.readScope))return challenge(input.oauth,input.oauth.readScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceReceipt(assertId(a?.delegation_id,"delegation_id"),requestContext(input.auth)),"Receipt loaded.");
+      }
+      if(request.params.name==="xspa_workforce_complete"||request.params.name==="xspa_workforce_renew"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
+        const a=request.params.arguments as Record<string,unknown>|undefined;
+        const g=a?.lease_generation;
+        if(!Number.isSafeInteger(g)||Number(g)<1)throw Error("lease_generation invalid");
+        const args={workerId:assertId(a?.worker_id,"worker_id"),delegationId:assertId(a?.delegation_id,"delegation_id"),leaseGeneration:Number(g)};
+        if(request.params.name==="xspa_workforce_renew")return toolResult(await operations.workforceRenew(args,requestContext(input.auth)),"Lease renewed.");
+        return toolResult(await operations.workforceSettle({...args,resultText:assertText(a?.result_text,"result_text",20000),failed:a?.failed===true},requestContext(input.auth)),"Delegation settled.");
       }
       if (request.params.name === "xspa_work_get") {
         if (input.oauth && !hasScope(input.auth, input.oauth.readScope)) return challenge(input.oauth, input.oauth.readScope);
@@ -859,12 +945,15 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
   return server;
 }
 
-export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[] }) {
+export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; oauthIssuer?: SelfHostedOAuth; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[] }) {
   const host = input.host ?? "127.0.0.1";
   const derivedAllowedHosts = input.allowedHosts ?? (input.oauth ? [new URL(input.oauth.resource).hostname] : undefined);
   const app = createMcpExpressApp({ host, ...(derivedAllowedHosts && derivedAllowedHosts.length > 0 ? { allowedHosts: derivedAllowedHosts } : {}) });
   const oauthVerifier = input.oauth ? new JwtOAuthVerifier(input.oauth) : undefined;
   if (input.oauth) app.get("/.well-known/oauth-protected-resource", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
+  if (input.oauth) app.get("/.well-known/oauth-protected-resource/mcp", (_req: any, res: any) => res.json(protectedResourceMetadata(input.oauth!)));
+  if (input.oauthIssuer) input.oauthIssuer.mount(app);
+  if (input.oauth && !input.publicStatusOnly) installXspaA2a(app, { operations: input.operations, oauth: input.oauth });
   app.post("/mcp", async (req: any, res: any) => {
     let auth: XspaAuthContext = { authenticated: false, scopes: [] };
     const header = req.header("authorization");
@@ -876,24 +965,15 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
     } else if (input.authToken) {
       res.status(401).json({ error: "unauthorized" }); return;
     }
-    const server = createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}) });
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined } as unknown as ConstructorParameters<typeof StreamableHTTPServerTransport>[0]);
-    let cleaned = false;
-    const cleanup = async () => {
-      if (cleaned) return;
-      cleaned = true;
-      await transport.close().catch(() => undefined);
-      await server.close().catch(() => undefined);
-    };
-    res.once("close", () => { void cleanup(); });
-    res.once("finish", () => { void cleanup(); });
-    try {
-      await server.connect(transport as unknown as Transport);
-      await transport.handleRequest(req, res, req.body);
-    } catch (error) {
-      await cleanup();
-      throw error;
+    if(input.oauthIssuer && !auth.authenticated){
+      res.set("WWW-Authenticate",oauthChallenge(input.oauth!,input.oauth!.readScope));
+      res.status(401).json({error:"unauthorized"});return;
     }
+    const handler = createMcpHandler(() => createXspaMcpServer(input.operations, { auth, ...(input.oauth ? { oauth: input.oauth } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) }));
+    const nodeHandler = toNodeHandler(handler);
+    res.once("finish", () => { void handler.close(); });
+    res.once("close", () => { void handler.close(); });
+    await nodeHandler(req, res, req.body);
   });
   app.get("/mcp", (_req: any, res: any) => res.status(405).end());
   app.delete("/mcp", (_req: any, res: any) => res.status(405).end());
@@ -901,9 +981,9 @@ export function createXspaMcpExpressApp(input: { operations: XspaAppOperations; 
   return app;
 }
 
-export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
+export async function listenXspaMcp(input: { operations: XspaAppOperations; authToken?: string; oauth?: XspaOAuthConfig; oauthIssuer?: SelfHostedOAuth; publicStatusOnly?: boolean; host?: string; allowedHosts?: string[]; port: number }): Promise<HttpServer> {
   const host = input.host ?? "127.0.0.1";
-  assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}) });
+  assertMcpDeploymentAuth({ host, oauth: input.oauth ?? null, ...(input.authToken ? { internalAuthToken: input.authToken } : {}), ...(input.publicStatusOnly ? { publicStatusOnly: true } : {}) });
   const app = createXspaMcpExpressApp({ ...input, host }); const server = createHttpServer(app);
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(input.port, host, () => resolve()); });
   return server;
