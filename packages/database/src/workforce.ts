@@ -115,8 +115,8 @@ export class PostgresWorkforceStore implements WorkforceStore {
         // HTTP acceptance alone never changes this state.
         await c.query(`UPDATE xspa.workforce_wake_outbox
           SET picked_up_at=COALESCE(picked_up_at,now()),
-          state=CASE WHEN state='accepted' THEN 'observed' ELSE state END,
-          observed_at=CASE WHEN state='accepted' THEN COALESCE(observed_at,now()) ELSE observed_at END,
+          state=CASE WHEN accepted_at IS NOT NULL THEN 'observed' ELSE state END,
+          observed_at=CASE WHEN accepted_at IS NOT NULL THEN COALESCE(observed_at,now()) ELSE observed_at END,
           updated_at=now()
           WHERE company_id=$1 AND delegation_id=$2 AND state IN ('pending','sending','accepted','failed')`,
           [companyId,r.rows[0].delegation_id]);
