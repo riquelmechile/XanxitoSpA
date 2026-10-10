@@ -18,6 +18,15 @@ function output(result:ToolResult):Record<string,unknown> {
   assert(result.structuredContent && typeof result.structuredContent==="object","missing structured MCP result");
   return result.structuredContent;
 }
+function textOnly(result:ToolResult):Record<string,unknown> {
+  const blocks=result.content;
+  assert(Array.isArray(blocks),"missing MCP text content");
+  const first=blocks.find((b:unknown)=>b && typeof b==="object" && (b as {type?:string}).type==="text") as {text?:string}|undefined;
+  assert(typeof first?.text==="string","host-readable text missing");
+  const value:unknown=JSON.parse(first.text);
+  assert(value && typeof value==="object" && !Array.isArray(value),"text must carry a result object");
+  return value as Record<string,unknown>;
+}
 export async function verifyMultiHostOAuth():Promise<void>{
  const {publicKey,privateKey}=await generateKeyPair("RS256");
  const jwk=await exportJWK(publicKey);Object.assign(jwk,{kid:"xspa-mesh-smoke",alg:"RS256",use:"sig"});
@@ -50,7 +59,9 @@ export async function verifyMultiHostOAuth():Promise<void>{
   const impostor=await client("user-chatgpt","host-spoof");
   const readonly=await client("user-read","host-read","xspa.read");
   const writerA=output(await call(chatgpt,"xspa_worker_register",{host_hint:"chatgpt",capabilities:["research"]}));
-  const writerB=output(await call(claude,"xspa_worker_register",{host_hint:"claude",capabilities:["review"]}));
+  const regB=await call(claude,"xspa_worker_register",{host_hint:"claude",capabilities:["review"]});
+  const writerB=output(regB);
+  assert(textOnly(regB).workerId===writerB.workerId,"text-only host did not receive workerId");
   const alice=writerA.workerId as string,bob=writerB.workerId as string;
   const reconnected=output(await call(chatgpt,"xspa_worker_register",{host_hint:"chatgpt",capabilities:["research"]}));
   assert(reconnected.workerId===alice,"reconnection generated a new workforce actor");
@@ -75,7 +86,10 @@ export async function verifyMultiHostOAuth():Promise<void>{
   assert(first.delegationId===second.delegationId,"MCP retry generated duplicate work");
   const stolen=await call(chatgpt,"xspa_workforce_pickup",{worker_id:bob});
   assert(stolen.isError===true,"source impersonated recipient");
-  const picked=output(await call(claude,"xspa_workforce_pickup",{worker_id:bob}));
+  const rawPickup=await call(claude,"xspa_workforce_pickup",{worker_id:bob});
+  const picked=output(rawPickup);
+  assert(textOnly(rawPickup).leaseGeneration===picked.leaseGeneration &&
+    textOnly(rawPickup).delegationId===picked.delegationId,"text-only host lost leaseGeneration or delegationId");
   assert(picked.state==="claimed"&&picked.instruction===instruction&&picked.leaseGeneration===1,"recipient could not claim");
   const conflict=await call(claude,"xspa_workforce_complete",{worker_id:bob,delegation_id:first.delegationId,lease_generation:2,result_text:"spoofed"});
   assert(conflict.isError===true,"stale generation accepted");
