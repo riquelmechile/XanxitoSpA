@@ -76,6 +76,14 @@ export class CompanyWorkforceOperations {
     if(!ok)throw Error("WORKFORCE_LEASE_NOT_CURRENT");
     return {delegationId:input.delegationId,state:input.failed?"failed":"completed",leaseGeneration:input.leaseGeneration,grantsAuthority:false};
   }
+  async wakeStatus(delegationId:string,ctx:WorkforceCaller){
+    // Delegation receipt has already enforced OAuth ownership for source/target.
+    const receipt=await this.receipt(delegationId,ctx);
+    if(receipt.state==="not-found")return receipt;
+    const status=await this.store.wakeStatus?.(this.companyId,delegationId);
+    return {delegationId, ...(status??{state:"not-configured",attempts:0,modelExecutionObserved:false}),
+      companyScoped:true,grantsAuthority:false,grantsBudget:false};
+  }
   async renew(input:WorkforceRenewInput,ctx:WorkforceCaller){
     const key=this.identity(ctx,true);await this.owned(input.workerId,key);
     if(!Number.isSafeInteger(input.leaseGeneration)||input.leaseGeneration<1)throw Error("WORKFORCE_INVALID_LEASE");
