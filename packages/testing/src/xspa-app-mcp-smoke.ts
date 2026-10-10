@@ -27,6 +27,7 @@ export async function verifyXspaAppMcp(): Promise<void> {
     workforceDelegate: async () => ({state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
     workforceReceipt: async () => ({state:"not-found"}),
+    workforceWakeStatus: async () => ({state:"not-configured",attempts:0,modelExecutionObserved:false}),
     workforceSettle: async () => ({state:"completed"}),
     workforceRenew: async () => ({renewed:true}),
     workCreate: async (input) => {
