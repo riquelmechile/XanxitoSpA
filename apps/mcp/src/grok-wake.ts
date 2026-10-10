@@ -35,9 +35,11 @@ export function loadGrokWakeConfig(
   if (url.protocol !== "https:" || url.hostname !== "api2.cursor.sh" ||
       url.username || url.password || url.hash || url.port || urlText.length > 1800)
     throw Error("XSPA_GROK_WAKE_URL_NOT_TRUSTED_CURSOR_HOST");
-  // Reject whitespace/control characters and weak/empty credentials,
-  // without assuming an undocumented prefix or leaking credential bytes.
-  if (!/^[A-Za-z0-9._~+/=-]{16,2048}$/.test(senderKey))
+  // Cursor does not document an API-key alphabet, minimum length or prefix.
+  // Reject only empty/control-bearing input and let Cursor return 401 for bad
+  // credentials. This prevents a miscopied but printable key from crashing the
+  // entire OAuth MCP service on boot; no secret is echoed or logged.
+  if (!senderKey || senderKey.length > 2048 || /[\x00-\x1f\x7f]/.test(senderKey))
     throw Error("XSPA_GROK_WAKE_SECRET_INVALID");
   const intervalMs = Number(env.XSPA_GROK_WAKE_INTERVAL_MS || "4000");
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1_000 || intervalMs > 60_000)
