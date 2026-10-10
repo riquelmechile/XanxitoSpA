@@ -104,12 +104,23 @@ export class PostgresWorkforceStore implements WorkforceStore {
   }
   async pickup(companyId:string,targetId:string,leaseMs:number){
     return this.db.withCompanyTransaction(companyId,async c=>{
-      const r=await c.query<WorkRow>(`WITH candidate AS(SELECT delegation_id FROM xspa.workforce_delegations
-      WHERE company_id=$1 AND target_worker_id=$2 AND (state='pending' OR(state='running' AND lease_until<=now()))
-      ORDER BY created_at,delegation_id FOR UPDATE SKIP LOCKED LIMIT 1)
-      UPDATE xspa.workforce_delegations w SET state='running',lease_generation=w.lease_generation+1,
-      lease_until=now()+($3::int*interval '1 millisecond'),updated_at=now() FROM candidate
-      WHERE w.company_id=$1 AND w.delegation_id=candidate.delegation_id RETURNING w.*`,[companyId,targetId,leaseMs]);
+      const r=await c.query<WorkRow>(`WITH candidate AS (
+        SELECT d.delegation_id FROM xspa.workforce_delegations d
+        LEFT JOIN xspa.workforce_wake_outbox o
+          ON o.company_id=d.company_id AND o.delegation_id=d.delegation_id
+        WHERE d.company_id=$1 AND d.target_worker_id=$2
+          AND (d.state='pending' OR (d.state='running' AND d.lease_until<=now()))
+        -- A webhook-driven Grok Routine must collect the signaled delegation,
+        -- not an old unsignaled pending item from a previous manual session.
+        ORDER BY CASE WHEN o.state IN ('sending','accepted') THEN 0 ELSE 1 END,
+          d.created_at,d.delegation_id
+        FOR UPDATE OF d SKIP LOCKED LIMIT 1
+      )
+      UPDATE xspa.workforce_delegations w
+      SET state='running',lease_generation=w.lease_generation+1,
+      lease_until=now()+($3::int*interval '1 millisecond'),updated_at=now()
+      FROM candidate WHERE w.company_id=$1
+        AND w.delegation_id=candidate.delegation_id RETURNING w.*`,[companyId,targetId,leaseMs]);
       if(r.rows[0]) {
         // Pickup from the OAuth-bound target proves the host consumed work.
         // HTTP acceptance alone never changes this state.
