@@ -22,7 +22,10 @@ export function loadGrokWakeConfig(
   if (env.XSPA_GROK_WAKE_ENABLED !== "true") return null;
   const workerId = env.XSPA_GROK_WAKE_WORKER_ID?.trim() ?? "";
   const urlText = env.XSPA_GROK_WAKE_URL?.trim() ?? "";
-  const senderKey = env.XSPA_GROK_WAKE_SECRET?.trim() ?? "";
+  // Cursor supplies an opaque Routine sender key or a ready-to-copy
+  // Authorization: Bearer header; there is no documented key prefix.
+  const secretInput = env.XSPA_GROK_WAKE_SECRET?.trim() ?? "";
+  const senderKey = secretInput.replace(/^(?:Authorization:\s*)?Bearer\s+/i, "");
   if (!hasDatabase || !oauthConfigured || !companyId || !UUID.test(companyId) || !UUID.test(workerId))
     throw Error("XSPA_GROK_WAKE_REQUIRES_OAUTH_DATABASE_AND_WORKER");
   let url: URL;
@@ -32,7 +35,9 @@ export function loadGrokWakeConfig(
   if (url.protocol !== "https:" || url.hostname !== "api2.cursor.sh" ||
       url.username || url.password || url.hash || url.port || urlText.length > 1800)
     throw Error("XSPA_GROK_WAKE_URL_NOT_TRUSTED_CURSOR_HOST");
-  if (!/^crsr_[A-Za-z0-9_-]{16,512}$/.test(senderKey))
+  // Reject whitespace/control characters and weak/empty credentials,
+  // without assuming an undocumented prefix or leaking credential bytes.
+  if (!/^[A-Za-z0-9._~+/=-]{16,2048}$/.test(senderKey))
     throw Error("XSPA_GROK_WAKE_SECRET_INVALID");
   const intervalMs = Number(env.XSPA_GROK_WAKE_INTERVAL_MS || "4000");
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 1_000 || intervalMs > 60_000)
