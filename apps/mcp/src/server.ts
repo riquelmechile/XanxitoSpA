@@ -177,6 +177,7 @@ export interface XspaAppOperations {
   workforceDelegate(input:WorkforceDelegateInput,context:XspaRequestContext):Promise<unknown>;
   workforcePickup(input:WorkforceClaimInput,context:XspaRequestContext):Promise<unknown>;
   workforceReceipt(delegationId:string,context:XspaRequestContext):Promise<unknown>;
+  workforceWakeStatus(delegationId:string,context:XspaRequestContext):Promise<unknown>;
   workforceSettle(input:WorkforceSettleInput,context:XspaRequestContext):Promise<unknown>;
   workforceRenew(input:WorkforceRenewInput,context:XspaRequestContext):Promise<unknown>;
   workGet(workId: string, context: XspaRequestContext): Promise<unknown>;
@@ -232,7 +233,7 @@ function safeToolError(error: unknown): string {
 const WORKFORCE_VISIBLE_RESULTS = new Set([
   "XanxitoSpA status loaded.", "Worker registered.", "Workers loaded.",
   "Source worker accepted.", "Source worker revoked.", "Delegation queued.",
-  "Pickup checked.", "Receipt loaded.", "Lease renewed.", "Delegation settled."
+  "Pickup checked.", "Receipt loaded.", "Grok wake status loaded.", "Lease renewed.", "Delegation settled."
 ]);
 function toolResult(data: unknown, text: string) {
   const structuredContent = data && typeof data === "object" ? data as Record<string, unknown> : { result: data };
@@ -726,6 +727,7 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
     {name:"xspa_workforce_allow_source",title:"Accept source worker",description:"Target must explicitly opt in to work instructions from another authenticated worker.",inputSchema:{type:"object",properties:{target_worker_id:{type:"string",format:"uuid"},source_worker_id:{type:"string",format:"uuid"}},required:["target_worker_id","source_worker_id"],additionalProperties:false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:true}},
     {name:"xspa_workforce_delegate",title:"Delegate scoped Company Work",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"source_worker_id":{"type":"string","format":"uuid"},"target_worker_id":{"type":"string","format":"uuid"},"work_id":{"type":"string","format":"uuid"},"instruction":{"type":"string","maxLength":12000},"idempotency_key":{"type":"string","maxLength":160}},"required":["source_worker_id","target_worker_id","work_id","instruction","idempotency_key"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
     {name:"xspa_workforce_pickup",title:"Claim work with fenced lease",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"}},"required":["worker_id"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
+    {name:"xspa_workforce_wake_status",title:"Read Grok Routine wake delivery",description:"OAuth ownership-scoped wake telemetry. A signal accepted by the Routine is not proof of model execution.",inputSchema:{type:"object",properties:{delegation_id:{type:"string",format:"uuid"}},required:["delegation_id"],additionalProperties:false},securitySchemes:readSchemes,_meta:{securitySchemes:readSchemes},annotations:{readOnlyHint:true,idempotentHint:true}},
     {name:"xspa_workforce_receipt",title:"Read delegated result",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"delegation_id":{"type":"string","format":"uuid"}},"required":["delegation_id"],"additionalProperties":false},securitySchemes:readSchemes,_meta:{securitySchemes:readSchemes},annotations:{readOnlyHint:true,idempotentHint:true}},
     {name:"xspa_workforce_complete",title:"Settle leased work",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"},"delegation_id":{"type":"string","format":"uuid"},"lease_generation":{"type":"integer","minimum":1},"result_text":{"type":"string","maxLength":20000},"failed":{"type":"boolean"}},"required":["worker_id","delegation_id","lease_generation","result_text"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
     {name:"xspa_workforce_renew",title:"Extend fenced lease",description:"Company-scoped workforce; requires verified OAuth identity, never conveys permission or budget.",inputSchema:{"type":"object","properties":{"worker_id":{"type":"string","format":"uuid"},"delegation_id":{"type":"string","format":"uuid"},"lease_generation":{"type":"integer","minimum":1}},"required":["worker_id","delegation_id","lease_generation"],"additionalProperties":false},securitySchemes:writeSchemes,_meta:{securitySchemes:writeSchemes},annotations:{readOnlyHint:false,idempotentHint:false}},
@@ -853,6 +855,11 @@ export function createXspaMcpServer(operations: XspaAppOperations, input: { auth
         if(input.oauth&&!hasScope(input.auth,input.oauth.writeScope))return challenge(input.oauth,input.oauth.writeScope);
         const a=request.params.arguments as Record<string,unknown>|undefined;
         return toolResult(await operations.workforcePickup({workerId:assertId(a?.worker_id,"worker_id")},requestContext(input.auth)),"Pickup checked.");
+      }
+      if(request.params.name==="xspa_workforce_wake_status"){
+        if(input.oauth&&!hasScope(input.auth,input.oauth.readScope))return challenge(input.oauth,input.oauth.readScope);
+        const args=request.params.arguments as Record<string,unknown>|undefined;
+        return toolResult(await operations.workforceWakeStatus(assertId(args?.delegation_id,"delegation_id"),requestContext(input.auth)),"Grok wake status loaded.");
       }
       if(request.params.name==="xspa_workforce_receipt"){
         if(input.oauth&&!hasScope(input.auth,input.oauth.readScope))return challenge(input.oauth,input.oauth.readScope);
