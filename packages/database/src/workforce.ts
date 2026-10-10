@@ -20,6 +20,7 @@ export interface WorkforceStore {
   pickup(companyId:string,targetId:string,leaseMs:number):Promise<MeshWork|null>;
   settle(companyId:string,id:string,targetId:string,generation:number,result:string,failed:boolean):Promise<boolean>;
   renew(companyId:string,id:string,targetId:string,generation:number,leaseMs:number):Promise<boolean>;
+  wakeStatus?(companyId:string,delegationId:string):Promise<object>;
 }
 const clone=<T>(x:T):T=>structuredClone(x);
 export class InMemoryWorkforceStore implements WorkforceStore {
@@ -62,7 +63,7 @@ type WorkRow={company_id:string;delegation_id:string;source_worker_id:string;tar
 const actor=(r:ActorRow):MeshWorker=>({id:r.worker_id,companyId:r.company_id,ownerKey:r.owner_key,hostHint:r.host_hint,capabilities:r.capabilities});
 const work=(r:WorkRow):MeshWork=>({id:r.delegation_id,companyId:r.company_id,sourceWorkerId:r.source_worker_id,targetWorkerId:r.target_worker_id,workId:r.work_id,idempotencyKey:r.idempotency_key,fingerprint:r.fingerprint,instruction:r.instruction,state:r.state,leaseGeneration:Number(r.lease_generation),leaseUntil:r.lease_until?new Date(r.lease_until).toISOString():null,resultText:r.result_text,createdAt:new Date(r.created_at).toISOString()});
 export class PostgresWorkforceStore implements WorkforceStore {
-  constructor(private readonly db:PostgresDatabase){}
+  constructor(private readonly db:PostgresDatabase,private readonly grokWakeWorkerId:string|null=null){}
   async allowSource(companyId:string,targetId:string,sourceId:string):Promise<void>{
     await this.db.withCompanyTransaction(companyId,async c=>{await c.query("INSERT INTO xspa.workforce_allowed_sources(company_id,target_worker_id,source_worker_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[companyId,targetId,sourceId]);});
   }
@@ -86,7 +87,13 @@ export class PostgresWorkforceStore implements WorkforceStore {
       const r=await c.query<WorkRow>(`INSERT INTO xspa.workforce_delegations(company_id,delegation_id,source_worker_id,target_worker_id,work_id,idempotency_key,fingerprint,instruction,state)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT(company_id,source_worker_id,idempotency_key) DO NOTHING RETURNING *`,
       [a.companyId,a.id,a.sourceWorkerId,a.targetWorkerId,a.workId,a.idempotencyKey,a.fingerprint,a.instruction]);
-      if(r.rows[0])return work(r.rows[0]);
+      if(r.rows[0]){
+        if(a.targetWorkerId===this.grokWakeWorkerId) {
+          await c.query(`INSERT INTO xspa.workforce_wake_outbox(company_id,delegation_id,target_worker_id)
+            VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[a.companyId,a.id,a.targetWorkerId]);
+        }
+        return work(r.rows[0]);
+      }
       const old=await c.query<WorkRow>("SELECT * FROM xspa.workforce_delegations WHERE company_id=$1 AND source_worker_id=$2 AND idempotency_key=$3",[a.companyId,a.sourceWorkerId,a.idempotencyKey]);
       if(!old.rows[0]||old.rows[0].fingerprint!==a.fingerprint)throw Error("WORKFORCE_IDEMPOTENCY_CONFLICT");
       return work(old.rows[0]);
@@ -103,7 +110,31 @@ export class PostgresWorkforceStore implements WorkforceStore {
       UPDATE xspa.workforce_delegations w SET state='running',lease_generation=w.lease_generation+1,
       lease_until=now()+($3::int*interval '1 millisecond'),updated_at=now() FROM candidate
       WHERE w.company_id=$1 AND w.delegation_id=candidate.delegation_id RETURNING w.*`,[companyId,targetId,leaseMs]);
+      if(r.rows[0]) {
+        // Pickup from the OAuth-bound target proves the host consumed work.
+        // HTTP acceptance alone never changes this state.
+        await c.query(`UPDATE xspa.workforce_wake_outbox
+          SET state='observed',observed_at=COALESCE(observed_at,now()),
+          lease_token=NULL,lease_until=NULL,updated_at=now()
+          WHERE company_id=$1 AND delegation_id=$2 AND state IN ('pending','sending','accepted','failed')`,
+          [companyId,r.rows[0].delegation_id]);
+      }
       return r.rows[0]?work(r.rows[0]):null;
+    });
+  }
+  async wakeStatus(companyId:string,delegationId:string):Promise<object> {
+    return this.db.withCompanyTransaction(companyId,async c=>{
+      const r=await c.query<{
+        state:string;attempts:number;last_http_status:number|null;
+        last_error_category:string|null;accepted_at:Date|null;observed_at:Date|null;
+      }>(`SELECT state,attempts,last_http_status,last_error_category,accepted_at,observed_at
+         FROM xspa.workforce_wake_outbox WHERE company_id=$1 AND delegation_id=$2`,[companyId,delegationId]);
+      const row=r.rows[0];
+      return row?{state:row.state,attempts:row.attempts,lastHttpStatus:row.last_http_status,
+        lastErrorCategory:row.last_error_category,
+        signalAcceptedAt:row.accepted_at?.toISOString()??null,
+        wakeObservedAt:row.observed_at?.toISOString()??null,modelExecutionObserved:false}
+        :{state:"not-configured",attempts:0,modelExecutionObserved:false};
     });
   }
   async settle(companyId:string,id:string,targetId:string,generation:number,result:string,failed:boolean){
