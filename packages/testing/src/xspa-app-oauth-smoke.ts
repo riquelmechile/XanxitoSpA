@@ -62,6 +62,7 @@ export async function verifyXspaAppOAuth(): Promise<void> {
     workforceDelegate: async () => ({delegationId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",state:"pending"}),
     workforcePickup: async () => ({state:"empty"}),
     workforceReceipt: async () => ({delegationId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",workId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",state:"completed",resultText:"Worker completed"}),
+    workforceWakeStatus: async () => ({state:"not-configured",attempts:0,modelExecutionObserved:false}),
     workforceSettle: async () => ({state:"completed"}),
     workforceRenew: async () => ({renewed:true}),
     workCreate: async (input, context) => ({ workId: input.workId, status: "created", principal: context.principal }),
