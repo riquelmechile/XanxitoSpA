@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS xspa.workforce_wake_outbox (
   last_error_category text,
   accepted_at timestamptz,
   observed_at timestamptz,
+  picked_up_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (company_id, delegation_id)
