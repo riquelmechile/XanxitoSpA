@@ -73,6 +73,10 @@ jobs:
         env:
           XSPA_TEST_DATABASE_URL: postgresql://postgres:xspa@127.0.0.1:5432/xspa_test
         run: pnpm run mcp:self-oauth:pg:smoke
+      - name: Grok Routine wake outbox PostgreSQL E2E
+        env:
+          XSPA_TEST_DATABASE_URL: postgresql://postgres:xspa@127.0.0.1:5432/xspa_test
+        run: pnpm run mcp:grok-wake:pg:smoke
       - name: PostgreSQL 18 smoke
         env:
           XSPA_TEST_DATABASE_URL: postgresql://postgres:xspa@127.0.0.1:5432/xspa_test
